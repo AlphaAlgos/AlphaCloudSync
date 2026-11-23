@@ -338,5 +338,10 @@
   "authIncompleteMsg": "Otorisasi belum selesai.",
   "etaShort": "Sisa",
   "toastDriveUnmountedTitle": "Drive Cloud Terputus",
-  "toastDriveUnmountedBody": "{0} telah dilepas dari drive {1}."
+  "toastDriveUnmountedBody": "{0} telah dilepas dari drive {1}.",
+  "splashStage1": "Membuka AlphaCloudSync...",
+  "splashStage2": "Menyiapkan awal & antarmuka...",
+  "splashStage3": "Memuat akun & folder...",
+  "splashStage4": "Menyiapkan drive virtual...",
+  "splashStage5": "Membuka ruang kerja..."
 }

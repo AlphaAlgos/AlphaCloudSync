@@ -25,11 +25,37 @@ function Test-MountCommandLineMatchesEntry {
     return ($null -ne $matchedLtr -and $matchedLtr -eq $wantLtr)
 }
 
+$script:RcloneProcCacheList = $null
+$script:RcloneProcCacheUtc  = [datetime]::MinValue
+$script:SkipWmiMountProbe   = $false
+
+function Clear-RcloneProcessesCache {
+    $script:RcloneProcCacheList = $null
+    $script:RcloneProcCacheUtc  = [datetime]::MinValue
+}
+
+function Get-RcloneProcessesCached {
+    param([switch]$ForceRefresh)
+    $now = [datetime]::UtcNow
+    if (-not $ForceRefresh -and $null -ne $script:RcloneProcCacheList -and (($now - $script:RcloneProcCacheUtc).TotalSeconds -lt 2.0)) {
+        return $script:RcloneProcCacheList
+    }
+    try {
+        $script:RcloneProcCacheList = @(Get-CimInstance Win32_Process -Filter "Name = 'rclone.exe'" -ErrorAction SilentlyContinue)
+        $script:RcloneProcCacheUtc  = $now
+        return $script:RcloneProcCacheList
+    } catch { return @() }
+}
+
 function Test-IsExpectedMountProcess {
-    param([int]$ProcessId, [string]$TargetRemote, [string]$Letter)
+    param([int]$ProcessId, [string]$TargetRemote, [string]$Letter, [switch]$UseCache)
     if ($ProcessId -le 0) { return $false }
     try {
-        $pObj = Get-CimInstance Win32_Process -Filter "ProcessId = $ProcessId" -ErrorAction SilentlyContinue
+        $pObj = if ($UseCache) {
+            @(Get-RcloneProcessesCached) | Where-Object { [int]$_.ProcessId -eq $ProcessId } | Select-Object -First 1
+        } else {
+            Get-CimInstance Win32_Process -Filter "ProcessId = $ProcessId" -ErrorAction SilentlyContinue
+        }
         if ($null -eq $pObj -or $pObj.Name -ine "rclone.exe") { return $false }
         return (Test-MountCommandLineMatchesEntry -CommandLine $pObj.CommandLine -TargetRemote $TargetRemote -Letter $Letter)
     } catch { return $false }
@@ -42,16 +68,25 @@ function Get-MountsState {
         if ([string]::IsNullOrWhiteSpace($raw)) { return @() }
         $arr = ConvertFrom-Json -InputObject $raw
         if ($arr -isnot [System.Array]) { $arr = @($arr) }
+        if ($script:SkipWmiMountProbe) {
+            $fastAlive = @()
+            foreach ($m in $arr) {
+                if ($null -ne $m -and -not [string]::IsNullOrWhiteSpace($m.Remote) -and -not [string]::IsNullOrWhiteSpace($m.Letter) -and (Test-Path -LiteralPath "$($m.Letter)\")) {
+                    $fastAlive += $m
+                }
+            }
+            return $fastAlive
+        }
         $alive = @()
         $prunedDead = $false
         foreach ($m in $arr) {
             $procMatches = ($null -ne $m -and $m.Pid -and -not [string]::IsNullOrWhiteSpace($m.Remote) -and -not [string]::IsNullOrWhiteSpace($m.Letter) -and
-                (Test-IsExpectedMountProcess -ProcessId ([int]$m.Pid) -TargetRemote $m.Remote -Letter $m.Letter))
+                (Test-IsExpectedMountProcess -ProcessId ([int]$m.Pid) -TargetRemote $m.Remote -Letter $m.Letter -UseCache))
             if ($procMatches -and (Test-Path -LiteralPath "$($m.Letter)\")) {
                 $alive += $m
             } else {
                 $prunedDead = $true
-                if ($procMatches) {
+                if ($procMatches -and (Test-IsExpectedMountProcess -ProcessId ([int]$m.Pid) -TargetRemote $m.Remote -Letter $m.Letter)) {
                     Stop-Process -Id ([int]$m.Pid) -Force -ErrorAction SilentlyContinue
                 }
                 if ($m -and -not [string]::IsNullOrWhiteSpace($m.Letter) -and (Get-Command Clear-CloudDriveExplorerIcon -ErrorAction SilentlyContinue)) {
@@ -66,6 +101,7 @@ function Get-MountsState {
 
 function Save-MountsState {
     param([array]$List)
+    Clear-RcloneProcessesCache
     [System.IO.File]::WriteAllText($MountsFile, (ConvertTo-Json -InputObject @($List) -Depth 4), (New-Object System.Text.UTF8Encoding($false)))
 }
 
@@ -73,8 +109,9 @@ function Get-MountedLetterForRemote {
     param([string]$TargetRemote = $RemoteName)
     $tracked = @(Get-MountsState | Where-Object { $_.Remote -eq $TargetRemote })
     if ($tracked.Count -gt 0) { return $tracked[0].Letter.ToUpperInvariant() }
+    if ($script:SkipWmiMountProbe) { return $null }
     try {
-        $procs = Get-CimInstance Win32_Process -Filter "Name = 'rclone.exe'" -ErrorAction SilentlyContinue
+        $procs = @(Get-RcloneProcessesCached)
         foreach ($p in $procs) {
             $mLtr = Match-MountCommandLineForRemote -CommandLine $p.CommandLine -TargetRemote $TargetRemote
             if ($null -ne $mLtr -and (Test-Path -LiteralPath "${mLtr}\")) { return $mLtr }
@@ -95,9 +132,9 @@ function Get-UnifiedMountInfo {
     if ($tracked.Count -gt 0) {
         $m = $tracked[0]
         $rems = if ($m.PSObject.Properties["Remotes"] -and $null -ne $m.Remotes -and @($m.Remotes).Count -gt 0) { @($m.Remotes) } else { @() }
-        if ($rems.Count -eq 0) {
+        if ($rems.Count -eq 0 -and -not $script:SkipWmiMountProbe) {
             try {
-                $pObj = Get-CimInstance Win32_Process -Filter "ProcessId = $($m.Pid)" -ErrorAction SilentlyContinue
+                $pObj = @(Get-RcloneProcessesCached) | Where-Object { [int]$_.ProcessId -eq [int]$m.Pid } | Select-Object -First 1
                 if ($pObj -and $pObj.CommandLine) {
                     $rems = @([regex]::Matches($pObj.CommandLine, '=([A-Za-z0-9_-]+):') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
                 }
@@ -105,10 +142,11 @@ function Get-UnifiedMountInfo {
         }
         return [PSCustomObject]@{ Letter = $m.Letter.ToUpperInvariant(); Remotes = $rems }
     }
+    if ($script:SkipWmiMountProbe) { return $null }
     try {
-        $procs = Get-CimInstance Win32_Process -Filter "Name = 'rclone.exe'" -ErrorAction SilentlyContinue |
-            Where-Object { $_.CommandLine -match '\bmount\s+:combine:\s+([A-Za-z]:)' -and $_.CommandLine -match 'vfs-cache[\\/]unified-all' }
-        if ($procs -and ($procs[0].CommandLine -match '\bmount\s+:combine:\s+([A-Za-z]:)')) {
+        $procs = @(Get-RcloneProcessesCached |
+            Where-Object { $_.CommandLine -match '\bmount\s+:combine:\s+([A-Za-z]:)' -and $_.CommandLine -match 'vfs-cache[\\/]unified-all' })
+        if ($procs.Count -gt 0 -and ($procs[0].CommandLine -match '\bmount\s+:combine:\s+([A-Za-z]:)')) {
             $l = $Matches[1].ToUpperInvariant()
             if (Test-Path -LiteralPath "${l}\") {
                 $rems = @([regex]::Matches($procs[0].CommandLine, '=([A-Za-z0-9_-]+):') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
@@ -339,10 +377,11 @@ function Build-UnifiedMountCommandArgs {
 function Get-UnifiedMountLetter {
     $tracked = @(Get-MountsState | Where-Object { $_.Remote -eq "__UNIFIED__" })
     if ($tracked.Count -gt 0) { return $tracked[0].Letter.ToUpperInvariant() }
+    if ($script:SkipWmiMountProbe) { return $null }
     try {
-        $procs = Get-CimInstance Win32_Process -Filter "Name = 'rclone.exe'" -ErrorAction SilentlyContinue |
-            Where-Object { $_.CommandLine -match '\bmount\s+:combine:\s+([A-Za-z]:)' -and $_.CommandLine -match 'vfs-cache[\\/]unified-all' }
-        if ($procs -and ($procs[0].CommandLine -match '\bmount\s+:combine:\s+([A-Za-z]:)')) {
+        $procs = @(Get-RcloneProcessesCached |
+            Where-Object { $_.CommandLine -match '\bmount\s+:combine:\s+([A-Za-z]:)' -and $_.CommandLine -match 'vfs-cache[\\/]unified-all' })
+        if ($procs.Count -gt 0 -and ($procs[0].CommandLine -match '\bmount\s+:combine:\s+([A-Za-z]:)')) {
             $l = $Matches[1].ToUpperInvariant()
             if (Test-Path -LiteralPath "${l}\") { return $l }
         }

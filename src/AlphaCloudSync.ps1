@@ -57,6 +57,7 @@ $SettingsPath = Join-Path $AppDataDir "settings.json"
 $HealthPath   = Join-Path $AppDataDir "backup-health.json"
 $IpcCmdFile   = Join-Path $LocalDataDir "ipc-command.json"
 $IpcQueueDir  = Join-Path $LocalDataDir "ipc-queue"
+$UiAccountCacheFile = Join-Path $LocalDataDir "ui-account-cache.json"
 
 foreach ($d in @($AppDataDir, $IconsStoreDir, $LocalBinDir, $LocalLogsDir, $RestoreBkDir, $ProfilesDir, $IpcQueueDir)) {
     if (-not (Test-Path -LiteralPath $d)) {
@@ -184,37 +185,32 @@ $script:IsRefreshing = $false
 
 Apply-UiLanguage -Lang $langCodeInit -SkipShellSync
 Select-StudioTab "Folders"
-Refresh-StudioHeader
-if ([bool]$Settings.ShowFolderBadges) { Sync-AllFolderAndDriveBadges -Enable $true }
-$null = Set-ExplorerContextMenuEnabled -Enable ([bool]$Settings.ExplorerContextMenu)
-Sync-RealTimeWatchers
-if ($script:IslandEnabled) { Set-CloudIslandEnabled -Enable $true }
-Write-StudioLog -Msg "AlphaCloudSync v$AppVersion Studio ready (Modular Core + Provider Registry, Native Dark Fluent UI, Multi-Drive Explorer Hub, 7 Languages)." -TargetRemote $script:ActiveRemote
+Set-SplashStage "3"
+Load-UiAccountCache
+$script:SkipWmiMountProbe = $true
+Refresh-StudioHeader -FastLocalOnly
+Set-SplashStage "4"
+$script:SkipWmiMountProbe = $false
+$null = Get-MountsState
+Set-SplashStage "5"
+Write-StudioLog -Msg "AlphaCloudSync v$AppVersion Studio ready (Instant Launch, Sequential Account Hydration, Modular Core, 7 Languages)." -TargetRemote $script:ActiveRemote
 
 $script:WpfApp = [System.Windows.Application]::Current
 if ($null -eq $script:WpfApp) { $script:WpfApp = New-Object System.Windows.Application }
 $script:WpfApp.ShutdownMode = [System.Windows.ShutdownMode]::OnExplicitShutdown
 $script:WpfApp.MainWindow   = $window
 
-if (-not [string]::IsNullOrWhiteSpace($script:PendingContextAction)) {
+if (-not $Minimized) {
     $window.Add_ContentRendered({
         try {
-            $actC = $script:PendingContextAction; $pthC = $script:PendingContextPath
-            $script:PendingContextAction = ""; $script:PendingContextPath = ""
-            if (-not [string]::IsNullOrWhiteSpace($actC)) { Invoke-HandleContextCommand -ContextAction $actC -FolderPath $pthC }
-            if (Get-Command Invoke-DrainIpcQueue -ErrorAction SilentlyContinue) { Invoke-DrainIpcQueue }
+            Bring-MainWindowToForeground -InitialLaunch
+            Set-SplashStage "DONE"
+            $window.Dispatcher.BeginInvoke([Action]{ Invoke-PostStartupHousekeep }, [System.Windows.Threading.DispatcherPriority]::Background) | Out-Null
         } catch {}
     })
-} elseif ($AutoStartSync) {
-    if ($Minimized) {
-        $window.Dispatcher.BeginInvoke([Action]{ try { Start-StudioBatch -Mode "Sync" } catch {} }, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle) | Out-Null
-    } else {
-        $window.Add_ContentRendered({ try { Start-StudioBatch -Mode "Sync"; if (Get-Command Invoke-DrainIpcQueue -ErrorAction SilentlyContinue) { Invoke-DrainIpcQueue } } catch {} })
-    }
-} else {
-    $window.Add_ContentRendered({ try { if (Get-Command Invoke-DrainIpcQueue -ErrorAction SilentlyContinue) { Invoke-DrainIpcQueue } } catch {} })
-}
-if (-not $Minimized) {
+    $window.Topmost = $true
     $window.Show()
+} else {
+    $window.Dispatcher.BeginInvoke([Action]{ Invoke-PostStartupHousekeep }, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle) | Out-Null
 }
 [void]$script:WpfApp.Run()

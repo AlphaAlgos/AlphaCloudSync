@@ -203,19 +203,43 @@ $window.Add_SizeChanged({
     Update-ResponsiveLayout
 })
 
-function Restore-MainWindowFromTray {
+function Bring-MainWindowToForeground {
+    param([switch]$InitialLaunch)
     try {
-        $window.Show()
-        $window.WindowState = $script:RestoreStateTray
+        if (-not $window.IsVisible) { $window.Show() }
+        if ($window.WindowState -eq [System.Windows.WindowState]::Minimized) {
+            $window.WindowState = if ($script:RestoreStateTray -eq [System.Windows.WindowState]::Maximized) { [System.Windows.WindowState]::Maximized } else { [System.Windows.WindowState]::Normal }
+        }
         $window.Topmost = $true
-        $window.Activate()
-        $window.Focus()
+        $null = $window.Activate()
+        $null = $window.Focus()
         if ("AlphaWinShellHelper" -as [type]) {
             $hwnd = (New-Object System.Windows.Interop.WindowInteropHelper $window).Handle
             if ($hwnd -ne [IntPtr]::Zero) { [AlphaWinShellHelper]::ForceForeground($hwnd) }
         }
-        $window.Topmost = $false
+        if ($InitialLaunch) {
+            $window.Dispatcher.BeginInvoke([Action]{
+                try {
+                    if ("AlphaWinShellHelper" -as [type]) {
+                        $h2 = (New-Object System.Windows.Interop.WindowInteropHelper $window).Handle
+                        if ($h2 -ne [IntPtr]::Zero) { [AlphaWinShellHelper]::ForceForeground($h2) }
+                    }
+                    $null = $window.Activate()
+                    $window.Topmost = $false
+                } catch {}
+            }, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle) | Out-Null
+        } else {
+            $window.Topmost = $false
+        }
         Update-WindowChromeMaximizeMargin
+    } catch {}
+}
+
+function Restore-MainWindowFromTray {
+    try {
+        $window.Show()
+        $window.WindowState = $script:RestoreStateTray
+        Bring-MainWindowToForeground
     } catch {}
 }
 
@@ -947,6 +971,7 @@ $script:AppShuttingDown = $false
 function Stop-AlphaCloudSyncApp {
     if ($script:AppShuttingDown) { return }
     $script:AppShuttingDown = $true
+    try { if (Get-Command Stop-SequentialAccountHydration -ErrorAction SilentlyContinue) { Stop-SequentialAccountHydration } } catch {}
     try { if ($null -ne $timer) { $timer.Stop() } } catch {}
     try { if ($null -ne $script:RestoreSignalTimer) { $script:RestoreSignalTimer.Stop() } } catch {}
     try { Persist-GridCheckboxChanges } catch {}
@@ -1090,13 +1115,13 @@ function Switch-AccountActivityView {
 }
 
 function Build-SidebarAccountCardObject {
-    param([string]$TargetRemote, [array]$Mounts)
+    param([string]$TargetRemote, [array]$Mounts, $UniInfo = $null, [switch]$UniInfoProvided)
     $disp = Get-AccountDisplayLabel -TargetRemote $TargetRemote
     $m = $Mounts | Where-Object { $_.Remote -eq $TargetRemote } | Select-Object -First 1
     $ltr = if ($null -ne $m) { $m.Letter } else { Get-MountedLetterForRemote -TargetRemote $TargetRemote }
     $isUniMember = $false
     $isMounted   = ($null -ne $ltr)
-    $uniInfo = Get-UnifiedMountInfo
+    $uniInfo = if ($UniInfoProvided) { $UniInfo } else { Get-UnifiedMountInfo }
     if (-not $isMounted -and $null -ne $uniInfo -and -not [string]::IsNullOrWhiteSpace($uniInfo.Letter)) {
         if ($uniInfo.Remotes.Count -eq 0 -or ($uniInfo.Remotes -contains $TargetRemote)) {
             $ltr = $uniInfo.Letter
@@ -1170,11 +1195,12 @@ function Refresh-SidebarAccountsOverview {
     try {
         $remotes = if ($script:CachedDriveRemotes.Count -gt 0) { @($script:CachedDriveRemotes) } else { @(Get-ConfiguredDriveRemotes) }
         if ($remotes.Count -eq 0) { $remotes = @($script:ActiveRemote) }
-        $mounts = @(Get-MountsState)
+        $mounts  = @(Get-MountsState)
+        $uniSnap = Get-UnifiedMountInfo
         $TxtSidebarAccountsCount.Text = "$($remotes.Count)"
         $script:SidebarAccountCards.Clear()
         foreach ($r in $remotes) {
-            $script:SidebarAccountCards.Add((Build-SidebarAccountCardObject -TargetRemote $r -Mounts $mounts))
+            $script:SidebarAccountCards.Add((Build-SidebarAccountCardObject -TargetRemote $r -Mounts $mounts -UniInfo $uniSnap -UniInfoProvided))
         }
     } catch {}
 }
@@ -1183,13 +1209,317 @@ function Update-SidebarSingleAccountCard {
     param([string]$TargetRemote)
     if ([string]::IsNullOrWhiteSpace($TargetRemote)) { return }
     try {
-        $mounts = @(Get-MountsState)
+        $mounts  = @(Get-MountsState)
+        $uniSnap = Get-UnifiedMountInfo
         for ($i = 0; $i -lt $script:SidebarAccountCards.Count; $i++) {
             if ($script:SidebarAccountCards[$i].Remote -eq $TargetRemote) {
-                $script:SidebarAccountCards[$i] = Build-SidebarAccountCardObject -TargetRemote $TargetRemote -Mounts $mounts
+                $script:SidebarAccountCards[$i] = Build-SidebarAccountCardObject -TargetRemote $TargetRemote -Mounts $mounts -UniInfo $uniSnap -UniInfoProvided
                 return
             }
         }
+    } catch {}
+}
+
+# ==============================================================================
+# SEQUENTIAL NON-BLOCKING ACCOUNT HYDRATION QUEUE (Account #1 -> #2 -> ... #N)
+# Never blocks window launch or UI clicks even with 10-50+ Google Drive accounts!
+# ==============================================================================
+$script:HydrateQueue       = New-Object System.Collections.Generic.List[string]
+$script:HydrateTimer       = $null
+$script:HydrateCurrentRem  = $null
+$script:HydratePhase       = "Idle"
+$script:HydrateProc        = $null
+$script:HydrateOutTask     = $null
+$script:HydrateWebClient   = $null
+$script:HydrateWebTask     = $null
+$script:HydrateStartUtc    = [datetime]::MinValue
+$script:HydrateDoneCount   = 0
+$script:HydrateTotalCount  = 0
+$script:HydrateRefreshedUtc = @{}
+
+function Stop-SequentialAccountHydration {
+    try { if ($null -ne $script:HydrateTimer) { $script:HydrateTimer.Stop() } } catch {}
+    try {
+        if ($null -ne $script:HydrateProc) {
+            if (-not $script:HydrateProc.HasExited) { $script:HydrateProc.Kill() }
+            $script:HydrateProc.Dispose()
+            $script:HydrateProc = $null
+        }
+    } catch {}
+    try {
+        if ($null -ne $script:HydrateWebClient) {
+            $script:HydrateWebClient.CancelAsync()
+            $script:HydrateWebClient.Dispose()
+            $script:HydrateWebClient = $null
+        }
+    } catch {}
+    $script:HydrateOutTask    = $null
+    $script:HydrateWebTask    = $null
+    $script:HydrateCurrentRem = $null
+    $script:HydratePhase      = "Idle"
+    $script:HydrateQueue.Clear()
+}
+
+function Apply-HydratedAccountToUi {
+    param([string]$TargetRemote)
+    try {
+        Update-SidebarSingleAccountCard -TargetRemote $TargetRemote
+        if ($TargetRemote -eq $script:ActiveRemote) {
+            Update-DriveQuotaDisplay -UseCache
+            $bc = New-Object System.Windows.Media.BrushConverter
+            $ident = Get-ConnectedGoogleIdentity -TargetRemote $TargetRemote -CacheOnly
+            $dispLabel = Get-AccountDisplayLabel -TargetRemote $TargetRemote
+            if ($ident.Connected) {
+                $idDisplay = if (-not [string]::IsNullOrWhiteSpace($ident.DisplayName)) { "$($ident.Email) ($($ident.DisplayName))" } else { $ident.Email }
+                $TxtAccountStatus.Text    = Wrap-Ltr $idDisplay
+                $TxtAccountStatus.ToolTip = $idDisplay
+                $DotAccount.Fill          = $bc.ConvertFromString("#10B981")
+                $TxtSettingsAccount.Text  = if ($idDisplay -ieq $dispLabel) { Wrap-Ltr $dispLabel } else { Wrap-Ltr "$dispLabel  --  $idDisplay" }
+                $DotSettingsAccount.Fill  = $bc.ConvertFromString("#10B981")
+                $BtnCustomClientId.Content = if ($ident.HasCustomClientId) { L "apiKeyActive" } else { L "apiKey" }
+            }
+        }
+        # Refresh dropdown label if AutoName was just discovered
+        $prevR = $script:IsRefreshing
+        $script:IsRefreshing = $true
+        try {
+            $newLbl = Get-AccountDisplayLabel -TargetRemote $TargetRemote
+            foreach ($ci in $CmbAccountProfile.Items) {
+                if ($ci -is [System.Windows.Controls.ComboBoxItem] -and [string]$ci.Tag -eq $TargetRemote -and [string]$ci.Content -ne $newLbl) {
+                    $ci.Content = $newLbl
+                }
+            }
+        } finally { $script:IsRefreshing = $prevR }
+    } catch {}
+}
+
+function Step-SequentialAccountHydration {
+    try {
+        if ($script:AppShuttingDown) { Stop-SequentialAccountHydration; return }
+        $now = [datetime]::UtcNow
+
+        if ($script:HydratePhase -eq "About") {
+            $timedOut = (($now - $script:HydrateStartUtc).TotalSeconds -ge 12.0)
+            if ($null -eq $script:HydrateProc -or $script:HydrateProc.HasExited -or $timedOut) {
+                $rem = $script:HydrateCurrentRem
+                $aboutOk = $false
+                try {
+                    if ($null -ne $script:HydrateProc) {
+                        if (-not $script:HydrateProc.HasExited) { $script:HydrateProc.Kill() }
+                        elseif ($script:HydrateProc.ExitCode -eq 0 -and $null -ne $script:HydrateOutTask) {
+                            $txt = $script:HydrateOutTask.GetAwaiter().GetResult()
+                            if (-not [string]::IsNullOrWhiteSpace($txt)) {
+                                $script:LastAboutCache[$rem] = $txt
+                                $aboutOk = $true
+                            }
+                        }
+                        $script:HydrateProc.Dispose()
+                    }
+                } catch {}
+                $script:HydrateProc    = $null
+                $script:HydrateOutTask = $null
+
+                if ($aboutOk) {
+                    Save-UiAccountCache
+                    Apply-HydratedAccountToUi -TargetRemote $rem
+                }
+
+                # Check if identity email needs fresh fetch (missing email or older than 10 min)
+                $needIdentity = $true
+                if ($script:IdentityCache.ContainsKey($rem) -and -not [string]::IsNullOrWhiteSpace($script:IdentityCache[$rem].Email) -and $script:IdentityCache[$rem].Email.Contains("@")) {
+                    $cu = if ($script:IdentityCache[$rem].PSObject.Properties["CachedUtc"]) { [string]$script:IdentityCache[$rem].CachedUtc } else { "" }
+                    $parsedDt = [datetime]::MinValue
+                    if (-not [string]::IsNullOrWhiteSpace($cu) -and [datetime]::TryParse($cu, [ref]$parsedDt)) {
+                        if (([datetime]::UtcNow - $parsedDt.ToUniversalTime()).TotalMinutes -lt 10.0) { $needIdentity = $false }
+                    }
+                }
+
+                $startedIdentity = $false
+                if ($needIdentity) {
+                    try {
+                        $dump = Get-RcloneConfigDumpCached -ForceRefresh
+                        if ($null -ne $dump -and $dump.PSObject.Properties[$rem]) {
+                            $remObj = $dump.$rem
+                            if ($null -ne $remObj -and -not [string]::IsNullOrWhiteSpace($remObj.token)) {
+                                $tok = $remObj.token | ConvertFrom-Json
+                                if (-not [string]::IsNullOrWhiteSpace($tok.access_token)) {
+                                    $wc = New-Object System.Net.WebClient
+                                    $wc.Encoding = [System.Text.Encoding]::UTF8
+                                    $wc.Headers.Add("Authorization", "Bearer $($tok.access_token)")
+                                    $script:HydrateWebClient = $wc
+                                    $script:HydrateWebTask   = $wc.DownloadStringTaskAsync("https://www.googleapis.com/drive/v3/about?fields=user(displayName,emailAddress)")
+                                    $script:HydrateStartUtc  = [datetime]::UtcNow
+                                    $script:HydratePhase     = "Identity"
+                                    $startedIdentity = $true
+                                }
+                            }
+                        }
+                    } catch {}
+                }
+
+                if (-not $startedIdentity) {
+                    $script:HydrateDoneCount++
+                    $script:HydrateRefreshedUtc[$rem] = [datetime]::UtcNow
+                    $script:HydrateCurrentRem = $null
+                    $script:HydratePhase      = "Idle"
+                }
+            }
+            return
+        }
+
+        if ($script:HydratePhase -eq "Identity") {
+            $timedOut = (($now - $script:HydrateStartUtc).TotalSeconds -ge 8.0)
+            if ($null -eq $script:HydrateWebTask -or $script:HydrateWebTask.IsCompleted -or $timedOut) {
+                $rem = $script:HydrateCurrentRem
+                try {
+                    if ($null -ne $script:HydrateWebTask -and $script:HydrateWebTask.Status -eq [System.Threading.Tasks.TaskStatus]::RanToCompletion) {
+                        $rawId = $script:HydrateWebTask.Result
+                        if (-not [string]::IsNullOrWhiteSpace($rawId)) {
+                            $info = $rawId | ConvertFrom-Json
+                            if ($null -ne $info -and $null -ne $info.user -and -not [string]::IsNullOrWhiteSpace($info.user.emailAddress)) {
+                                $hasCid = $false
+                                $dmpC = Get-RcloneConfigDumpCached
+                                if ($null -ne $dmpC -and $dmpC.PSObject.Properties[$rem] -and $null -ne $dmpC.$rem) {
+                                    $hasCid = (-not [string]::IsNullOrWhiteSpace($dmpC.$rem.client_id))
+                                }
+                                $script:IdentityCache[$rem] = [PSCustomObject]@{
+                                    Connected         = $true
+                                    Email             = [string]$info.user.emailAddress
+                                    DisplayName       = [string]$info.user.displayName
+                                    Remote            = $rem
+                                    HasCustomClientId = $hasCid
+                                    CachedUtc         = ([datetime]::UtcNow.ToString("o"))
+                                }
+                                Set-AccountPref -Remote $rem -AutoName (Format-EmailUsername -Email $info.user.emailAddress -FallbackRemote $rem)
+                                Save-UiAccountCache
+                                Apply-HydratedAccountToUi -TargetRemote $rem
+                            }
+                        }
+                    }
+                } catch {}
+                try {
+                    if ($null -ne $script:HydrateWebClient) {
+                        if ($timedOut) { $script:HydrateWebClient.CancelAsync() }
+                        $script:HydrateWebClient.Dispose()
+                    }
+                } catch {}
+                $script:HydrateWebClient  = $null
+                $script:HydrateWebTask    = $null
+                $script:HydrateDoneCount++
+                $script:HydrateRefreshedUtc[$rem] = [datetime]::UtcNow
+                $script:HydrateCurrentRem = $null
+                $script:HydratePhase      = "Idle"
+            }
+            return
+        }
+
+        # Idle: pop the NEXT account strictly ONE AT A TIME
+        if ($script:HydrateQueue.Count -eq 0) {
+            if ($null -ne $script:HydrateTimer) { $script:HydrateTimer.Stop() }
+            if ($script:HydrateTotalCount -gt 0) {
+                Write-StudioLog -Msg "[OK] All $($script:HydrateTotalCount) connected account(s) refreshed sequentially." -TargetRemote $script:ActiveRemote
+                $script:HydrateTotalCount = 0
+            }
+            return
+        }
+
+        $nextRem = $script:HydrateQueue[0]
+        $script:HydrateQueue.RemoveAt(0)
+        if ([string]::IsNullOrWhiteSpace($nextRem)) { return }
+
+        $script:HydrateCurrentRem = $nextRem
+        $script:HydratePhase      = "About"
+        $script:HydrateStartUtc   = [datetime]::UtcNow
+
+        $psi = New-Object System.Diagnostics.ProcessStartInfo
+        $psi.FileName = $RcloneExe
+        $psi.Arguments = "about $(Format-WinArg "${nextRem}:") --json --quiet"
+        $psi.UseShellExecute = $false
+        $psi.CreateNoWindow = $true
+        $psi.RedirectStandardOutput = $true
+        $psi.RedirectStandardError = $true
+        $psi.StandardOutputEncoding = [System.Text.Encoding]::UTF8
+        $script:HydrateProc    = [System.Diagnostics.Process]::Start($psi)
+        $script:HydrateOutTask = $script:HydrateProc.StandardOutput.ReadToEndAsync()
+    } catch {
+        $script:HydrateCurrentRem = $null
+        $script:HydratePhase      = "Idle"
+    }
+}
+
+function Start-SequentialAccountHydration {
+    param([string[]]$Remotes = $null)
+    try {
+        $allRems = if ($null -ne $Remotes -and $Remotes.Count -gt 0) { @($Remotes) } else { @(Get-ConfiguredDriveRemotes) }
+        if ($allRems.Count -eq 0) { return }
+
+        # Order strictly: Active account FIRST, then every other account one by one!
+        $ordered = New-Object System.Collections.Generic.List[string]
+        if ($allRems -contains $script:ActiveRemote) { $ordered.Add($script:ActiveRemote) }
+        foreach ($r in $allRems) {
+            if ($r -ne $script:ActiveRemote -and -not $ordered.Contains($r)) { $ordered.Add($r) }
+        }
+
+        $script:HydrateQueue.Clear()
+        foreach ($r in $ordered) { $script:HydrateQueue.Add($r) }
+        $script:HydrateDoneCount  = 0
+        $script:HydrateTotalCount = $ordered.Count
+
+        if ($null -eq $script:HydrateTimer) {
+            $script:HydrateTimer = New-Object System.Windows.Threading.DispatcherTimer
+            $script:HydrateTimer.Interval = [TimeSpan]::FromMilliseconds(110)
+            $script:HydrateTimer.Add_Tick({ Step-SequentialAccountHydration })
+        }
+        $script:HydrateTimer.Start()
+    } catch {}
+}
+
+function Promote-AccountInHydrationQueue {
+    param([string]$TargetRemote)
+    if ([string]::IsNullOrWhiteSpace($TargetRemote)) { return }
+    try {
+        if ($script:HydrateCurrentRem -eq $TargetRemote) { return }
+        if ($script:HydrateRefreshedUtc.ContainsKey($TargetRemote) -and (([datetime]::UtcNow - $script:HydrateRefreshedUtc[$TargetRemote]).TotalSeconds -lt 45.0)) {
+            return
+        }
+        [void]$script:HydrateQueue.Remove($TargetRemote)
+        $script:HydrateQueue.Insert(0, $TargetRemote)
+        if ($null -eq $script:HydrateTimer) {
+            $script:HydrateTimer = New-Object System.Windows.Threading.DispatcherTimer
+            $script:HydrateTimer.Interval = [TimeSpan]::FromMilliseconds(110)
+            $script:HydrateTimer.Add_Tick({ Step-SequentialAccountHydration })
+        }
+        if (-not $script:HydrateTimer.IsEnabled) { $script:HydrateTimer.Start() }
+    } catch {}
+}
+
+function Set-SplashStage {
+    param([string]$Stage)
+    try {
+        if (-not [string]::IsNullOrWhiteSpace($env:ALPHACLOUDSYNC_SPLASH_FILE)) {
+            [System.IO.File]::WriteAllText($env:ALPHACLOUDSYNC_SPLASH_FILE, $Stage, (New-Object System.Text.UTF8Encoding($false)))
+        }
+    } catch {}
+}
+
+function Invoke-PostStartupHousekeep {
+    try {
+        $script:SkipWmiMountProbe = $false
+        $cfgInit = Get-Settings
+        if ([bool]$cfgInit.ShowFolderBadges) { Sync-AllFolderAndDriveBadges -Enable $true }
+        $null = Set-ExplorerContextMenuEnabled -Enable ([bool]$cfgInit.ExplorerContextMenu)
+        Sync-RealTimeWatchers
+        if ($script:IslandEnabled) { Set-CloudIslandEnabled -Enable $true }
+        Refresh-StudioHeader
+        Start-SequentialAccountHydration
+        if (-not [string]::IsNullOrWhiteSpace($script:PendingContextAction)) {
+            $actC = $script:PendingContextAction; $pthC = $script:PendingContextPath
+            $script:PendingContextAction = ""; $script:PendingContextPath = ""
+            Invoke-HandleContextCommand -ContextAction $actC -FolderPath $pthC
+        } elseif ($AutoStartSync) {
+            Start-StudioBatch -Mode "Sync"
+        }
+        Invoke-DrainIpcQueue
     } catch {}
 }
 

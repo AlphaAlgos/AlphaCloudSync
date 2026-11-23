@@ -338,5 +338,10 @@
   "authIncompleteMsg": "Die Autorisierung wurde nicht abgeschlossen.",
   "etaShort": "Restzeit",
   "toastDriveUnmountedTitle": "Cloud-Laufwerk getrennt",
-  "toastDriveUnmountedBody": "{0} wurde vom Laufwerk {1} getrennt."
+  "toastDriveUnmountedBody": "{0} wurde vom Laufwerk {1} getrennt.",
+  "splashStage1": "AlphaCloudSync wird gestartet...",
+  "splashStage2": "Start & Oberfläche werden vorbereitet...",
+  "splashStage3": "Konten & Ordner werden geladen...",
+  "splashStage4": "Virtuelle Laufwerke werden vorbereitet...",
+  "splashStage5": "Arbeitsbereich wird geöffnet..."
 }

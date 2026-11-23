@@ -338,5 +338,10 @@
   "authIncompleteMsg": "授权未完成。",
   "etaShort": "剩余",
   "toastDriveUnmountedTitle": "云端驱动器已断开",
-  "toastDriveUnmountedBody": "{0} 已从驱动器 {1} 断开连接。"
+  "toastDriveUnmountedBody": "{0} 已从驱动器 {1} 断开连接。",
+  "splashStage1": "正在启动 AlphaCloudSync...",
+  "splashStage2": "正在初始化启动与界面...",
+  "splashStage3": "正在准备账户与文件夹...",
+  "splashStage4": "正在准备虚拟驱动器...",
+  "splashStage5": "正在打开工作区..."
 }

@@ -338,5 +338,10 @@
   "authIncompleteMsg": "L'autorisation n'a pas été finalisée.",
   "etaShort": "Restant",
   "toastDriveUnmountedTitle": "Lecteur cloud déconnecté",
-  "toastDriveUnmountedBody": "{0} a été déconnecté du lecteur {1}."
+  "toastDriveUnmountedBody": "{0} a été déconnecté du lecteur {1}.",
+  "splashStage1": "Démarrage d'AlphaCloudSync...",
+  "splashStage2": "Préparation du démarrage et de l'interface...",
+  "splashStage3": "Chargement des comptes et dossiers...",
+  "splashStage4": "Préparation des lecteurs virtuels...",
+  "splashStage5": "Ouverture de l'espace de travail..."
 }

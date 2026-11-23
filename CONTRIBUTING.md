@@ -7,7 +7,7 @@ Thank you for helping improve **AlphaCloudSync**! Contributions of all sizes are
    - Copy `presets/developer-default.json` to `presets/<your-stack>.json` (e.g., `unity-gamedev.json`, `flutter-mobile.json`, `rust-cargo.json`).
    - Save as **Standard UTF-8 (without BOM)** and verify valid JSON syntax.
 2. **Add or Improve a Language (`locales/`):**
-   - Copy `locales/en.json` to `locales/<iso-code>.json` (maintaining exact parity across all **340** keys).
+   - Copy `locales/en.json` to `locales/<iso-code>.json` (maintaining exact parity across all **345** keys).
    - Set `"rtl": true` for right-to-left languages.
    - Register the language item in `CmbLanguage` inside `src/modules/UI.ThemeAndLayout.ps1` and `build/build-release.ps1`.
 3. **Add a Cloud Provider Module (`src/modules/Providers/`):**
@@ -15,7 +15,7 @@ Thank you for helping improve **AlphaCloudSync**! Contributions of all sizes are
    - Both `src/AlphaCloudSync.ps1` and `build/build-release.ps1` automatically discover and embed all `src/modules/**/*.ps1` files.
 4. **Engine, UI, or Packaging Enhancements:**
    - Test locally by running `.\build\build-release.ps1` and verifying `.\dist\AlphaCloudSync.exe -Action Status`.
-   - Run the full **24-test** release gate before opening a PR: `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-tests.ps1`.
+   - Run the full **25-test** release gate before opening a PR: `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-tests.ps1`.
 
 ## Governance Model (Open Source with Maintainer Control)
 - **License:** MIT — the full source code is public, free to inspect, use, fork, and submit pull requests against.

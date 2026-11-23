@@ -338,5 +338,10 @@
   "authIncompleteMsg": "لم تكتمل عملية المصادقة وتسجيل الدخول.",
   "etaShort": "المتبقي",
   "toastDriveUnmountedTitle": "تم إخفاء القرص السحابي",
-  "toastDriveUnmountedBody": "تم فصل {0} من القرص {1} بنجاح."
+  "toastDriveUnmountedBody": "تم فصل {0} من القرص {1} بنجاح.",
+  "splashStage1": "جارٍ فتح البرنامج...",
+  "splashStage2": "إعداد البداية والواجهة...",
+  "splashStage3": "إعداد الحسابات والمجلدات...",
+  "splashStage4": "إعداد البارتشينات والأقراص...",
+  "splashStage5": "فتح الاستوديو..."
 }

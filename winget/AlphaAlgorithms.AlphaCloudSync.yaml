@@ -14,7 +14,7 @@ Description: >-
   per-account JSON skip rules, zero My Computer (1) duplication, Hybrid Unified (AlphaCloudSync) +
   Standalone persistent Explorer drives, zero-RAM folder badges & Explorer right-click menu,
   fast Real-Time Auto-Sync, 1-click Tray Global Pause, overwrite-protected Safe Restore,
-  Drive Trash management, Dynamic Cloud Island, and 7 UI languages (340 keys + Arabic RTL).
+  Drive Trash management, Dynamic Cloud Island, and 7 UI languages (345 keys + Arabic RTL).
 Tags:
   - google-drive
   - backup
@@ -27,7 +27,7 @@ Installers:
   - Architecture: x64
     InstallerType: portable
     InstallerUrl: https://github.com/AlphaAlgos/AlphaCloudSync/releases/download/v1.0.0/AlphaCloudSync.exe
-    InstallerSha256: 1676DF639F153A3E3B5D2455E48431D8C21A7D80121CAF1409CDCF0A302E9774
+    InstallerSha256: D914CAD077B48413D65C8597F09F604FBF3AEF42C796021DB79232BE1514A535
     Commands:
       - AlphaCloudSync
 ManifestType: singleton

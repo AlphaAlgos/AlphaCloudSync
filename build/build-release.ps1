@@ -78,6 +78,8 @@ $cscArgs = @(
     "/target:winexe",
     "/platform:x64",
     "/optimize+",
+    "/reference:System.Windows.Forms.dll",
+    "/reference:System.Drawing.dll",
     "/win32icon:`"$IconFile`"",
     "/out:`"$OutExe`""
 )

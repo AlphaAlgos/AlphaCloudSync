@@ -77,6 +77,30 @@ public static class AlphaWinShellHelper {
     private static extern bool SetForegroundWindow(IntPtr hWnd);
 
     [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+    [DllImport("kernel32.dll")]
+    private static extern uint GetCurrentThreadId();
+
+    [DllImport("user32.dll")]
+    private static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+
+    [DllImport("user32.dll")]
+    private static extern bool BringWindowToTop(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SetActiveWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsIconic(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    [DllImport("user32.dll")]
     private static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
 
     public static void NotifyPathChanged(string path) {
@@ -114,8 +138,24 @@ public static class AlphaWinShellHelper {
     public static void ForceForeground(IntPtr hwnd) {
         try {
             if (hwnd == IntPtr.Zero) return;
-            ShowWindowAsync(hwnd, 9);
-            SetForegroundWindow(hwnd);
+            IntPtr fg = GetForegroundWindow();
+            uint curTid = GetCurrentThreadId();
+            uint fgPid = 0;
+            uint fgTid = (fg != IntPtr.Zero) ? GetWindowThreadProcessId(fg, out fgPid) : 0;
+            bool attached = false;
+            try {
+                if (fgTid != 0 && fgTid != curTid) {
+                    attached = AttachThreadInput(curTid, fgTid, true);
+                }
+                ShowWindow(hwnd, IsIconic(hwnd) ? 9 : 5);
+                BringWindowToTop(hwnd);
+                SetForegroundWindow(hwnd);
+                SetActiveWindow(hwnd);
+            } finally {
+                if (attached) {
+                    try { AttachThreadInput(curTid, fgTid, false); } catch { }
+                }
+            }
         } catch { }
     }
 

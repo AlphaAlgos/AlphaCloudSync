@@ -771,6 +771,28 @@ try {
     Add-TestResult "T24" "Audit Regression Guards (Dir/**, Context RTL, IPC, Pulse)" $t24 "FilesKept=$fileBuildKept/$fileDistKept/$fileABKept DirsExcl=$dirBuildExcl/$dirDistExcl/$dirABExcl CtxSafe=$ctxSafeArg/$normDriveRoot GreenPulse=$greenPulseOk AtomicIPC=$ipcAtomicOk"
 } catch { Add-TestResult "T24" "Audit Regression Guards (Dir/**, Context RTL, IPC, Pulse)" $false $_.Exception.Message }
 
+# T25: Instant Startup, Localized Splash Launcher, Foreground Enforcement & Sequential Account Hydration
+try {
+    $csText   = [System.IO.File]::ReadAllText((Join-Path $ProjectRoot "src\AlphaCloudSyncLauncher.cs"), [System.Text.Encoding]::UTF8)
+    $entryTxt = [System.IO.File]::ReadAllText((Join-Path $ProjectRoot "src\AlphaCloudSync.ps1"), [System.Text.Encoding]::UTF8)
+    $islTxt   = [System.IO.File]::ReadAllText((Join-Path $ProjectRoot "src\modules\UI.ShellAndIsland.ps1"), [System.Text.Encoding]::UTF8)
+    $presTxt  = [System.IO.File]::ReadAllText((Join-Path $ProjectRoot "src\modules\UI.Presenter.ps1"), [System.Text.Encoding]::UTF8)
+    $intTxt   = [System.IO.File]::ReadAllText((Join-Path $ProjectRoot "src\modules\UI.Interop.ps1"), [System.Text.Encoding]::UTF8)
+    $gdTxt    = [System.IO.File]::ReadAllText((Join-Path $ProjectRoot "src\modules\Providers\Provider.GoogleDrive.ps1"), [System.Text.Encoding]::UTF8)
+    $mntTxt   = [System.IO.File]::ReadAllText((Join-Path $ProjectRoot "src\modules\Engine.Mount.ps1"), [System.Text.Encoding]::UTF8)
+
+    $splashOk = ($csText -match 'class AlphaSplashForm') -and ($csText -match 'LoadSplashLocale') -and ($csText -match 'AllowSetForegroundWindow') -and ($entryTxt -match 'Set-SplashStage "3"') -and ($entryTxt -match 'Set-SplashStage "4"') -and ($entryTxt -match 'Set-SplashStage "5"') -and ($entryTxt -match 'Set-SplashStage "DONE"')
+    $fgOk     = ($intTxt -match 'AttachThreadInput') -and ($islTxt -match 'function Bring-MainWindowToForeground') -and ($entryTxt -match 'Bring-MainWindowToForeground -InitialLaunch') -and ($entryTxt -match '\$window\.Topmost = \$true')
+    $seqOk    = ($islTxt -match 'function Start-SequentialAccountHydration') -and ($islTxt -match 'function Promote-AccountInHydrationQueue') -and ($islTxt -match 'function Stop-SequentialAccountHydration')
+    $cacheOk  = ($gdTxt -match 'function Get-RcloneConfigDumpCached') -and ($gdTxt -match 'function Load-UiAccountCache') -and ($mntTxt -match 'function Get-RcloneProcessesCached') -and ($entryTxt -match 'Refresh-StudioHeader -FastLocalOnly')
+    # Ensure Refresh-ProfilesDropdown NEVER calls Ensure-RemoteAutoNameCached synchronously!
+    $profFn   = $script:CombinedSrcAst.Find({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Refresh-ProfilesDropdown' }, $true)
+    $noSyncLoop = ($null -ne $profFn) -and ($profFn.Extent.Text -notmatch 'Ensure-RemoteAutoNameCached')
+
+    $t25 = $splashOk -and $fgOk -and $seqOk -and $cacheOk -and $noSyncLoop
+    Add-TestResult "T25" "Instant Launch, Splash Card, Foreground & Seq Accounts" $t25 "Splash=$splashOk Foreground=$fgOk SeqHydration=$seqOk Caches=$cacheOk NoSyncDropdownLoop=$noSyncLoop"
+} catch { Add-TestResult "T25" "Instant Launch, Splash Card, Foreground & Seq Accounts" $false $_.Exception.Message }
+
 $passedCount  = @($results | Where-Object { $_.Status -eq "PASS" }).Count
 $skippedCount = @($results | Where-Object { $_.Status -eq "SKIP" }).Count
 $failedCount  = @($results | Where-Object { $_.Status -eq "FAIL" }).Count

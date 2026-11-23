@@ -28,7 +28,7 @@
    - Optional **Real-Time Auto-Sync** uses a local-only `.NET FileSystemWatcher` (`AlphaFolderWatchHub`) in-process without installing background Windows services.
 
 ## Automated Security Verification
-Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-tests.ps1` to execute all **24** automated checks (`T01`–`T24`) covering Fail-Closed SHA-256 rejection, filter-aware empty-source protection, fail-closed exclusion-rule/account-preference/global-settings handling, runtime extraction mutex safety, mount PID identity & reuse protection, fast `--files-from` local exclusion safety, atomic IPC queue & drive-root quoting, non-destructive build guard, Safe Archive/Restore overwrite protection, `.git/info/exclude` badge safety, zero CMD invocations, and zero privacy leaks.
+Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-tests.ps1` to execute all **25** automated checks (`T01`–`T25`) covering Fail-Closed SHA-256 rejection, filter-aware empty-source protection, fail-closed exclusion-rule/account-preference/global-settings handling, runtime extraction mutex safety, mount PID identity & reuse protection, fast `--files-from` local exclusion safety, atomic IPC queue & drive-root quoting, instant non-blocking startup hydration, non-destructive build guard, Safe Archive/Restore overwrite protection, `.git/info/exclude` badge safety, zero CMD invocations, and zero privacy leaks.
 
 ## Reporting a Vulnerability
 Please open a private security advisory on GitHub (`AlphaAlgos/AlphaCloudSync/security/advisories/new`) rather than posting sensitive details in public issues.

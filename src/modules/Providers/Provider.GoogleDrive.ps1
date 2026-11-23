@@ -2,6 +2,77 @@
 # AlphaCloudSync Provider Module: Google Drive (OAuth Branded Dark Flow, Identity, Account Discovery)
 # ==============================================================================
 
+$script:RcloneConfigDumpCacheObj = $null
+$script:RcloneConfigDumpCacheUtc = [datetime]::MinValue
+
+function Clear-RcloneConfigDumpCache {
+    $script:RcloneConfigDumpCacheObj = $null
+    $script:RcloneConfigDumpCacheUtc = [datetime]::MinValue
+}
+
+function Get-RcloneConfigDumpCached {
+    param([switch]$ForceRefresh)
+    $now = [datetime]::UtcNow
+    if (-not $ForceRefresh -and $null -ne $script:RcloneConfigDumpCacheObj -and (($now - $script:RcloneConfigDumpCacheUtc).TotalSeconds -lt 3.0)) {
+        return $script:RcloneConfigDumpCacheObj
+    }
+    $res = Invoke-RcloneCapture -Arguments "config dump --quiet" -TimeoutMs 10000
+    if ($res.ExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($res.StdOut)) { return $null }
+    try {
+        $script:RcloneConfigDumpCacheObj = ($res.StdOut | ConvertFrom-Json)
+        $script:RcloneConfigDumpCacheUtc = $now
+        return $script:RcloneConfigDumpCacheObj
+    } catch { return $null }
+}
+
+function Load-UiAccountCache {
+    try {
+        if ([string]::IsNullOrWhiteSpace($UiAccountCacheFile) -or -not (Test-Path -LiteralPath $UiAccountCacheFile -PathType Leaf)) { return }
+        $raw = [System.IO.File]::ReadAllText($UiAccountCacheFile, [System.Text.Encoding]::UTF8)
+        if ([string]::IsNullOrWhiteSpace($raw)) { return }
+        $obj = ConvertFrom-Json -InputObject $raw
+        foreach ($prop in $obj.PSObject.Properties) {
+            $rem = $prop.Name
+            $val = $prop.Value
+            if ($null -eq $val) { continue }
+            if ($val.PSObject.Properties["AboutJson"] -and -not [string]::IsNullOrWhiteSpace($val.AboutJson)) {
+                $script:LastAboutCache[$rem] = [string]$val.AboutJson
+            }
+            if ($val.PSObject.Properties["Email"] -and -not [string]::IsNullOrWhiteSpace($val.Email)) {
+                $script:IdentityCache[$rem] = [PSCustomObject]@{
+                    Connected         = $true
+                    Email             = [string]$val.Email
+                    DisplayName       = if ($val.PSObject.Properties["DisplayName"]) { [string]$val.DisplayName } else { "" }
+                    Remote            = $rem
+                    HasCustomClientId = if ($val.PSObject.Properties["HasCustomClientId"]) { [bool]$val.HasCustomClientId } else { $false }
+                    CachedUtc         = if ($val.PSObject.Properties["UpdatedUtc"]) { [string]$val.UpdatedUtc } else { "" }
+                }
+            }
+        }
+    } catch {}
+}
+
+function Save-UiAccountCache {
+    try {
+        if ([string]::IsNullOrWhiteSpace($UiAccountCacheFile)) { return }
+        $out = @{}
+        $allKeys = @($script:IdentityCache.Keys) + @($script:LastAboutCache.Keys) | Sort-Object -Unique
+        foreach ($rem in $allKeys) {
+            if ([string]::IsNullOrWhiteSpace($rem)) { continue }
+            $idObj = if ($script:IdentityCache.ContainsKey($rem)) { $script:IdentityCache[$rem] } else { $null }
+            $abTxt = if ($script:LastAboutCache.ContainsKey($rem)) { [string]$script:LastAboutCache[$rem] } else { "" }
+            $out[$rem] = [PSCustomObject]@{
+                Email             = if ($null -ne $idObj -and $idObj.PSObject.Properties["Email"]) { [string]$idObj.Email } else { "" }
+                DisplayName       = if ($null -ne $idObj -and $idObj.PSObject.Properties["DisplayName"]) { [string]$idObj.DisplayName } else { "" }
+                HasCustomClientId = if ($null -ne $idObj -and $idObj.PSObject.Properties["HasCustomClientId"]) { [bool]$idObj.HasCustomClientId } else { $false }
+                AboutJson         = $abTxt
+                UpdatedUtc        = ([datetime]::UtcNow.ToString("o"))
+            }
+        }
+        [System.IO.File]::WriteAllText($UiAccountCacheFile, (ConvertTo-Json -InputObject $out -Depth 4), (New-Object System.Text.UTF8Encoding($false)))
+    } catch {}
+}
+
 function Ensure-RemoteAutoNameCached {
     param([string]$TargetRemote)
     if ([string]::IsNullOrWhiteSpace($TargetRemote)) { return }
@@ -10,6 +81,7 @@ function Ensure-RemoteAutoNameCached {
             $abRes = Invoke-RcloneCapture -Arguments "about `"${TargetRemote}:`" --json --quiet" -TimeoutMs 10000
             if ($abRes.ExitCode -eq 0 -and -not [string]::IsNullOrWhiteSpace($abRes.StdOut)) {
                 $script:LastAboutCache[$TargetRemote] = $abRes.StdOut
+                Save-UiAccountCache
             }
         } catch {}
     }
@@ -25,16 +97,18 @@ function Ensure-RemoteAutoNameCached {
                     $script:LastAboutCache[$TargetRemote] = $abRes2.StdOut
                 }
             }
-            $res = Invoke-RcloneCapture -Arguments "config dump --quiet" -TimeoutMs 8000
-            if ($res.ExitCode -eq 0 -and -not [string]::IsNullOrWhiteSpace($res.StdOut)) {
-                $dump = $res.StdOut | ConvertFrom-Json
+            $dump = Get-RcloneConfigDumpCached -ForceRefresh
+            if ($null -ne $dump) {
                 $remObj = $dump.$TargetRemote
                 if ($null -ne $remObj -and -not [string]::IsNullOrWhiteSpace($remObj.token)) {
                     $tok = $remObj.token | ConvertFrom-Json
                     if (-not [string]::IsNullOrWhiteSpace($tok.access_token)) {
                         $info = Invoke-RestMethod -Uri "https://www.googleapis.com/drive/v3/about?fields=user(displayName,emailAddress)" -Headers @{ Authorization = "Bearer $($tok.access_token)" } -Method Get -UseBasicParsing -TimeoutSec 6 -ErrorAction SilentlyContinue
                         if ($null -ne $info -and $null -ne $info.user -and -not [string]::IsNullOrWhiteSpace($info.user.emailAddress)) {
+                            $hasCid = (-not [string]::IsNullOrWhiteSpace($remObj.client_id))
+                            $script:IdentityCache[$TargetRemote] = [PSCustomObject]@{ Connected = $true; Email = $info.user.emailAddress; DisplayName = $info.user.displayName; Remote = $TargetRemote; HasCustomClientId = $hasCid; CachedUtc = ([datetime]::UtcNow.ToString("o")) }
                             Set-AccountPref -Remote $TargetRemote -AutoName (Format-EmailUsername -Email $info.user.emailAddress -FallbackRemote $TargetRemote)
+                            Save-UiAccountCache
                             return
                         }
                     }
@@ -45,10 +119,10 @@ function Ensure-RemoteAutoNameCached {
 }
 
 function Get-ConfiguredDriveRemotes {
-    $res = Invoke-RcloneCapture -Arguments "config dump --quiet" -TimeoutMs 10000
-    if ($res.ExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($res.StdOut)) { return @() }
+    param([switch]$ForceRefresh)
+    $dump = Get-RcloneConfigDumpCached -ForceRefresh:$ForceRefresh
+    if ($null -eq $dump) { return @() }
     try {
-        $dump = $res.StdOut | ConvertFrom-Json
         $list = @()
         foreach ($prop in $dump.PSObject.Properties) {
             if ($prop.Value.type -eq "drive") { $list += $prop.Name }
@@ -63,20 +137,32 @@ function Test-GDriveConfigured {
 }
 
 function Get-ConnectedGoogleIdentity {
-    param([string]$TargetRemote = $RemoteName)
+    param([string]$TargetRemote = $RemoteName, [switch]$CacheOnly)
     if (-not (Test-GDriveConfigured -TargetRemote $TargetRemote)) {
         return [PSCustomObject]@{ Connected = $false; Email = ""; DisplayName = ""; Remote = $TargetRemote; HasCustomClientId = $false }
     }
     $hasCustom = $false
+    $dump = Get-RcloneConfigDumpCached
+    if ($null -ne $dump -and $dump.PSObject.Properties[$TargetRemote]) {
+        $remObj0 = $dump.$TargetRemote
+        if ($null -ne $remObj0) { $hasCustom = (-not [string]::IsNullOrWhiteSpace($remObj0.client_id)) }
+    }
+    if ($CacheOnly) {
+        if ($script:IdentityCache.ContainsKey($TargetRemote)) {
+            $cachedId = $script:IdentityCache[$TargetRemote]
+            return [PSCustomObject]@{ Connected = $true; Email = $cachedId.Email; DisplayName = $cachedId.DisplayName; Remote = $TargetRemote; HasCustomClientId = $hasCustom }
+        }
+        $dispFb = Get-AccountDisplayLabel -TargetRemote $TargetRemote
+        return [PSCustomObject]@{ Connected = $true; Email = $dispFb; DisplayName = ""; Remote = $TargetRemote; HasCustomClientId = $hasCustom }
+    }
     try {
         $abRes = Invoke-RcloneCapture -Arguments "about `"${TargetRemote}:`" --json --quiet" -TimeoutMs 12000
         if ($abRes.ExitCode -eq 0 -and -not [string]::IsNullOrWhiteSpace($abRes.StdOut)) {
             $script:LastAboutCache[$TargetRemote] = $abRes.StdOut
         }
-        $res = Invoke-RcloneCapture -Arguments "config dump --quiet" -TimeoutMs 10000
-        if ($res.ExitCode -eq 0 -and -not [string]::IsNullOrWhiteSpace($res.StdOut)) {
-            $dump = $res.StdOut | ConvertFrom-Json
-            $remObj = $dump.$TargetRemote
+        $dumpFresh = Get-RcloneConfigDumpCached -ForceRefresh
+        if ($null -ne $dumpFresh) {
+            $remObj = $dumpFresh.$TargetRemote
             if ($null -ne $remObj) {
                 $hasCustom = (-not [string]::IsNullOrWhiteSpace($remObj.client_id))
                 if (-not [string]::IsNullOrWhiteSpace($remObj.token)) {
@@ -85,15 +171,17 @@ function Get-ConnectedGoogleIdentity {
                         $headers = @{ Authorization = "Bearer $($tok.access_token)" }
                         $info = Invoke-RestMethod -Uri "https://www.googleapis.com/drive/v3/about?fields=user(displayName,emailAddress)" -Headers $headers -Method Get -UseBasicParsing -TimeoutSec 12 -ErrorAction SilentlyContinue
                         if ($null -ne $info -and $null -ne $info.user -and -not [string]::IsNullOrWhiteSpace($info.user.emailAddress)) {
-                            $resolvedId = [PSCustomObject]@{ Connected = $true; Email = $info.user.emailAddress; DisplayName = $info.user.displayName; Remote = $TargetRemote; HasCustomClientId = $hasCustom }
+                            $resolvedId = [PSCustomObject]@{ Connected = $true; Email = $info.user.emailAddress; DisplayName = $info.user.displayName; Remote = $TargetRemote; HasCustomClientId = $hasCustom; CachedUtc = ([datetime]::UtcNow.ToString("o")) }
                             $script:IdentityCache[$TargetRemote] = $resolvedId
                             Set-AccountPref -Remote $TargetRemote -AutoName (Format-EmailUsername -Email $info.user.emailAddress -FallbackRemote $TargetRemote)
+                            Save-UiAccountCache
                             return $resolvedId
                         }
                     }
                 }
             }
         }
+        Save-UiAccountCache
     } catch {}
     if ($script:IdentityCache.ContainsKey($TargetRemote)) {
         $cachedId = $script:IdentityCache[$TargetRemote]
@@ -184,9 +272,8 @@ function Invoke-GDriveAuth {
     $customCid = ""; $customCsec = ""
     if ($wasConfigured) {
         try {
-            $dmpRes = Invoke-RcloneCapture -Arguments "config dump --quiet" -TimeoutMs 8000
-            if ($dmpRes.ExitCode -eq 0 -and -not [string]::IsNullOrWhiteSpace($dmpRes.StdOut)) {
-                $dmpObj = $dmpRes.StdOut | ConvertFrom-Json
+            $dmpObj = Get-RcloneConfigDumpCached -ForceRefresh
+            if ($null -ne $dmpObj) {
                 $remCfg = $dmpObj.$TargetRemote
                 if ($null -ne $remCfg -and -not [string]::IsNullOrWhiteSpace($remCfg.client_id) -and -not [string]::IsNullOrWhiteSpace($remCfg.client_secret)) {
                     $customCid = [string]$remCfg.client_id
@@ -306,9 +393,10 @@ function Invoke-GDriveAuth {
         } else {
             Invoke-RcloneCapture -Arguments "config create $(Format-WinArg $TargetRemote) drive scope=drive $tokArg --non-interactive" -TimeoutMs 15000
         }
+        Clear-RcloneConfigDumpCache
         $ok = ($cfgRes.ExitCode -eq 0 -and (Test-GDriveConfigured -TargetRemote $TargetRemote))
         if (-not $ok -and -not $wasConfigured) {
-            try { $null = Invoke-RcloneCapture -Arguments "config delete $(Format-WinArg $TargetRemote) --quiet" -TimeoutMs 8000 } catch {}
+            try { $null = Invoke-RcloneCapture -Arguments "config delete $(Format-WinArg $TargetRemote) --quiet" -TimeoutMs 8000; Clear-RcloneConfigDumpCache } catch {}
         }
         if (-not $ok -and -not [string]::IsNullOrWhiteSpace($cfgRes.StdErr)) { $stdErrTxt = $cfgRes.StdErr }
     }

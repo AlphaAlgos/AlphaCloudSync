@@ -553,13 +553,6 @@ function Refresh-ProfilesDropdown {
     $script:CachedDriveRemotes = $remotes
     if ($remotes.Count -eq 0) { $remotes = @("gdrive") }
     if ($remotes -notcontains $script:ActiveRemote) { $script:ActiveRemote = $remotes[0] }
-    $checkedCount = 0
-    foreach ($r in $remotes) {
-        if ($checkedCount -lt 10) {
-            Ensure-RemoteAutoNameCached -TargetRemote $r
-            $checkedCount++
-        }
-    }
     $CmbAccountProfile.Items.Clear()
     $selectedObj = $null
     foreach ($r in $remotes) {
@@ -696,16 +689,17 @@ function Invoke-ScanFolderSizes {
 }
 
 function Refresh-StudioHeader {
+    param([switch]$FastLocalOnly)
     if ($script:IsRefreshing) { return }
     $script:IsRefreshing = $true
     try {
         Refresh-ProfilesDropdown
         Refresh-DriveLettersDropdown
         Sync-JsonRulesUiForActiveAccount
-        $ident = Get-ConnectedGoogleIdentity -TargetRemote $script:ActiveRemote
+        $ident = Get-ConnectedGoogleIdentity -TargetRemote $script:ActiveRemote -CacheOnly
         $dispLabel = Get-AccountDisplayLabel -TargetRemote $script:ActiveRemote
         $activeLetter = Get-MountedLetterForRemote -TargetRemote $script:ActiveRemote
-        $schedInfo = Get-ScheduleInfo -TargetRemote $script:ActiveRemote
+        $schedInfo = if ($FastLocalOnly) { [PSCustomObject]@{ Active = $false; Label = (L "scheduleOff" "OFF (Manual Only)") } } else { Get-ScheduleInfo -TargetRemote $script:ActiveRemote }
         $bc = New-Object System.Windows.Media.BrushConverter
 
         $scActive = Get-AccountMountScope -TargetRemote $script:ActiveRemote

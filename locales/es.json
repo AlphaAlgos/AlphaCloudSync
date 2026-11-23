@@ -338,5 +338,10 @@
   "authIncompleteMsg": "La autorización no se completó.",
   "etaShort": "Restante",
   "toastDriveUnmountedTitle": "Unidad en la nube desconectada",
-  "toastDriveUnmountedBody": "{0} se desconectó de la unidad {1}."
+  "toastDriveUnmountedBody": "{0} se desconectó de la unidad {1}.",
+  "splashStage1": "Iniciando AlphaCloudSync...",
+  "splashStage2": "Preparando inicio e interfaz...",
+  "splashStage3": "Cargando cuentas y carpetas...",
+  "splashStage4": "Preparando unidades virtuales...",
+  "splashStage5": "Abriendo espacio de trabajo..."
 }

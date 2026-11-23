@@ -556,6 +556,9 @@ function Switch-ActiveAccountRemote {
     $cfg = Get-Settings; $cfg.ActiveRemote = $TargetRemote; Save-Settings -Obj $cfg
     Refresh-StudioHeader
     Sync-RealTimeWatchers
+    if (Get-Command Promote-AccountInHydrationQueue -ErrorAction SilentlyContinue) {
+        Promote-AccountInHydrationQueue -TargetRemote $TargetRemote
+    }
 }
 
 $ListSidebarAccounts.AddHandler([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent, [System.Windows.RoutedEventHandler]{
@@ -774,8 +777,10 @@ $BtnAuthToggle.Add_Click({
                 $wasInUni = ($null -ne $uInfo -and ($uInfo.Remotes.Count -eq 0 -or ($uInfo.Remotes -contains $signedOutRem)))
                 Invoke-ToggleMount -TargetRemote $signedOutRem -ForceUnmount
                 $null = Invoke-RcloneCapture -Arguments "config delete $(Format-WinArg $signedOutRem) --quiet"
+                Clear-RcloneConfigDumpCache
                 if ($script:IdentityCache.ContainsKey($signedOutRem))  { $script:IdentityCache.Remove($signedOutRem) }
                 if ($script:LastAboutCache.ContainsKey($signedOutRem)) { $script:LastAboutCache.Remove($signedOutRem) }
+                Save-UiAccountCache
                 $pMap = Get-AccountPrefsMap
                 if ($pMap.ContainsKey($signedOutRem)) { $pMap.Remove($signedOutRem); Save-AccountPrefsMap -Map $pMap }
                 if ($wasInUni) { Invoke-RefreshActiveUnifiedPool -QuietExplorer }
@@ -1189,6 +1194,7 @@ $BtnCustomClientId.Add_Click({
             }
             $cw.Close()
             $null = Invoke-RcloneCapture -Arguments "config update $(Format-WinArg $script:ActiveRemote) client_id $(Format-WinArg $cid) client_secret $(Format-WinArg $csc) --non-interactive" -TimeoutMs 15000
+            Clear-RcloneConfigDumpCache
             Invoke-GDriveAuth -TargetRemote $script:ActiveRemote; Refresh-StudioHeader
         })
         [void]$cw.ShowDialog()

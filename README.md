@@ -13,8 +13,8 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-38BDF8.svg" alt="MIT License"/></a>
   <img src="https://img.shields.io/badge/Windows-10%20%2F%2011%20(x64)-10B981.svg" alt="Windows 10/11 x64"/>
   <img src="https://img.shields.io/badge/Portable%20EXE-~1.13%20MB-6366F1.svg" alt="Portable EXE"/>
-  <img src="https://img.shields.io/badge/Languages-7%20(340%20Keys%20%2B%20Arabic%20RTL)-F59E0B.svg" alt="7 Languages (340 Keys)"/>
-  <img src="https://img.shields.io/badge/Automated%20Tests-24%2F24%20PASS-22C55E.svg" alt="24/24 Tests Pass"/>
+  <img src="https://img.shields.io/badge/Languages-7%20(345%20Keys%20%2B%20Arabic%20RTL)-F59E0B.svg" alt="7 Languages (345 Keys)"/>
+  <img src="https://img.shields.io/badge/Automated%20Tests-25%2F25%20PASS-22C55E.svg" alt="25/25 Tests Pass"/>
   <img src="https://img.shields.io/badge/Telemetry-Zero-4ADE80.svg" alt="Zero Telemetry"/>
 </p>
 
@@ -73,6 +73,7 @@ A calm, cohesive Windows 11 desktop studio with zero jarring white popups or ter
 - **Calm 2-Column Studio Architecture:** Sleek `248px` dark sidebar (Active Account switcher, 4 navigation tabs: **Backup Folders**, **Drive & Storage**, **Live Activity & Log** with a **pulsing green live dot** visible ONLY during active uploads, and **Settings ⚙**, scrollable **Accounts Overview**, Quick Drive widget, and mini quota bar) paired with a docked bottom action & **Rainbow Spectrum Progress Bar**.
 - **100% Custom-Templated Dark Controls:** Every `ComboBox`, `CheckBox`, `TextBox`, `DatePicker`, `ContextMenu`, `ToolTip`, `ScrollBar`, `DataGrid`, `Show-AlphaMessageBox`, modal dialog, and even the System Tray menu (`AlphaDarkTrayRenderer`) uses native Obsidian Dark styling (`#080D17` / `#0F1829`).
 - **Zero CMD Windows:** Every `rclone` and helper invocation runs with `CreateNoWindow = $true` / `-WindowStyle Hidden` (`0` `cmd /c` and `0` `-WindowStyle Normal` calls verified by automated test `T15`).
+- **Instant Foreground Startup, 5-Stage Localized Splash Card & Sequential Account Hydration:** Launches an Obsidian Dark rounded Splash Card in `~30ms` showing 5 live stacked startup stages in your chosen language (including Arabic RTL), forces the main window cleanly to the foreground on top of open desktop apps (`AllowSetForegroundWindow` + `AttachThreadInput`), and refreshes all connected accounts asynchronously **one by one** (active account first) so launching with 2, 10, or 50 accounts stays fast and responsive.
 - **Windows 11 Taskbar Identity & WindowChrome:** Custom 38px `WindowChrome` with edge/corner resizing, Aero Snap, symmetric Maximize framing, multi-DPI WorkArea clamping across 6+ monitor profiles, single-instance restore (re-launching or left-clicking the tray icon restores the hidden window), and native `AppUserModelID` + `WM_SETICON` + `SHGetPropertyStoreForWindow` Taskbar/Alt+Tab icon binding.
 
 ### 4. Branded Silent OAuth + Dark Waiting & Success Modals
@@ -186,17 +187,17 @@ winget install AlphaAlgorithms.AlphaCloudSync
 
 ---
 
-## Verify Everything Yourself (`24 / 24` Automated Tests & Benchmarks)
+## Verify Everything Yourself (`25 / 25` Automated Tests & Benchmarks)
 
 ```powershell
-# Run all 24 automated release-gate, SHA-256 fail-closed, filter-aware data-loss guard, mount PID guard, modular provider, 340-key i18n, real rclone & WinFsp tests
+# Run all 25 automated release-gate, SHA-256 fail-closed, filter-aware data-loss guard, mount PID guard, instant startup, 345-key i18n, real rclone & WinFsp tests
 powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-tests.ps1
 
 # Run the reproducible performance & RAM benchmark harness
 powershell -NoProfile -ExecutionPolicy Bypass -File .\benchmarks\run-benchmarks.ps1
 ```
 
-> **Verification Scope & Modular v1.1+ Roadmap:** Today's **`24/24`** automated suite (`T01`–`T24`, with explicit `PASS` / `SKIP` / `FAIL` reporting & Windows GitHub Actions CI) validates PowerShell AST across all 18 scripts, Standard UTF-8 No-BOM, 7-language × **340-key** parity, 5/5 brand assets, Fail-Closed SHA-256 rejection, non-destructive build guard, 12h/overall-%/6-screen WorkArea unit tests, real `rclone` Safe Archive / Copy-Only / Strict Mirror / Safe Restore / Skip Rules, privacy guard, simultaneous dual-drive Explorer mounting (`T13`), 1-line volume labels (`AlphaCloudSync` / `Drive - <Account>`) & `:combine:` Unified mounting (`T14`), Synced Folder Badges + `.git/info/exclude` + zero CMD flashes (`T15`), filter-aware empty-source protection (`T16`), fail-closed rules/prefs/mutex/settings (`T17`–`T20`), mount PID identity guard (`T21`), fast `--files-from` auto-upload filter (`T22`), modular architecture + extensible Cloud Provider Registry + Global Tray Pause + Explorer Right-Click Context Menu (`T23`), and directory-rule filename safety + RTL `%V\.` menu quoting + atomic IPC queue + pulsing green upload dot (`T24`). Because `src/modules/Providers/` is already modular, **v1.1+ milestones** will plug in `OneDrive`, `Dropbox`, `S3 / Cloudflare R2`, and `Nextcloud` provider modules cleanly.
+> **Verification Scope & Modular v1.1+ Roadmap:** Today's **`25/25`** automated suite (`T01`–`T25`, with explicit `PASS` / `SKIP` / `FAIL` reporting & Windows GitHub Actions CI) validates PowerShell AST across all 18 scripts, Standard UTF-8 No-BOM, 7-language × **345-key** parity, 5/5 brand assets, Fail-Closed SHA-256 rejection, non-destructive build guard, 12h/overall-%/6-screen WorkArea unit tests, real `rclone` Safe Archive / Copy-Only / Strict Mirror / Safe Restore / Skip Rules, privacy guard, simultaneous dual-drive Explorer mounting (`T13`), 1-line volume labels (`AlphaCloudSync` / `Drive - <Account>`) & `:combine:` Unified mounting (`T14`), Synced Folder Badges + `.git/info/exclude` + zero CMD flashes (`T15`), filter-aware empty-source protection (`T16`), fail-closed rules/prefs/mutex/settings (`T17`–`T20`), mount PID identity guard (`T21`), fast `--files-from` auto-upload filter (`T22`), modular architecture + extensible Cloud Provider Registry + Global Tray Pause + Explorer Right-Click Context Menu (`T23`), directory-rule filename safety + RTL `%V\.` menu quoting + atomic IPC queue + pulsing green upload dot (`T24`), and instant localized Splash Card + foreground enforcement + non-blocking sequential multi-account hydration (`T25`). Because `src/modules/Providers/` is already modular, **v1.1+ milestones** will plug in `OneDrive`, `Dropbox`, `S3 / Cloudflare R2`, and `Nextcloud` provider modules cleanly.
 
 ---
 

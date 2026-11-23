@@ -338,5 +338,10 @@
   "authIncompleteMsg": "Authorization was not completed.",
   "etaShort": "ETA",
   "toastDriveUnmountedTitle": "Cloud Drive Disconnected",
-  "toastDriveUnmountedBody": "{0} has been disconnected from drive {1}."
+  "toastDriveUnmountedBody": "{0} has been disconnected from drive {1}.",
+  "splashStage1": "Launching AlphaCloudSync...",
+  "splashStage2": "Preparing startup & interface...",
+  "splashStage3": "Loading accounts & folders...",
+  "splashStage4": "Preparing virtual drives...",
+  "splashStage5": "Opening studio workspace..."
 }

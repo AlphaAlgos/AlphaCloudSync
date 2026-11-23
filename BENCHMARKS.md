@@ -5,7 +5,7 @@ Every metric below was measured on real Windows 11 Pro x64 hardware (**Intel Cor
 ## Reproduce on Your Own Machine
 
 ```powershell
-# Run the full automated release-gate test suite (24 tests incl. dual-mount, unified combine mount, badges, guards & modular core)
+# Run the full automated release-gate test suite (25 tests incl. dual-mount, unified combine mount, splash card, badges, guards & modular core)
 powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\run-tests.ps1
 
 # Run the reproducible benchmark harness (generates benchmarks/latest-results.json)
