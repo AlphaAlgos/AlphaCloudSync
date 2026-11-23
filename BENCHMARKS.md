@@ -16,7 +16,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\benchmarks\run-benchmarks.
 
 | Benchmark Scenario | Measured Result | Peak RAM | Idle CPU | Verification |
 | :--- | :---: | :---: | :---: | :--- |
-| **Portable Binary (`dist/AlphaCloudSync.exe`)** | **`~1.13 MB`** (`1,155.5 KB`, 27 embedded modular resources in `build-release.ps1`) | — | — | Verify against `SHA256SUMS.txt` |
+| **Portable Binary (`dist/AlphaCloudSync.exe`)** | **`~1.16 MB`** (`1,191.5 KB`, 27 embedded modular resources in `build-release.ps1`) | — | — | Verify against `SHA256SUMS.txt` |
 | **Closed / Scheduled Idle Mode** | **0 background processes** | **`0.0 MB`** | **`0.00%`** | Runs only at scheduled time via Windows Task Scheduler |
 | **Persistent Explorer Drive (`G:` Online Only Idle)** | Live in Windows Explorer while GUI closed | **`49.6 MB`** | **`0.00%`** | Measured live `rclone mount` WorkingSet while idle |
 | **Raw Unfiltered Repo Scan (`2,800` files / `39.06 MB`)** | **`7.440 sec`** | **`50.2 MB`** | Low | Baseline unindexed directory traversal |

@@ -5,7 +5,7 @@
 </p>
 
 > **A Lightweight, Fast & Transparent Cloud Storage Control Core for Windows — Starting with Google Drive.**  
-> A self-contained portable Windows studio (`~1.12 MB` executable over `rclone` + `WinFsp`) delivering zero-bloat folder backups, a **Hybrid Unified (`★ G:`) + Standalone Multi-Account Explorer Drive Hub**, Zero-RAM Synced Folder Badges, optional **Real-Time Auto-Sync**, overwrite-protected **Safe Restore**, per-account **Skip Rules**, a **100% Obsidian Dark Fluent UI** with zero CMD flashes, and a freely draggable **Dynamic Cloud Island**.
+> A self-contained portable Windows studio (`~1.16 MB` executable over `rclone` + `WinFsp`) delivering zero-bloat folder backups, a **Hybrid Unified (`★ G:`) + Standalone Multi-Account Explorer Drive Hub**, Zero-RAM Synced Folder Badges, optional **Real-Time Auto-Sync**, overwrite-protected **Safe Restore**, per-account **Skip Rules**, a **100% Obsidian Dark Fluent UI** with zero CMD flashes, and a freely draggable **Dynamic Cloud Island**.
 
 ---
 
@@ -34,7 +34,7 @@ Downloads `AlphaCloudSync.exe` and `SHA256SUMS.txt` into `%LOCALAPPDATA%\AlphaCl
 - **Standalone Drives (`D:` – `Z:`):** Mount any account individually (double-click any row) or click **Mount All Accounts** for automatic collision-free drive letters (`G:`, `H:`, `I:`...) with concise 1-line Explorer labels (**`Drive - <Account>`**, `<= 21` chars so Explorer always keeps `"X TB free of Y TB"` visible).
 - **Hybrid Per-Account Control:** Split any account onto its own dedicated letter (`H:`, `I:`, etc.) while keeping the remaining pool inside `★ G:`.
 - **Per-Account Drive View (`MountScope`):** Choose `My Drive Only`, `My Computer Only`, or `My Drive + Computer` (`Both`).
-- **Online Only (`0 GB` SSD) vs Offline Copy:** Online Only (`--vfs-cache-mode writes`) keeps no permanent offline mirrors on your SSD (only a minimal temporary write buffer flushed automatically). Drives stay mounted in Explorer even after closing AlphaCloudSync (`31.3 MB` RAM / `0.00%` idle CPU), with silent Explorer auto-refresh and Mount PID Identity Guard (`T21`).
+- **Online Only (`0 GB` SSD) vs Offline Copy:** Online Only (`--vfs-cache-mode writes`) keeps no permanent offline mirrors on your SSD (only a minimal temporary write buffer flushed automatically). Drives stay mounted in Explorer even after closing AlphaCloudSync (`49.6 MB` RAM / `0.00%` idle CPU), with silent Explorer auto-refresh and Mount PID Identity Guard (`T21`).
 - **Sidebar Accounts Overview:** Live scrollable cards for every account showing status dot, drive badge (`★ G:` / `H:`), quota bar, and live sync progress.
 
 ### 2. Zero-RAM Synced Folder Badges, Drive Icons & Explorer Right-Click Menu
@@ -71,7 +71,7 @@ Downloads `AlphaCloudSync.exe` and `SHA256SUMS.txt` into `%LOCALAPPDATA%\AlphaCl
 
 - **Automated Test Suite (`tests/run-tests.ps1`):** **`25 / 25 PASS`** (`T01`–`T25` with explicit `PASS`/`SKIP`/`FAIL` reporting & Windows CI covering 345-key 7-language parity, Fail-Closed SHA-256, non-destructive build guard, real `rclone` Safe Archive/Copy-Only/Mirror/Restore/Exclusions, filter-aware empty-source data-loss prevention `T16`, fail-closed rules/prefs/mutex/settings `T17`–`T20`, mount PID identity guard `T21`, fast `--files-from` auto-upload filter `T22`, modular architecture + Provider Registry + Global Pause + Explorer Context Menu `T23`, directory-rule safety + RTL `%V\.` menu + atomic IPC + pulsing green upload dot `T24`, instant Splash Card + foreground enforcement + sequential multi-account hydration `T25`, simultaneous dual-mount `T13`, 1-line labels & `:combine:` Unified mount `T14`, and Folder Badges + `.git/info/exclude` + Zero CMD `T15`).
 - **Measured Performance (`benchmarks/run-benchmarks.ps1` on Intel Core i5-7Y57 / 7.9 GB RAM / Windows 11 Pro):**
-  - Portable Executable: **`~1.13 MB`** (`1,155.5 KB`, 27 embedded modular resources)
+  - Portable Executable: **`~1.16 MB`** (`1,191.5 KB`, 27 embedded modular resources)
   - Closed / Scheduled Idle: **`0.0 MB` RAM / `0.00%` CPU**
   - Persistent Explorer Drive (`G:` Online Only Idle): **`49.6 MB` RAM / `0.00%` CPU**
   - Filtered Repo Scan (`node_modules`/`.venv` skipped): **`3.509 sec`** vs **`7.440 sec`** raw (**2.1x faster**, **96.0% of repo size** skipped)
@@ -88,10 +88,12 @@ Downloads `AlphaCloudSync.exe` and `SHA256SUMS.txt` into `%LOCALAPPDATA%\AlphaCl
 
 ---
 
-## Documentation Links
-- **README (English):** [`README.md`](https://github.com/AlphaAlgos/AlphaCloudSync/blob/main/README.md)
-- **اقرأني (العربية):** [`README.ar.md`](https://github.com/AlphaAlgos/AlphaCloudSync/blob/main/README.ar.md)
-- **User Guide (English):** [`docs/USER_GUIDE.md`](https://github.com/AlphaAlgos/AlphaCloudSync/blob/main/docs/USER_GUIDE.md)
-- **دليل الاستخدام الشامل (عربي):** [`docs/USER_GUIDE.ar.md`](https://github.com/AlphaAlgos/AlphaCloudSync/blob/main/docs/USER_GUIDE.ar.md)
-- **Benchmarks:** [`BENCHMARKS.md`](https://github.com/AlphaAlgos/AlphaCloudSync/blob/main/BENCHMARKS.md)
-- **Security Policy:** [`SECURITY.md`](https://github.com/AlphaAlgos/AlphaCloudSync/blob/main/SECURITY.md)
+## Documentation Links (All 7 Languages)
+- **English:** [`README.md`](https://github.com/AlphaAlgos/AlphaCloudSync/blob/main/README.md) · **User Guide:** [`docs/USER_GUIDE.md`](https://github.com/AlphaAlgos/AlphaCloudSync/blob/main/docs/USER_GUIDE.md)
+- **العربية (Arabic):** [`README.ar.md`](https://github.com/AlphaAlgos/AlphaCloudSync/blob/main/README.ar.md) · **دليل الاستخدام:** [`docs/USER_GUIDE.ar.md`](https://github.com/AlphaAlgos/AlphaCloudSync/blob/main/docs/USER_GUIDE.ar.md)
+- **Español (Spanish):** [`README.es.md`](https://github.com/AlphaAlgos/AlphaCloudSync/blob/main/README.es.md)
+- **Français (French):** [`README.fr.md`](https://github.com/AlphaAlgos/AlphaCloudSync/blob/main/README.fr.md)
+- **Deutsch (German):** [`README.de.md`](https://github.com/AlphaAlgos/AlphaCloudSync/blob/main/README.de.md)
+- **中文 (简体 / Simplified Chinese):** [`README.zh.md`](https://github.com/AlphaAlgos/AlphaCloudSync/blob/main/README.zh.md)
+- **Bahasa Indonesia (Indonesian):** [`README.id.md`](https://github.com/AlphaAlgos/AlphaCloudSync/blob/main/README.id.md)
+- **Benchmarks & Security:** [`BENCHMARKS.md`](https://github.com/AlphaAlgos/AlphaCloudSync/blob/main/BENCHMARKS.md) · [`SECURITY.md`](https://github.com/AlphaAlgos/AlphaCloudSync/blob/main/SECURITY.md)

@@ -12,14 +12,18 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-38BDF8.svg" alt="MIT License"/></a>
   <img src="https://img.shields.io/badge/Windows-10%20%2F%2011%20(x64)-10B981.svg" alt="Windows 10/11 x64"/>
-  <img src="https://img.shields.io/badge/Portable%20EXE-~1.13%20MB-6366F1.svg" alt="Portable EXE"/>
+  <img src="https://img.shields.io/badge/Portable%20EXE-~1.16%20MB-6366F1.svg" alt="Portable EXE"/>
   <img src="https://img.shields.io/badge/Languages-7%20(345%20Keys%20%2B%20Arabic%20RTL)-F59E0B.svg" alt="7 Languages (345 Keys)"/>
   <img src="https://img.shields.io/badge/Automated%20Tests-25%2F25%20PASS-22C55E.svg" alt="25/25 Tests Pass"/>
   <img src="https://img.shields.io/badge/Telemetry-Zero-4ADE80.svg" alt="Zero Telemetry"/>
 </p>
 
 <p align="center">
-  <strong>English</strong> · <a href="README.ar.md">العربية (Arabic)</a> · <a href="docs/USER_GUIDE.md">User Guide</a> · <a href="BENCHMARKS.md">Benchmarks</a> · <a href="CHANGELOG.md">Changelog</a> · <a href="SECURITY.md">Security</a> · <a href="CONTRIBUTING.md">Contributing</a>
+  <strong>English</strong> · <a href="README.ar.md">العربية</a> · <a href="README.es.md">Español</a> · <a href="README.fr.md">Français</a> · <a href="README.de.md">Deutsch</a> · <a href="README.zh.md">中文 (简体)</a> · <a href="README.id.md">Bahasa Indonesia</a>
+</p>
+
+<p align="center">
+  <a href="docs/USER_GUIDE.md">User Guide</a> · <a href="BENCHMARKS.md">Benchmarks</a> · <a href="CHANGELOG.md">Changelog</a> · <a href="SECURITY.md">Security</a> · <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
 <p align="center">
@@ -35,14 +39,14 @@ If you use Google Drive on Windows, you have likely run into at least one of the
 | Everyday Pain Point | Official Google Drive for Desktop | AlphaCloudSync v1.0 |
 | :--- | :--- | :--- |
 | **Reinstalled Windows?** | Creates **`My Computer (1)`** and re-uploads tens of GB from scratch | **Zero duplication** — reconnects straight to your existing `My Drive` or fixed `My Computer` label |
-| **Background RAM Usage** | Always-on resident background processes | **`0.0 MB` RAM when closed** · **`31.3 MB` RAM** measured with live `G:` Explorer drive mounted *(see [`BENCHMARKS.md`](BENCHMARKS.md))* |
+| **Background RAM Usage** | Always-on resident background processes | **`0.0 MB` RAM when closed** · **`49.6 MB` RAM** measured with live `G:` Explorer drive mounted *(see [`BENCHMARKS.md`](BENCHMARKS.md))* |
 | **Uploading Junk & Caches** | Uploads `node_modules`, `.venv`, `.gradle`, `*.tmp` and wastes quota | **Per-Account Skip Rules (`presets/`)** skip heavy dev/media/OS junk automatically & show exact gigabytes saved |
 | **Accidental Local Delete** | Silent sync can wipe or bury cloud files | **3 Clear Delete Policies** (`Safe Archive`, `Copy Only`, `Exact Match`) + Empty-Source Guard + `--max-delete 200` |
 | **Restoring Files Back to PC** | Risk of silently overwriting newer local edits | **Safe Restore** — preview changes first (`Preview Only (No Files Changed)`) + auto-backups overwritten local files |
 | **Multiple Google Accounts** | Limited & entangled multi-account settings | **Hybrid Unified (`★ G:`) + Standalone Drives (`D:`–`Z:`)** — combine accounts into `AlphaCloudSync` or split any account onto its own letter (`Drive - <Account>`) |
 | **Folder Sync Indicators & Menu** | Heavy Explorer shell extensions | **Zero-RAM Folder Badges, Drive Icons & Folder Right-Click Menu** (`Add / Sync / Preview / Remove`) via native `desktop.ini` + `HKCU` registry |
 | **Automation & Bandwidth Control** | Forces always-running background sync | **Your Choice:** **Fast Real-Time Auto-Sync** (`--files-from`, `4s` debounce) + **1-Click Tray Global Pause** **OR** silent **COM Task Scheduler** (`0.0 MB` RAM when closed) |
-| **Installer & Footprint** | Heavy installer + silent auto-updaters | **1 portable `~1.13 MB` EXE** · Fail-Closed SHA-256 verified · Zero CMD windows · Zero telemetry |
+| **Installer & Footprint** | Heavy installer + silent auto-updaters | **1 portable `~1.16 MB` EXE** · Fail-Closed SHA-256 verified · Zero CMD windows · Zero telemetry |
 
 ---
 
@@ -58,7 +62,7 @@ Add unlimited Google Drive accounts (`1`, `2`, `5`, `10+`...) in **Settings -> A
 - **Online Only (`0 GB` Permanent SSD) vs Offline Copy:**
   - **Online Only (`--vfs-cache-mode writes`):** browse and open cloud files on demand without storing permanent local mirrors on your SSD (uses only a minimal temporary write buffer in `%LOCALAPPDATA%\AlphaCloudSync\vfs-cache\` flushed automatically).
   - **Offline Copy (`--vfs-cache-mode full`):** caches up to `50G` / `720h` locally for fast offline access.
-- **Persistent After Closing & Silent Explorer Auto-Refresh:** Virtual drives stay mounted in Windows Explorer even after closing AlphaCloudSync completely (`31.3 MB` RAM / `0.00%` idle CPU measured on a live `G:` drive). Mounting, unmounting, or switching layouts broadcasts `SHCNE_DRIVEADD`/`SHCNE_DRIVEREMOVED` and silently refreshes open **This PC** windows via COM `Shell.Application`, guarded by the **Mount PID Identity Guard** (`T21`).
+- **Persistent After Closing & Silent Explorer Auto-Refresh:** Virtual drives stay mounted in Windows Explorer even after closing AlphaCloudSync completely (`49.6 MB` RAM / `0.00%` idle CPU measured on a live `G:` drive). Mounting, unmounting, or switching layouts broadcasts `SHCNE_DRIVEADD`/`SHCNE_DRIVEREMOVED` and silently refreshes open **This PC** windows via COM `Shell.Application`, guarded by the **Mount PID Identity Guard** (`T21`).
 - **Sidebar Accounts Overview:** Scrollable live cards for every connected account showing connection dot, drive badge (`★ G:` in gold for Unified members, `H:` in cyan for Standalone), live storage quota bar, and live sync progress when active.
 
 ### 2. Zero-RAM Synced Folder Badges, Drive Icons & Explorer Right-Click Menu
@@ -99,10 +103,10 @@ Choose the exact automation style and notification level that fits your workflow
 - **Overwrite-Protected Safe Restore:** Opens a dark review modal with **Preview Only (No Files Changed)** first, and automatically backs up any differing local file into `%LOCALAPPDATA%\AlphaCloudSync\restore-backups\` before replacing it.
 - **Speed Modes & Faster Mode:** Switch between **Fast (Turbo)**, **Balanced**, and **Gentle (`Eco` — 2 MB/s cap)**, or add your own free Google Cloud Desktop Client ID in **Faster Mode** to lift shared public OAuth rate limits.
 
-### 7. Freely Draggable Dynamic Cloud Island, Storage Manager & 7 Languages (`340` Keys)
+### 7. Freely Draggable Dynamic Cloud Island, Storage Manager & 7 Languages (`345` Keys)
 - **Dynamic Cloud Island:** Slim translucent floating pill (`~250 × 32 px`, never steals keyboard focus) with a 6-dot drag grip, persistent coordinates across monitors, smart `220ms` hover-to-expand, 1-click Pause/Resume, and a right-click dark **Quick-Snap Menu** (**Top Center**, **Top Left**, **Top Right**, **Bottom Left**, **Bottom Right**, **Open Main Window**, **Hide Island**). Native Taskbar icon progress glow works even when the Island is hidden.
 - **Google Drive Storage & Trash Manager:** Inspect Total / Used / Free / Trash space, run **Check Space & Folder Sizes** (showing exact space & file count saved by Skip Rules), **Empty Drive Trash** (guarded by typing `EMPTY`), **Clean Old Archive (`30d+`)**, or **Open Drive in Browser**.
-- **7 Built-In Languages (`340` Identical Keys, Zero Jargon):**
+- **7 Built-In Languages (`345` Identical Keys, Zero Jargon):**
   **English · العربية (Full RTL & BiDi) · Español · Français · Deutsch · 中文 (简体) · Bahasa Indonesia**
 
 ---
@@ -142,7 +146,7 @@ Measured via [`benchmarks/run-benchmarks.ps1`](benchmarks/run-benchmarks.ps1) on
 
 | Scenario | Measured Result | Peak RAM | Idle CPU |
 | :--- | :---: | :---: | :---: |
-| **Portable Executable (`AlphaCloudSync.exe`)** | **`~1.13 MB`** (`1,155.5 KB`, 27 embedded modular resources) | — | — |
+| **Portable Executable (`AlphaCloudSync.exe`)** | **`~1.16 MB`** (`1,191.5 KB`, 27 embedded modular resources) | — | — |
 | **Closed / Scheduled Idle Mode** | 0 background processes | **`0.0 MB`** | **`0.00%`** |
 | **Live Persistent Explorer Drive (`G:` Online Only Idle)** | Active in Explorer while app closed | **`49.6 MB`** | **`0.00%`** |
 | **Raw Unfiltered Repo Scan (`2,800` files / `39.06 MB`)** | **`7.440 sec`** | **`50.2 MB`** | Low |
@@ -255,7 +259,7 @@ No. AlphaCloudSync automatically adds `desktop.ini` to `.git/info/exclude` (loca
 <details>
 <summary><strong>Will my mounted Windows drives stop working if I close AlphaCloudSync?</strong></summary>
 
-No. Mounted Explorer drives stay active even after exiting AlphaCloudSync completely, using ~31.3 MB RAM and 0.00% idle CPU. Reopen AlphaCloudSync anytime and it reconnects seamlessly.
+No. Mounted Explorer drives stay active even after exiting AlphaCloudSync completely, using ~49.6 MB RAM and 0.00% idle CPU. Reopen AlphaCloudSync anytime and it reconnects seamlessly.
 </details>
 
 <details>
