@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "1.0",
+  "presetName": "Creative & Media",
+  "description": "Skips heavy video/audio render caches, Adobe media caches, proxy files, and OS thumbnails while keeping project files and raw assets safe.",
+  "enabled": true,
+  "excludeDirectories": [
+    "Adobe Premiere Pro Auto-Save",
+    "Adobe Premiere Pro Video Previews",
+    "Adobe Premiere Pro Audio Previews",
+    "Media Cache Files",
+    "Peak Files",
+    "CacheClip",
+    "ProxyMedia",
+    "Render Cache",
+    "__MACOSX"
+  ],
+  "excludeFiles": [
+    "*.pek",
+    "*.cfa",
+    "*.tmp",
+    "*.bak",
+    "*.bak_*",
+    "Thumbs.db",
+    ".DS_Store",
+    "desktop.ini"
+  ],
+  "customRclonePatterns": []
+}

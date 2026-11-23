@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1.0",
+  "presetName": "General Backup",
+  "description": "Minimal safe preset for documents, photos, and personal folders: skips only OS junk and temporary lock files.",
+  "enabled": true,
+  "excludeDirectories": [
+    "$RECYCLE.BIN",
+    "System Volume Information",
+    "__MACOSX"
+  ],
+  "excludeFiles": [
+    "~$*",
+    "*.tmp",
+    "*.temp",
+    "Thumbs.db",
+    ".DS_Store",
+    "desktop.ini"
+  ],
+  "customRclonePatterns": []
+}

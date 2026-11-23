@@ -1,0 +1,41 @@
+# Local user settings, OAuth tokens, and runtime logs (NEVER commit)
+rclone.conf
+*.conf
+*.log
+*.tmp
+*.bak_*
+sync-profiles*.json
+studio-settings.json
+mounts-state.json
+account-prefs.json
+backup-health.json
+
+# Secrets, signing material, and local credential exports
+.env
+.env.*
+!.env.example
+credentials*.json
+token*.json
+oauth*.json
+secrets/
+*.pem
+*.key
+*.p12
+*.pfx
+*.p8
+*.jks
+*.keystore
+
+# Local databases, caches, and transient runtime data
+*.db
+*.sqlite
+*.sqlite3
+logs/
+cache/
+temp/
+
+# Build outputs and private local rule overrides (binaries are published via GitHub Releases)
+dist/
+build/*.exe
+build/SHA256SUMS.txt
+rules/

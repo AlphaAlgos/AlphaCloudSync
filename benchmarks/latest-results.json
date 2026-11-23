@@ -1,0 +1,38 @@
+{
+    "TimestampUtc":  "2026-11-23T02:41:52.7490736Z",
+    "HostEnvironment":  {
+                            "OS":  "Microsoft Windows 11 Pro",
+                            "OSBuild":  "26300",
+                            "CPU":  "Intel(R) Core(TM) i5-7Y57 CPU @ 1.20GHz",
+                            "TotalRamGB":  7.9,
+                            "RcloneVersion":  "rclone v1.76.0"
+                        },
+    "Binary":  {
+                   "FileName":  "AlphaCloudSync.exe",
+                   "SizeKB":  766,
+                   "Sha256":  "3cd8b152a7367f8896e4ef65d3a7ed5a8223bb1968b2e30d9f59de7d5defb5ab"
+               },
+    "SyntheticDataset":  {
+                             "TotalFiles":  2800,
+                             "TotalMB":  39.06,
+                             "CleanFiles":  400,
+                             "CleanMB":  1.56,
+                             "SkippedJunkFiles":  2400,
+                             "SkippedJunkMB":  37.5
+                         },
+    "Measurements":  {
+                         "ClosedScheduledIdleRamMB":  0,
+                         "ClosedScheduledIdleCpuPct":  0,
+                         "MountStreamIdleRamMB":  31.3,
+                         "RawScanSeconds":  5.181,
+                         "RawScanPeakRamMB":  52.1,
+                         "FilteredScanSeconds":  0.68,
+                         "FilteredScanPeakRamMB":  51.4,
+                         "FilteredSyncSeconds":  4.834,
+                         "FilteredSyncPeakRamMB":  56.3,
+                         "SafeRestoreSeconds":  0.79,
+                         "SafeRestorePeakRamMB":  52.8,
+                         "ExeCliStatusSeconds":  14.147,
+                         "ExeCliStatusExitCode":  0
+                     }
+}

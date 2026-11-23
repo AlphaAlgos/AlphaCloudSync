@@ -1,0 +1,32 @@
+PackageIdentifier: AlphaAlgorithms.AlphaCloudSync
+PackageVersion: 1.0.0
+PackageLocale: en-US
+Publisher: Alpha Algorithms Company
+PublisherUrl: https://github.com/AlphaAlgos
+PackageName: AlphaCloudSync
+PackageUrl: https://github.com/AlphaAlgos/AlphaCloudSync
+License: MIT
+LicenseUrl: https://github.com/AlphaAlgos/AlphaCloudSync/blob/main/LICENSE
+ShortDescription: Lightweight Windows cloud backup, safe restore, and persistent Explorer virtual drive for Google Drive.
+Description: >-
+  AlphaCloudSync is an open-source Windows desktop application powered by Rclone and WinFsp.
+  Built as a fast, zero-bloat replacement for Google Drive for Desktop with JSON exclusion rules,
+  zero My Computer (1) duplication, multi-account isolation, Stream/Mirror persistent virtual drives,
+  safe overwrite-protected restore, Drive Trash management, and 7 UI languages.
+Tags:
+  - google-drive
+  - backup
+  - sync
+  - rclone
+  - cloud-storage
+  - open-source
+  - windows
+Installers:
+  - Architecture: x64
+    InstallerType: portable
+    InstallerUrl: https://github.com/AlphaAlgos/AlphaCloudSync/releases/download/v1.0.0/AlphaCloudSync.exe
+    InstallerSha256: 7AB31DD5378DBED215C0A8B76E5C035FC445621A6432A35EB7A0F4E64CB12E10
+    Commands:
+      - AlphaCloudSync
+ManifestType: singleton
+ManifestVersion: 1.6.0

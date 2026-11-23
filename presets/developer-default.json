@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "1.0",
+  "presetName": "Developer Default",
+  "description": "Skips package caches, virtual environments, build artifacts, and temporary files while preserving all source code, configs, .env files, and databases.",
+  "enabled": true,
+  "excludeDirectories": [
+    "node_modules",
+    ".venv",
+    "venv",
+    ".expo",
+    ".next",
+    ".nuxt",
+    ".turbo",
+    "__pycache__",
+    ".pytest_cache",
+    ".wrangler/state",
+    ".wrangler/tmp",
+    ".gradle",
+    "android/build",
+    "android/.gradle",
+    "android/app/build",
+    "ios/Pods",
+    "dist",
+    "build",
+    "out",
+    "target",
+    "bin/Debug",
+    "obj"
+  ],
+  "excludeFiles": [
+    "*.pyc",
+    "*.pyo",
+    "*.bak_*",
+    "*.tmp",
+    "*.temp",
+    "Thumbs.db",
+    ".DS_Store",
+    "desktop.ini"
+  ],
+  "customRclonePatterns": []
+}
