@@ -36,8 +36,8 @@ function Invoke-PauseOrStopSync {
     }
     $rt.CountersText     = LF "countersCompleted" @($rt.UploadedCount)
     $rt.LiveTransferText = L "statusStopped"
-    $script:TrayIcon.Text = "AlphaCloudSync v$AppVersion"
-    if ($null -ne $script:WatchHub) { $script:WatchHub.Paused = $false }
+    if (-not $script:IsGloballyPaused) { $script:TrayIcon.Text = "AlphaCloudSync v$AppVersion" }
+    if ($null -ne $script:WatchHub) { $script:WatchHub.Paused = $script:IsGloballyPaused }
     Set-SyncControlsRunningState -Running $false
     Write-StudioLog -Msg "[PAUSED] Sync paused/stopped cleanly by user." -TargetRemote $syncRem
     Update-SidebarSingleAccountCard -TargetRemote $syncRem
@@ -62,13 +62,13 @@ function Start-NextStudioJob {
         } else {
             $rt.CountersText = LF "countersCompleted" @($totalSynced)
         }
-        $script:TrayIcon.Text = "AlphaCloudSync v$AppVersion"
+        if (-not $script:IsGloballyPaused) { $script:TrayIcon.Text = "AlphaCloudSync v$AppVersion" }
         if ($null -ne $script:WatchHub) {
             if ($isRestoreMode) {
                 $script:WatchHub.ClearPending()
                 $script:WatchResumeAfterUtc = [datetime]::UtcNow.AddSeconds(2.5)
             }
-            $script:WatchHub.Paused = $false
+            $script:WatchHub.Paused = $script:IsGloballyPaused
         }
         Set-SyncControlsRunningState -Running $false
         Write-StudioLog -Msg "=== ALL QUEUED FOLDERS COMPLETED (100%) ===" -TargetRemote $syncRem
@@ -104,6 +104,7 @@ function Start-NextStudioJob {
     $script:CurrentFolderPath   = $job.LocalPath
     $script:ActiveJobLogFile    = $job.LogFile
     $script:ActiveFilesFromFile = if ($job.PSObject.Properties["FilesFromFile"]) { $job.FilesFromFile } else { $null }
+    $script:ActiveTargetFiles   = if ($job.PSObject.Properties["TargetFiles"])   { $job.TargetFiles }   else { $null }
     $script:SeenLogLines.Clear()
 
     $basePct = Compute-OverallBatchProgress -CompletedWeight $script:BatchCompletedWeight -CurrentWeight $script:BatchCurrentWeight -TotalWeight $script:BatchTotalWeight -CurrentFolderPct 0.0
@@ -144,7 +145,7 @@ $timer.Add_Tick({
         }
 
         # Instantly surface newly detected file changes/deletions into the Activity Queue with exact status!
-        if ($script:AutoWatchEnabled -and $null -ne $script:WatchHub -and [datetime]::UtcNow -ge $script:WatchResumeAfterUtc) {
+        if ($script:AutoWatchEnabled -and -not $script:IsGloballyPaused -and $null -ne $script:WatchHub -and [datetime]::UtcNow -ge $script:WatchResumeAfterUtc) {
             $recentEvs = @($script:WatchHub.PopRecentFileEvents())
             if ($recentEvs.Count -gt 0) {
                 $curFoldersMap = @{}
@@ -154,9 +155,18 @@ $timer.Add_Tick({
                         $curFoldersMap[$normK.ToLowerInvariant()] = $cf.Name
                     }
                 }
-                $cfgW   = Get-Settings
-                $exW    = Build-SafeExcludeFile -TargetRemote $script:ActiveRemote
-                $exLinesW = if ($exW.Enabled -and $exW.PSObject.Properties["Lines"]) { @($exW.Lines) } else { @() }
+                $cfgW = Get-Settings
+                $rCfgW = Get-AccountRulesConfig -TargetRemote $script:ActiveRemote
+                $mtimeW = if ($rCfgW.UseJsonRules -and -not [string]::IsNullOrWhiteSpace($rCfgW.JsonRulesPath) -and (Test-Path -LiteralPath $rCfgW.JsonRulesPath -PathType Leaf)) {
+                    (Get-Item -LiteralPath $rCfgW.JsonRulesPath).LastWriteTimeUtc.Ticks
+                } else { 0 }
+                $cacheKeyW = "$($script:ActiveRemote)|$($rCfgW.UseJsonRules)|$($rCfgW.JsonRulesPath)|$mtimeW"
+                if ($script:WatchExcludeCacheKey -ne $cacheKeyW) {
+                    $exW = Build-SafeExcludeFile -TargetRemote $script:ActiveRemote
+                    $script:WatchExcludeCacheLines = if ($exW.Enabled -and $exW.PSObject.Properties["Lines"]) { @($exW.Lines) } else { @() }
+                    $script:WatchExcludeCacheKey = $cacheKeyW
+                }
+                $exLinesW = $script:WatchExcludeCacheLines
                 $qState = L "feedStateQueued" "Queued"
                 $qDet   = L "feedActQueuedChange" "Pending auto-sync"
                 $delSt  = L "feedStateDeleteSync" "Delete Sync"
@@ -204,12 +214,12 @@ $timer.Add_Tick({
                         Add-FileActivityRow -State $stateLabel -FileName "$($script:CurrentFolder)/$fName" -Details (Translate-RcloneAction $act) -TargetRemote $syncRem -Priority 1 -BrushHex $stateClr
                         Write-StudioLog -Msg "[$(if ($isArch) { 'ARCHIVED' } else { 'UPLOADED' })] $($script:CurrentFolder)/$fName ($act)" -TargetRemote $syncRem
                     }
-                } elseif ($clean -match 'NOTICE:\s*(.+?):\s*Skipped (copy|update|delete) as --dry-run is set') {
+                } elseif ($clean -match 'NOTICE:\s*(.+?):\s*Skipped (copy|update|delete|move) as --dry-run is set') {
                     $fName = $Matches[1].Trim(); $op = $Matches[2].Trim(); $key = "$fName|preview|$op"
                     if (-not $script:SeenLogLines.ContainsKey($key)) {
                         $script:SeenLogLines[$key] = $true
                         $rt.PreviewCount++
-                        $det = switch ($op) { "update" { L "feedActWillUpdate" } "delete" { L "feedActWillDelete" } default { L "feedActWillCopy" } }
+                        $det = switch ($op) { "update" { L "feedActWillUpdate" } "delete" { L "feedActWillDelete" } "move" { L "feedActMoved" } default { L "feedActWillCopy" } }
                         Add-FileActivityRow -State (L "feedStatePreview") -FileName "$($script:CurrentFolder)/$fName" -Details $det -TargetRemote $syncRem -Priority 2
                     }
                 } elseif ($clean -match '^\*\s+(.+?):\s*(\d+)%\s*/([^,]+),\s*([^,]+)') {
@@ -278,12 +288,14 @@ $timer.Add_Tick({
                 }
                 if ($script:ActiveJobLogFile -and (Test-Path -LiteralPath $script:ActiveJobLogFile)) { Remove-Item -LiteralPath $script:ActiveJobLogFile -Force -ErrorAction SilentlyContinue }
                 $wasTargetedFilesSync = ($null -ne $script:ActiveFilesFromFile)
+                $doneTargetFiles = $script:ActiveTargetFiles
+                $script:ActiveTargetFiles = $null
                 if ($script:ActiveFilesFromFile -and (Test-Path -LiteralPath $script:ActiveFilesFromFile)) {
                     Remove-Item -LiteralPath $script:ActiveFilesFromFile -Force -ErrorAction SilentlyContinue
                     $script:ActiveFilesFromFile = $null
                 }
                 if ($code -eq 0 -and $script:LastBatchMode -notin @("DryRun", "RestorePreview")) {
-                    Complete-StuckUploadingRowsForFolder -FolderPrefix $script:CurrentFolder -TargetRemote $syncRem -ClearPendingPreview:(-not $wasTargetedFilesSync)
+                    Complete-StuckUploadingRowsForFolder -FolderPrefix $script:CurrentFolder -TargetRemote $syncRem -ClearPendingPreview:(-not $wasTargetedFilesSync) -TargetFiles $doneTargetFiles
                 }
                 $folders = @(Get-SyncFolders -TargetRemote $syncRem)
                 foreach ($f in $folders) {
@@ -306,7 +318,7 @@ $timer.Add_Tick({
                 }
                 Start-NextStudioJob
             }
-        } elseif ($script:AutoWatchEnabled -and -not $script:IsGloballyPaused -and -not $script:IsSyncRunning -and -not $script:WasPausedByUser -and $null -ne $script:WatchHub -and $script:IsSignedIn -and [datetime]::UtcNow -ge $script:WatchResumeAfterUtc) {
+        } elseif ($script:AutoWatchEnabled -and -not $script:IsGloballyPaused -and -not $script:IsSyncRunning -and $null -ne $script:WatchHub -and $script:IsSignedIn -and [datetime]::UtcNow -ge $script:WatchResumeAfterUtc) {
             $readyBatches = @($script:WatchHub.PopSettledBatches(4.0))
             if ($readyBatches.Count -gt 0) {
                 foreach ($rb in $readyBatches) {
@@ -357,6 +369,8 @@ function Start-StudioBatch {
         if ($script:SyncingRemote -ne $script:ActiveRemote) {
             $busyName = Get-AccountDisplayLabel -TargetRemote $script:SyncingRemote
             Write-StudioLog -Msg "[INFO] Another backup is currently running for '$busyName'. Wait for it to finish or switch to '$busyName' to pause it." -TargetRemote $script:ActiveRemote
+        } else {
+            Write-StudioLog -Msg "[INFO] A sync job is already running for this account." -TargetRemote $script:ActiveRemote
         }
         return
     }
@@ -419,7 +433,9 @@ function Start-StudioBatch {
             $titleTag = if ($Mode -eq "DryRun") { L "jobTitleDryRun" } else { LF "jobTitleSync" @($polName) }
 
             # Fast targeted single/multi-file auto-upload (~2s! Runs BEFORE full-tree scan and filters locally so rclone --files-from never collides with --exclude-from!)
-            if ($Mode -eq "Sync" -and $null -ne $TargetFiles -and $TargetFiles.Count -gt 0) {
+            $hasSpecialTargetPrefix = ($null -ne $TargetFiles) -and (@($TargetFiles | Where-Object { -not [string]::IsNullOrWhiteSpace($_) -and ($_.TrimStart().StartsWith("#") -or $_.TrimStart().StartsWith(";")) }).Count -gt 0)
+            $canUseFilesFrom = ($Mode -eq "Sync" -and $null -ne $TargetFiles -and $TargetFiles.Count -gt 0 -and -not [bool]$exInfo.HasComplexPatterns -and -not $hasSpecialTargetPrefix)
+            if ($canUseFilesFrom) {
                 $exLinesArr = if ($exInfo.Enabled -and $exInfo.PSObject.Properties["Lines"]) { @($exInfo.Lines) } else { @() }
                 $existingRel = @($TargetFiles | Where-Object {
                     -not [string]::IsNullOrWhiteSpace($_) -and
@@ -432,7 +448,7 @@ function Start-StudioBatch {
                     [System.IO.File]::WriteAllLines($filesFromPath, $existingRel, (New-Object System.Text.UTF8Encoding($false)))
                     # Note: rclone strictly forbids mixing --files-from with --exclude-from/--exclude; exclusions were already applied locally above!
                     $args = "copy $locArg $remArg --files-from $(Format-WinArg $filesFromPath) $spdFlags $resilient --stats 1s -v --log-file $logArg"
-                    $queuedJobs += [PSCustomObject]@{ Remote = $targetRem; Title = $titleTag; FolderName = $f.Name; LocalPath = $f.LocalPath; TargetMode = $f.TargetMode; RemotePath = $effRemote; Arguments = $args; LogFile = $jobLog; FilesFromFile = $filesFromPath; Weight = $weight }
+                    $queuedJobs += [PSCustomObject]@{ Remote = $targetRem; Title = $titleTag; FolderName = $f.Name; LocalPath = $f.LocalPath; TargetMode = $f.TargetMode; RemotePath = $effRemote; Arguments = $args; LogFile = $jobLog; FilesFromFile = $filesFromPath; TargetFiles = $existingRel; Weight = $weight }
                 }
                 continue
             }
@@ -493,7 +509,8 @@ function Add-LocalFolderToList {
     if ($folders | Where-Object { $_.LocalPath -ieq $SelPath }) { Write-StudioLog "[!] Folder already in list: $SelPath"; return }
     # Prevent cloud remote collision when two different local paths share the same leaf folder name
     $uniqueName = $leaf
-    $parentLeaf = Split-Path -Path (Split-Path -Path $SelPath -Parent) -Leaf
+    $parentDir = Split-Path -Path $SelPath -Parent
+    $parentLeaf = if (-not [string]::IsNullOrWhiteSpace($parentDir)) { Split-Path -Path $parentDir -Leaf } else { "" }
     $existingNames = @($folders | ForEach-Object { $_.RemotePath.Trim('/').ToLowerInvariant() })
     if ($existingNames -contains $uniqueName.ToLowerInvariant()) {
         if (-not [string]::IsNullOrWhiteSpace($parentLeaf) -and ($existingNames -notcontains "$leaf ($parentLeaf)".ToLowerInvariant())) {
@@ -920,12 +937,11 @@ $BtnRenameAccount.Add_Click({
         $pTxt = [System.Security.SecurityElement]::Escape((L "renameAccPrompt"))
         $okTxt = [System.Security.SecurityElement]::Escape((L "renameAccSave"))
         $canTxt = [System.Security.SecurityElement]::Escape((L "btnCancel"))
-        $curEsc = [System.Security.SecurityElement]::Escape($curName)
         $body = @"
             <Grid>
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <TextBlock Grid.Row="0" Text="$pTxt" TextWrapping="Wrap" FontWeight="SemiBold" Foreground="#CBD5E1" Margin="0,0,0,8"/>
-                <TextBox x:Name="TxtRenameAcc" Grid.Row="1" FlowDirection="LeftToRight" Text="$curEsc" Height="32" Margin="0,0,0,16"/>
+                <TextBox x:Name="TxtRenameAcc" Grid.Row="1" FlowDirection="LeftToRight" Height="32" Margin="0,0,0,16"/>
                 <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button x:Name="BtnOkRename" Content="$okTxt" Background="#0284C7" BorderBrush="#38BDF8" Foreground="#FFFFFF" Margin="0,0,8,0"/>
                     <Button x:Name="BtnCanRename" Content="$canTxt"/>
@@ -934,6 +950,7 @@ $BtnRenameAccount.Add_Click({
 "@
         $rw = New-AlphaModalWindow -Title (L "renameAccTitle") -ReqWidth 460 -ReqHeight 225 -Resizable $false -BodyXaml $body
         $tb = $rw.FindName("TxtRenameAcc")
+        $tb.Text = $curName
         $doRename = {
             $newLabel = $tb.Text.Trim()
             $rw.Close()
@@ -945,7 +962,7 @@ $BtnRenameAccount.Add_Click({
             } else {
                 $sepLtr = Get-MountedLetterForRemote -TargetRemote $targetRem
                 if ($null -ne $sepLtr) {
-                    Invoke-ToggleMount -TargetRemote $targetRem -ForceUnmount
+                    Invoke-ToggleMount -TargetRemote $targetRem -ForceUnmount -SilentToast
                     Invoke-ToggleMount -TargetRemote $targetRem -Letter $sepLtr -ForceMount -QuietExplorer
                 }
             }
@@ -1337,14 +1354,14 @@ $GridFolders.Add_MouseDoubleClick({
     } catch {}
 })
 
-$CtxSyncFolder.Add_Click({ if ($GridFolders.SelectedItem) { Start-StudioBatch -Mode "Sync" -OnlyFolderPath $GridFolders.SelectedItem.LocalPath } })
+$CtxSyncFolder.Add_Click({ if ($GridFolders.SelectedItem) { if ($script:IsGloballyPaused) { Set-GlobalSyncPaused -Paused $false -Silent }; Start-StudioBatch -Mode "Sync" -OnlyFolderPath $GridFolders.SelectedItem.LocalPath } })
 $CtxDryRunFolder.Add_Click({ if ($GridFolders.SelectedItem) { Start-StudioBatch -Mode "DryRun" -OnlyFolderPath $GridFolders.SelectedItem.LocalPath } })
 $CtxRestoreFolder.Add_Click({ if ($GridFolders.SelectedItem) { Invoke-SafeRestoreDialog -OnlyFolderPath $GridFolders.SelectedItem.LocalPath } })
 $CtxOpenLocal.Add_Click({ if ($GridFolders.SelectedItem -and (Test-Path -LiteralPath $GridFolders.SelectedItem.LocalPath)) { Start-Process "explorer.exe" -ArgumentList "`"$($GridFolders.SelectedItem.LocalPath)`"" } })
 $CtxSwitchTarget.Add_Click({ $BtnToggleTarget.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))) })
 $CtxRemoveFolder.Add_Click({ $BtnRemoveFolder.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))) })
 
-$BtnSyncSelected.Add_Click({ try { if ($GridFolders.SelectedItem) { Start-StudioBatch -Mode "Sync" -OnlyFolderPath $GridFolders.SelectedItem.LocalPath } } catch {} })
+$BtnSyncSelected.Add_Click({ try { if ($GridFolders.SelectedItem) { if ($script:IsGloballyPaused) { Set-GlobalSyncPaused -Paused $false -Silent }; Start-StudioBatch -Mode "Sync" -OnlyFolderPath $GridFolders.SelectedItem.LocalPath } } catch {} })
 
 $BtnToggleTarget.Add_Click({
     try {
@@ -1588,7 +1605,8 @@ function Invoke-HandleContextCommand {
     param([string]$ContextAction, [string]$FolderPath)
     try {
         if ([string]::IsNullOrWhiteSpace($FolderPath)) { return }
-        $cleanPath = $FolderPath.Trim().Trim('"')
+        $rawCtxPath = $FolderPath.Trim().Trim('"')
+        try { $cleanPath = [System.IO.Path]::GetFullPath($rawCtxPath) } catch { $cleanPath = $rawCtxPath }
         if ($cleanPath.Length -gt 3) { $cleanPath = $cleanPath.TrimEnd('\') }
         if (-not (Test-Path -LiteralPath $cleanPath -PathType Container)) { return }
 
@@ -1617,7 +1635,9 @@ function Invoke-HandleContextCommand {
             $accT  = [System.Security.SecurityElement]::Escape((L "ctxAddModalAccount" "Select Cloud Account:"))
             $dstT  = [System.Security.SecurityElement]::Escape((L "ctxAddModalDest" "Backup Destination:"))
             $d1T   = [System.Security.SecurityElement]::Escape((L "targetMyDrive" "My Drive"))
-            $d2T   = [System.Security.SecurityElement]::Escape("$(L 'targetMyComputer' 'My Computer') ($compLbl)")
+            $tCompLoc = L "targetMyComputer" "My Computer"
+            $d2Raw = if ($compLbl -ine "My Computer" -and $compLbl -ine $tCompLoc) { "$tCompLoc ($compLbl)" } else { $tCompLoc }
+            $d2T   = [System.Security.SecurityElement]::Escape($d2Raw)
             $okT   = [System.Security.SecurityElement]::Escape((L "addFolder" "+ Add Folder"))
             $canT  = [System.Security.SecurityElement]::Escape((L "btnCancel" "Cancel"))
             $pthE  = [System.Security.SecurityElement]::Escape($cleanPath)
@@ -1664,11 +1684,16 @@ function Invoke-HandleContextCommand {
                 $mw.Close()
                 if ($chosenRem -ne $script:ActiveRemote) { Switch-ActiveAccountRemote -TargetRemote $chosenRem }
                 $folders = @(Get-SyncFolders -TargetRemote $chosenRem)
-                if (-not ($folders | Where-Object { $_.LocalPath -ieq $cleanPath })) {
+                $alreadyTracked = @($folders | Where-Object {
+                    $fp = if ($_.LocalPath.Length -gt 3) { $_.LocalPath.TrimEnd('\') } else { $_.LocalPath }
+                    $fp -ieq $cleanPath
+                }).Count -gt 0
+                if (-not $alreadyTracked) {
                     $leaf = Split-Path -Path $cleanPath -Leaf
                     if ([string]::IsNullOrWhiteSpace($leaf)) { $leaf = ($cleanPath.TrimEnd('\', ':') + "_Drive") }
                     $uniqueName = $leaf
-                    $parentLeaf = Split-Path -Path (Split-Path -Path $cleanPath -Parent) -Leaf
+                    $parentDir = Split-Path -Path $cleanPath -Parent
+                    $parentLeaf = if (-not [string]::IsNullOrWhiteSpace($parentDir)) { Split-Path -Path $parentDir -Leaf } else { "" }
                     $existingNames = @($folders | ForEach-Object { $_.RemotePath.Trim('/').ToLowerInvariant() })
                     if ($existingNames -contains $uniqueName.ToLowerInvariant()) {
                         if (-not [string]::IsNullOrWhiteSpace($parentLeaf) -and ($existingNames -notcontains "$leaf ($parentLeaf)".ToLowerInvariant())) { $uniqueName = "$leaf ($parentLeaf)" }
@@ -1711,7 +1736,10 @@ function Invoke-HandleContextCommand {
             Save-SyncFolders -Folders $folders -TargetRemote $ownerRem
             $stillUsed = $false
             foreach ($otherRem in @(Get-ConfiguredDriveRemotes | Where-Object { $_ -ne $ownerRem })) {
-                if (@(Get-SyncFolders -TargetRemote $otherRem | Where-Object { $_.LocalPath -ieq $cleanPath }).Count -gt 0) { $stillUsed = $true; break }
+                if (@(Get-SyncFolders -TargetRemote $otherRem | Where-Object {
+                    $fp = if ($_.LocalPath.Length -gt 3) { $_.LocalPath.TrimEnd('\') } else { $_.LocalPath }
+                    $fp -ieq $cleanPath
+                }).Count -gt 0) { $stillUsed = $true; break }
             }
             if (-not $stillUsed) { $null = Clear-SyncedFolderBadge -FolderPath $cleanPath }
             Update-FoldersGrid

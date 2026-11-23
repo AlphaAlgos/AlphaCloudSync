@@ -26,6 +26,36 @@ namespace AlphaCloudSync
         [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
         private static extern int SetCurrentProcessExplicitAppUserModelID(string AppID);
 
+        [DllImport("kernel32.dll")]
+        private static extern bool AttachConsole(int dwProcessId);
+
+        [DllImport("kernel32.dll")]
+        private static extern bool FreeConsole();
+
+        private static string EscapeJsonString(string input)
+        {
+            if (string.IsNullOrEmpty(input)) return "";
+            StringBuilder sb = new StringBuilder(input.Length + 8);
+            foreach (char c in input)
+            {
+                switch (c)
+                {
+                    case '\\': sb.Append("\\\\"); break;
+                    case '"':  sb.Append("\\\""); break;
+                    case '\r': sb.Append("\\r"); break;
+                    case '\n': sb.Append("\\n"); break;
+                    case '\t': sb.Append("\\t"); break;
+                    case '\b': sb.Append("\\b"); break;
+                    case '\f': sb.Append("\\f"); break;
+                    default:
+                        if (c < 0x20) sb.AppendFormat("\\u{0:x4}", (int)c);
+                        else sb.Append(c);
+                        break;
+                }
+            }
+            return sb.ToString();
+        }
+
         [STAThread]
         private static int Main(string[] args)
         {
@@ -65,6 +95,10 @@ namespace AlphaCloudSync
                 {
                     contextTargetPath = args[i + 1] ?? "";
                 }
+                else if (a.StartsWith("-TargetPath:", StringComparison.OrdinalIgnoreCase))
+                {
+                    contextTargetPath = a.Substring(12);
+                }
             }
 
             Mutex guiMutex = null;
@@ -78,12 +112,14 @@ namespace AlphaCloudSync
                     {
                         if (!string.IsNullOrEmpty(contextAction))
                         {
-                            string ipcDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AlphaCloudSync");
-                            Directory.CreateDirectory(ipcDir);
-                            string ipcFile = Path.Combine(ipcDir, "ipc-command.json");
-                            string safePath = (contextTargetPath ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"");
-                            string safeAct  = contextAction.Replace("\\", "\\\\").Replace("\"", "\\\"");
-                            File.WriteAllText(ipcFile, "{\"Action\":\"" + safeAct + "\",\"Path\":\"" + safePath + "\"}", new UTF8Encoding(false));
+                            string ipcQueueDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AlphaCloudSync", "ipc-queue");
+                            Directory.CreateDirectory(ipcQueueDir);
+                            string qStem = DateTime.UtcNow.Ticks.ToString() + "_" + Process.GetCurrentProcess().Id.ToString();
+                            string tmpFile = Path.Combine(ipcQueueDir, qStem + ".tmp");
+                            string finFile = Path.Combine(ipcQueueDir, qStem + ".json");
+                            string payload = "{\"Action\":\"" + EscapeJsonString(contextAction) + "\",\"Path\":\"" + EscapeJsonString(contextTargetPath ?? "") + "\"}";
+                            File.WriteAllText(tmpFile, payload, new UTF8Encoding(false));
+                            File.Move(tmpFile, finFile);
                         }
                         using (EventWaitHandle restoreEvt = EventWaitHandle.OpenExisting(RestoreSignalName))
                         {
@@ -91,10 +127,15 @@ namespace AlphaCloudSync
                         }
                     }
                     catch { }
+                    finally
+                    {
+                        try { guiMutex.Dispose(); } catch { }
+                    }
                     return 0;
                 }
             }
 
+            bool attachedConsole = false;
             try
             {
                 string runtimeRoot = Path.Combine(
@@ -131,8 +172,12 @@ namespace AlphaCloudSync
 
                 if (isHeadlessCli)
                 {
+                    try { if (!Console.IsOutputRedirected) attachedConsole = AttachConsole(-1); } catch { }
+                    try { Console.OutputEncoding = new UTF8Encoding(false); } catch { }
                     psi.RedirectStandardOutput = true;
                     psi.RedirectStandardError = true;
+                    psi.StandardOutputEncoding = Encoding.UTF8;
+                    psi.StandardErrorEncoding = Encoding.UTF8;
                     using (Process p = Process.Start(psi))
                     {
                         var outTask = p.StandardOutput.ReadToEndAsync();
@@ -166,6 +211,10 @@ namespace AlphaCloudSync
             }
             finally
             {
+                if (attachedConsole)
+                {
+                    try { FreeConsole(); } catch { }
+                }
                 if (guiMutex != null)
                 {
                     try { guiMutex.ReleaseMutex(); } catch { }

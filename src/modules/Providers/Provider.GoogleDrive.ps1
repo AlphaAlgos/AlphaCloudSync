@@ -325,7 +325,7 @@ function Invoke-GDriveAuth {
         if (Get-Command Write-StudioLog -ErrorAction SilentlyContinue) {
             Write-StudioLog -Msg "[ERR] Google sign-in failed: $($stdErrTxt.Trim())" -TargetRemote $TargetRemote
         }
-        $errSnippet = if (-not [string]::IsNullOrWhiteSpace($stdErrTxt)) { ($stdErrTxt -split "`r?`n" | Where-Object { $_.Trim() } | Select-Object -Last 2) -join "`r`n" } else { "Authorization was not completed." }
+        $errSnippet = if (-not [string]::IsNullOrWhiteSpace($stdErrTxt)) { ($stdErrTxt -split "`r?`n" | Where-Object { $_.Trim() } | Select-Object -Last 2) -join "`r`n" } else { (L "authIncompleteMsg" "Authorization was not completed.") }
         $null = Show-AlphaMessageBox -Message $errSnippet -Title (L "authWaitTitle" "Google Sign-In") -Buttons "OK" -Icon "Warning"
     }
     return $ok

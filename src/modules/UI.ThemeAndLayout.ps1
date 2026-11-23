@@ -617,7 +617,7 @@ $script:DarkControlStylesXaml = @"
                                     <Border x:Name="IndNavActivity" Width="3" Height="16" CornerRadius="2" Background="Transparent" Margin="0,0,9,0"/>
                                     <Path FlowDirection="LeftToRight" Width="15" Height="15" Stretch="Uniform" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.5" Margin="0,0,9,0" Data="M 1,8 H 4 L 6,3 L 9,13 L 11,8 H 15"/>
                                     <TextBlock x:Name="TxtNavActivity" Text="Live Activity" VerticalAlignment="Center"/>
-                                    <Ellipse x:Name="DotNavActivityLive" Width="7" Height="7" Fill="#38BDF8" Margin="8,0,0,0" Visibility="Collapsed"/>
+                                    <Ellipse x:Name="DotNavActivityLive" Width="7" Height="7" Fill="#22C55E" Margin="8,0,0,0" Visibility="Collapsed"/>
                                 </StackPanel>
                             </Button>
 

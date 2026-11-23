@@ -243,15 +243,17 @@ function Set-ExplorerContextMenuEnabled {
         )
         $subShell = "$rootKey\shell"
         New-Item -Path $subShell -Force | Out-Null
+        $isRtlMenu = ($null -ne $script:CurrentLocale -and [bool]$script:CurrentLocale.rtl)
         foreach ($it in $items) {
             $kPath = "$subShell\$($it.Key)"
             $cPath = "$kPath\command"
             New-Item -Path $cPath -Force | Out-Null
-            Set-ItemProperty -Path $kPath -Name "MUIVerb" -Value $it.Label -Force
+            $verbLabel = if ($isRtlMenu) { "$([char]0x202B)$($it.Label)$([char]0x202C)" } else { $it.Label }
+            Set-ItemProperty -Path $kPath -Name "MUIVerb" -Value $verbLabel -Force
             if (-not [string]::IsNullOrWhiteSpace($iconUse)) {
                 Set-ItemProperty -Path $kPath -Name "Icon" -Value "`"$iconUse`"" -Force
             }
-            Set-ItemProperty -Path $cPath -Name "(Default)" -Value "$baseCmd -Action $($it.Act) -TargetPath `"%V`"" -Force
+            Set-ItemProperty -Path $cPath -Name "(Default)" -Value "$baseCmd -Action $($it.Act) -TargetPath `"%V\.`"" -Force
         }
         return $true
     } catch { return $false }

@@ -10,9 +10,9 @@ Welcome! This guide walks you step-by-step through every screen, setting, safety
 3. [Adding Folders (Zero `My Computer (1)` Duplication)](#3-adding-folders-zero-my-computer-1-duplication)
 4. [Delete Policies & Data-Loss Safety Guards](#4-delete-policies--data-loss-safety-guards)
 5. [Per-Account Skip Rules & Filter Savings](#5-per-account-skip-rules--filter-savings)
-6. [Hybrid Unified (`★ G:`) + Standalone Drives & Storage Manager](#6-hybrid-unified--g--standalone-drives--storage-manager)
-7. [Zero-RAM Synced Folder Badges & Drive Icons](#7-zero-ram-synced-folder-badges--drive-icons)
-8. [Automation: Real-Time Auto-Sync vs Windows Task Scheduler](#8-automation-real-time-auto-sync-vs-windows-task-scheduler)
+6. [Hybrid Unified (`★ G:`) and Standalone Drives & Storage Manager](#6-hybrid-unified--g-and-standalone-drives--storage-manager)
+7. [Zero-RAM Folder Badges, Drive Icons & Explorer Right-Click Menu](#7-zero-ram-folder-badges-drive-icons--explorer-right-click-menu)
+8. [Automation, Global Bandwidth Pause & Windows Notifications](#8-automation-global-bandwidth-pause--windows-notifications)
 9. [Freely Draggable Dynamic Cloud Island + Quick-Snap](#9-freely-draggable-dynamic-cloud-island--quick-snap)
 10. [Overwrite-Protected Safe Restore](#10-overwrite-protected-safe-restore)
 11. [Upload Speed Modes & Faster Mode (Personal Google Cloud Key)](#11-upload-speed-modes--faster-mode-personal-google-cloud-key)
@@ -102,7 +102,7 @@ Skip Rules are stored **per account** in `account-prefs.json` and configured in 
 
 ---
 
-## 6. Hybrid Unified (`★ G:`) + Standalone Drives & Storage Manager
+## 6. Hybrid Unified (`★ G:`) and Standalone Drives & Storage Manager
 
 Open **Drive & Storage** in the sidebar to manage both cloud space and Windows Explorer drives:
 
@@ -113,7 +113,7 @@ Use **Windows Drive Layout** (available in both **Drive & Storage** and **Settin
    - Each account mounts as its own Windows Explorer drive letter (`D:`–`Z:`) with a clean 1-line Explorer volume label **`Drive - <Account>`** (`<= 21` chars so Windows Explorer never hides `"X TB free of Y TB"`).
    - Click **Mount All Accounts** to assign collision-free drive letters to every added account automatically, or **double-click** any single row to mount/open just that account.
 2. **Single Unified Drive (`★ G:` — Combined Explorer Pool):**
-   - Combines pooled accounts into one Explorer drive (default `★ G:`) labeled **`Google Drive Unified`** via `rclone mount :combine:`.
+   - Combines pooled accounts into one Explorer drive (default `★ G:`) labeled **`AlphaCloudSync`** via `rclone mount :combine:`.
    - Inside `G:\`, each account appears as its own folder (`alice.dev`, `work-drive`, etc. — automatically deduplicated like `alpha`, `alpha (2)` if two accounts have the same display name).
    - Note: Each Google account still keeps its own separate storage quota on Google's servers.
 3. **Hybrid Mode (Unified + Standalone Simultaneously):**
@@ -127,8 +127,8 @@ Use **Windows Drive Layout** (available in both **Drive & Storage** and **Settin
   - `My Drive + Computer` (mounts both folders side-by-side inside that drive)
 - **Mount Mode:**
   - **Online Only (`0 GB`):** streams on demand (`--vfs-cache-mode writes`, minimal temporary write buffer in `%LOCALAPPDATA%\AlphaCloudSync\vfs-cache\` flushed automatically). No permanent offline SSD copies.
-  - **Offline Copy (Cache):** local VFS cache (`--vfs-cache-mode full`, up to `50G` / `720h`) for offline access.
-- **Persistent After Closing:** Mounted Explorer drives stay alive even if you exit AlphaCloudSync completely (`31.3 MB` RAM / `0.00%` idle CPU measured on a live `G:` drive).
+  - **Offline Copy (Local Storage):** local VFS cache (`--vfs-cache-mode full`, up to `50G` / `720h`) for offline access.
+- **Persistent After Closing & Silent Explorer Auto-Refresh:** Mounted Explorer drives stay alive even if you exit AlphaCloudSync completely (`31.3 MB` RAM / `0.00%` idle CPU measured on a live `G:` drive). Mounting or unmounting refreshes open **This PC** windows silently via Windows Shell COM.
 - **Double-click** any mounted row (even inside Unified Drive!) to jump straight to that account's folder in Windows Explorer, or click **Rename Account** to customize its label.
 
 ### C. Google Drive Quota & Trash Manager
@@ -139,29 +139,32 @@ Use **Windows Drive Layout** (available in both **Drive & Storage** and **Settin
 
 ---
 
-## 7. Zero-RAM Synced Folder Badges & Drive Icons
+## 7. Zero-RAM Folder Badges, Drive Icons & Explorer Right-Click Menu
 
-Enabled by default in **Settings (⚙) → General & Interface → Show AlphaCloudSync icon on synced folders & drives in Windows Explorer**:
+Enabled by default in **Settings (⚙) → General & Interface**:
 
-- **How It Works (0.0 MB RAM):** Stamps synced local folders with a hidden/system `desktop.ini` pointing to `AlphaCloudSync-folder.ico` and registers `HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\DriveIcons\<Letter>\DefaultIcon` for mounted cloud drives, then refreshes Explorer via `SHChangeNotify`. No Explorer shell-extension DLL is injected into memory.
-- **`.git/info/exclude` Protection:** Automatically walks up parent directories to locate `.git` and appends `desktop.ini` to `.git/info/exclude` locally — keeping `git status` clean without modifying tracked `.gitignore` files.
+- **Synced Folder Badges & Drive Icons (0.0 MB RAM):** Stamps synced local folders with a hidden/system `desktop.ini` pointing to `AlphaCloudSync-folder.ico` and registers `HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\DriveIcons\<Letter>\DefaultIcon` for mounted cloud drives, then refreshes Explorer via `SHChangeNotify`. No Explorer shell-extension DLL is injected into memory.
+- **Windows Explorer Folder Right-Click Menu (`HKCU`):** Right-click any folder on your PC → **AlphaCloudSync** to **`Add Folder to Cloud Sync...`** (opens a dark modal letting you choose the exact Google account & destination), **`Sync This Folder Now`**, **`Preview Changes Only`**, or **`Remove Folder from Sync`**. Automatically updates to match your chosen UI language (all 7 languages, with proper Arabic RTL alignment) and can be toggled ON/OFF cleanly in Settings.
+- **`.git/info/exclude` Protection:** Automatically walks up parent directories (including Git worktrees) to locate `.git` and appends `desktop.ini` to `.git/info/exclude` locally — keeping `git status` clean without modifying tracked `.gitignore` files.
 - **Non-Destructive Guard:** If a folder already contains a `desktop.ini` not created by AlphaCloudSync (missing `; Managed by AlphaCloudSync`), AlphaCloudSync leaves your custom icon untouched.
 - **Never Uploaded to Drive:** Automatically passes `--exclude "desktop.ini"` during syncs. Toggling the checkbox OFF removes all AlphaCloudSync-managed badges and drive icons cleanly.
 
 ---
 
-## 8. Automation: Real-Time Auto-Sync vs Windows Task Scheduler
+## 8. Automation, Global Bandwidth Pause & Windows Notifications
 
 You can choose either automation method—or stay 100% manual (`0.0 MB` closed RAM) — inside **Settings (⚙) → Schedule & Skip Rules**:
 
-| Feature | Real-Time Auto-Sync (`ON/OFF`) | Windows Task Scheduler (`12h AM/PM`) |
+| Feature | Real-Time Auto-Sync (`ON/OFF`) | Windows Task Scheduler (`12h AM/PM` COM) |
 | :--- | :--- | :--- |
 | **Requires App Running?** | **Yes** — runs while AlphaCloudSync is open or hidden in System Tray | **No** — runs silently even when AlphaCloudSync is **completely closed (`0.0 MB` RAM)** |
-| **Trigger** | Instant local file/folder create, edit, delete, or rename in active account's checked folders | Fixed schedule: **One-Time**, **Daily**, **Weekly** (selected days), or **Every Few Hours** (`1h`–`12h`) |
+| **Trigger** | Instant local file/folder create, edit, delete, or rename in active account's checked folders (fast targeted `--files-from` upload for edited files!) | Fixed schedule: **One-Time**, **Daily**, **Weekly** (selected days), or **Every Few Hours** (`1h`–`12h`) via locale-independent COM `Schedule.Service` |
 | **Debounce & Ignores** | Waits **4 seconds** after changes settle; ignores `.git`, `node_modules`, `.venv`, `__pycache__`, `.vs`, `.next`, `.expo`, `desktop.ini`, `Thumbs.db`, `~$*`, `*.tmp`, `*.part`, `*.crdownload` | Runs full headless batch (`AlphaCloudSync.exe -Action Sync -RemoteName <remote>`) |
-| **Notifications & Logs** | Shows live System Tray completion popup + live Activity feed | Writes exit code and summary to `%APPDATA%\AlphaCloudSync\backup-health.json` + `%LOCALAPPDATA%\AlphaCloudSync\logs\` |
+| **Notifications & Activity** | Priority-sorted Live Activity Queue + pulsing green live indicator while uploading + optional Auto-Sync toast (fires ONLY when real files changed) | Writes exit code and summary to `%APPDATA%\AlphaCloudSync\backup-health.json` + `%LOCALAPPDATA%\AlphaCloudSync\logs\` |
 
-> **Tip:** Enable **Start with Windows (Quiet)** in **Settings → General & Interface** if you use **Real-Time Auto-Sync** so AlphaCloudSync starts silently in your System Tray (`--minimized`) at Windows login.
+- **1-Click Global Bandwidth Pause (System Tray):** Right-click the AlphaCloudSync icon in the System Tray → **Pause All Syncing (Save Bandwidth)** to pause active syncs and live watching whenever you need maximum internet speed, then click **Resume Syncing** when ready.
+- **Granular Notification Controls (`Settings → General & Interface`):** Control master Windows notifications plus 4 independent categories: **Manual Sync / Preview / Restore**, **Real-Time Auto-Sync** (real changes only), **Sync Errors & Warnings**, and **Virtual Drive Mount / Unmount Events**.
+- **Tip:** Enable **Start with Windows (Quiet)** in **Settings → General & Interface** if you use **Real-Time Auto-Sync** so AlphaCloudSync starts silently in your System Tray (`--minimized`) at Windows login.
 
 ---
 

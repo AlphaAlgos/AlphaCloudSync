@@ -28,7 +28,7 @@
   "apiKeyTooltip": "Optional: Use your own free Google Cloud key for up to 5x faster uploads and higher limits",
   "mountModeTooltip": "Online Stream: Opens cloud files on demand using a small temporary write buffer. Offline Copy: Keeps a fuller local cache on disk.",
   "mountModeStream": "Online Stream (On-Demand)",
-  "mountModeMirror": "Offline Copy (Cache)",
+  "mountModeMirror": "Offline Copy (Local Storage)",
   "mountMounted": "Drive {0} ({1}): Active",
   "mountHidden": "Drive: Hidden (0% RAM)",
   "showDrive": "Show Drive",
@@ -99,7 +99,7 @@
   "statusCompleted": "All folders completed (100%)",
   "statusStopped": "Paused / Stopped by user (Resume anytime)",
   "progressScanning": "{0}% (Scanning...)",
-  "liveFolderBanner": "Folder {0}/{1}: {2} ({3})",
+  "liveFolderBanner": "Folder {0}/{1}: {2} — {3}",
   "liveTransferMeta": "{0} | {1} | {2} | ETA {3}",
   "jobTitleSync": "BACKUP ({0})",
   "jobTitleDryRun": "PREVIEW ONLY (NO CHANGES)",
@@ -161,7 +161,7 @@
   "addAccPrompt": "Optional display name (leave empty to automatically use your email username):",
   "addAccContinue": "Continue to Google Sign-In",
   "apiKeyModalTitle": "Faster Mode — Personal Google Cloud Key (Up to 5x Faster)",
-  "apiKeyModalDesc": "Google sets shared speed limits on public apps. Adding your own free Google Cloud OAuth Client ID removes shared throttling and boosts upload speeds up to 5x.",
+  "apiKeyModalDesc": "Google sets shared speed limits on public apps. Adding your own free Google Cloud Client ID removes shared throttling and boosts upload speeds up to 5x.",
   "apiKeyClientIdLabel": "Google Client ID (*.apps.googleusercontent.com):",
   "apiKeySecretLabel": "Google Client Secret:",
   "apiKeyApplyBtn": "Save & Reconnect",
@@ -334,5 +334,9 @@
   "ctxAddModalTitle": "Add Folder to AlphaCloudSync",
   "ctxAddModalAccount": "Select Cloud Account:",
   "ctxAddModalDest": "Backup Destination:",
-  "ctxFolderNotTracked": "This folder is not currently in your AlphaCloudSync backup list."
+  "ctxFolderNotTracked": "This folder is not currently in your AlphaCloudSync backup list.",
+  "authIncompleteMsg": "Authorization was not completed.",
+  "etaShort": "ETA",
+  "toastDriveUnmountedTitle": "Cloud Drive Disconnected",
+  "toastDriveUnmountedBody": "{0} has been disconnected from drive {1}."
 }

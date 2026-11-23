@@ -46,7 +46,13 @@ $BtnNavSettings.Add_Click({ Select-StudioTab "Settings" })
 $script:ActiveProcess        = $null
 $script:ActiveJobLogFile     = $null
 $script:ActiveFilesFromFile  = $null
+$script:ActiveTargetFiles    = $null
 $script:CurrentFolderPath    = $null
+$script:FoldersGridHydrated  = $false
+$script:IsActivityDotPulsing = $false
+$script:IsHandlingIpc        = $false
+$script:WatchExcludeCacheKey = ""
+$script:WatchExcludeCacheLines = @()
 $script:JobSeq               = 0
 $script:IsSyncRunning        = $false
 $script:SyncingRemote        = $null
@@ -617,8 +623,11 @@ function Initialize-CloudIsland {
     $toggleAction = {
         try {
             if ($script:IsSyncRunning) { Invoke-PauseOrStopSync }
-            elseif ($script:WasPausedByUser) { Start-StudioBatch -Mode $script:LastBatchMode -OnlyFolderPath $script:LastBatchOnlyFolder }
-            else { Start-StudioBatch -Mode "Sync" }
+            else {
+                if ($script:IsGloballyPaused) { Set-GlobalSyncPaused -Paused $false -Silent }
+                if ($script:WasPausedByUser) { Start-StudioBatch -Mode $script:LastBatchMode -OnlyFolderPath $script:LastBatchOnlyFolder }
+                else { Start-StudioBatch -Mode "Sync" }
+            }
         } catch {}
     }
     $iw.FindName("IslBtnToggleSlim").Add_Click($toggleAction)
@@ -628,6 +637,33 @@ function Initialize-CloudIsland {
 
     $script:IslandWindow = $iw
     Update-CloudIslandDisplay
+}
+
+function Update-ActivityLiveDotState {
+    try {
+        if ($null -eq $DotNavActivityLive) { return }
+        $isActiveUpload = ($script:IsSyncRunning -and $script:SyncingRemote -eq $script:ActiveRemote -and $script:LastBatchMode -notin @("DryRun", "RestorePreview"))
+        if ($isActiveUpload) {
+            $DotNavActivityLive.Visibility = "Visible"
+            if (-not $script:IsActivityDotPulsing) {
+                $anim = New-Object System.Windows.Media.Animation.DoubleAnimation
+                $anim.From = 1.0
+                $anim.To = 0.12
+                $anim.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromMilliseconds(850))
+                $anim.AutoReverse = $true
+                $anim.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
+                $DotNavActivityLive.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $anim)
+                $script:IsActivityDotPulsing = $true
+            }
+        } else {
+            if ($script:IsActivityDotPulsing) {
+                $DotNavActivityLive.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $null)
+                $DotNavActivityLive.Opacity = 1.0
+                $script:IsActivityDotPulsing = $false
+            }
+            $DotNavActivityLive.Visibility = "Collapsed"
+        }
+    } catch {}
 }
 
 function Set-CloudIslandEnabled {
@@ -654,17 +690,15 @@ function Set-CloudIslandEnabled {
 
 function Update-CloudIslandDisplay {
     try {
+        Update-ActivityLiveDotState
         if ($script:IsSyncRunning) {
             $TaskbarInfo.ProgressState = [System.Windows.Shell.TaskbarItemProgressState]::Normal
             $TaskbarInfo.ProgressValue = [math]::Max(0.02, [math]::Min(1.0, ($script:LastOverallPct / 100.0)))
-            $DotNavActivityLive.Visibility = if ($script:SyncingRemote -eq $script:ActiveRemote) { "Visible" } else { "Collapsed" }
-        } elseif ($script:WasPausedByUser) {
+        } elseif ($script:IsGloballyPaused -or $script:WasPausedByUser) {
             $TaskbarInfo.ProgressState = [System.Windows.Shell.TaskbarItemProgressState]::Paused
-            $DotNavActivityLive.Visibility = "Collapsed"
         } else {
             $TaskbarInfo.ProgressState = [System.Windows.Shell.TaskbarItemProgressState]::None
             $TaskbarInfo.ProgressValue = 0
-            $DotNavActivityLive.Visibility = "Collapsed"
         }
 
         if ($null -eq $script:IslandWindow -or -not $script:IslandEnabled) { return }
@@ -699,17 +733,18 @@ function Update-CloudIslandDisplay {
             $iw.FindName("IslFolderTitle").Text = LF "islandFolderProgress" @($script:BatchCurrentIndex, [math]::Max(1, $script:BatchTotalFolders), $script:CurrentFolder)
             $metaParts = @()
             if ($script:LastFilesSummary) { $metaParts += $script:LastFilesSummary }
-            if ($script:LastEtaTxt)       { $metaParts += "ETA $($script:LastEtaTxt)" }
+            if ($script:LastEtaTxt)       { $metaParts += "$(L 'etaShort' 'ETA') $($script:LastEtaTxt)" }
             $iw.FindName("IslMetaLine").Text = if ($metaParts.Count -gt 0) { Wrap-Ltr ($metaParts -join ("  " + [char]0x2022 + "  ")) } else { $TxtLiveTransfer.Text }
         } else {
-            $dotColor = if ($script:WasPausedByUser) { "#F59E0B" } else { "#10B981" }
+            $isPausedNow = ($script:IsGloballyPaused -or $script:WasPausedByUser)
+            $dotColor = if ($isPausedNow) { "#F59E0B" } else { "#10B981" }
             $iw.FindName("IslDot").Fill = $bc.ConvertFromString($dotColor)
             $iw.FindName("IslSpeed").Text = ""
             $iw.FindName("IslGlyphSlim").Text = ([string][char]0x25B6)
             $iw.FindName("IslBtnToggleSlim").Background = $bc.ConvertFromString("#10B981")
-            $iw.FindName("IslBtnAction").Content = if ($script:WasPausedByUser) { L "islandResume" "Resume" } else { L "islandStart" "Sync" }
+            $iw.FindName("IslBtnAction").Content = if ($isPausedNow) { L "islandResume" "Resume" } else { L "islandStart" "Sync" }
             $iw.FindName("IslBtnAction").Background = $bc.ConvertFromString("#10B981")
-            $iw.FindName("IslFolderTitle").Text = if ($script:WasPausedByUser) { L "statusStopped" } else { L "islandIdle" }
+            $iw.FindName("IslFolderTitle").Text = if ($script:IsGloballyPaused) { L "trayPausedShort" "Paused" } elseif ($script:WasPausedByUser) { L "statusStopped" } else { L "islandIdle" }
             $iw.FindName("IslMetaLine").Text = $TxtUploadCounters.Text
         }
     } catch {}
@@ -723,7 +758,10 @@ $ChkCloudIsland.Add_Click({
 function Update-RealTimeWatchStatusText {
     try {
         $bc = New-Object System.Windows.Media.BrushConverter
-        if ($script:AutoWatchEnabled) {
+        if ($script:IsGloballyPaused) {
+            $TxtAutoWatchStatus.Text = L "trayPausedShort" "Paused"
+            $TxtAutoWatchStatus.Foreground = $bc.ConvertFromString("#F59E0B")
+        } elseif ($script:AutoWatchEnabled) {
             $cnt = if ($null -ne $script:WatchHub) { [int]$script:WatchHub.WatchCount } else { 0 }
             $TxtAutoWatchStatus.Text = LF "autoWatchStatusActive" @($cnt)
             $TxtAutoWatchStatus.Foreground = $bc.ConvertFromString("#4ADE80")
@@ -833,6 +871,7 @@ function Set-GlobalSyncPaused {
             }
         } else {
             $script:WasPausedByUser = $false
+            foreach ($rtAcc in $script:AccountRuntimeMap.Values) { $rtAcc.WasPausedByUser = $false }
             if ($null -ne $script:WatchHub) { $script:WatchHub.Paused = $false }
             $miPauseAll.Text = L "trayPauseAll" "Pause All Syncing (Save Bandwidth)"
             $script:TrayIcon.Text = "AlphaCloudSync v$AppVersion"
@@ -841,6 +880,7 @@ function Set-GlobalSyncPaused {
                 Show-TrayToast -Title (L "toastGlobalResumeTitle" "AlphaCloudSync Resumed") -Body (L "toastGlobalResumeBody" "Syncing and live folder monitoring have resumed.") -Category "Manual"
             }
         }
+        Refresh-SidebarAccountsOverview
         Update-RealTimeWatchStatusText
         Update-CloudIslandDisplay
     } catch {}
@@ -907,6 +947,8 @@ $script:AppShuttingDown = $false
 function Stop-AlphaCloudSyncApp {
     if ($script:AppShuttingDown) { return }
     $script:AppShuttingDown = $true
+    try { if ($null -ne $timer) { $timer.Stop() } } catch {}
+    try { if ($null -ne $script:RestoreSignalTimer) { $script:RestoreSignalTimer.Stop() } } catch {}
     try { Persist-GridCheckboxChanges } catch {}
     try { if ($window.IsLoaded) { Save-CurrentWindowBounds } } catch {}
     try {
@@ -923,7 +965,6 @@ function Stop-AlphaCloudSyncApp {
     } catch {}
     try { if ($null -ne $script:IslandWindow) { $script:IslandWindow.Close() } } catch {}
     try { if ($null -ne $script:WatchHub) { $script:WatchHub.Dispose(); $script:WatchHub = $null } } catch {}
-    try { if ($null -ne $script:RestoreSignalTimer) { $script:RestoreSignalTimer.Stop() } } catch {}
     try { if ($null -ne $script:RestoreSignalEvent) { $script:RestoreSignalEvent.Dispose() } } catch {}
     try { $script:TrayIcon.Visible = $false; $script:TrayIcon.Dispose() } catch {}
     try { if ($null -ne $script:WpfApp) { $script:WpfApp.Shutdown(0) } } catch {}
@@ -933,6 +974,36 @@ $miExit.Add_Click({
     try { if ($window.IsLoaded) { $window.Close() } } catch {}
     Stop-AlphaCloudSyncApp
 })
+
+function Invoke-DrainIpcQueue {
+    if ($script:IsHandlingIpc) { return }
+    $script:IsHandlingIpc = $true
+    try {
+        $queueFiles = @()
+        if (Test-Path -LiteralPath $IpcCmdFile) {
+            $queueFiles += $IpcCmdFile
+        }
+        if ($IpcQueueDir -and (Test-Path -LiteralPath $IpcQueueDir)) {
+            $queueFiles += @(Get-ChildItem -LiteralPath $IpcQueueDir -Filter "*.json" -File -ErrorAction SilentlyContinue | Sort-Object Name | ForEach-Object { $_.FullName })
+        }
+        foreach ($qFile in $queueFiles) {
+            try {
+                if (-not (Test-Path -LiteralPath $qFile)) { continue }
+                $rawIpc = [System.IO.File]::ReadAllText($qFile, [System.Text.Encoding]::UTF8)
+                Remove-Item -LiteralPath $qFile -Force -ErrorAction SilentlyContinue
+                if (-not [string]::IsNullOrWhiteSpace($rawIpc)) {
+                    $ipcObj = $rawIpc | ConvertFrom-Json
+                    if ($ipcObj -and -not [string]::IsNullOrWhiteSpace($ipcObj.Action) -and (Get-Command Invoke-HandleContextCommand -ErrorAction SilentlyContinue)) {
+                        Restore-MainWindowFromTray
+                        Invoke-HandleContextCommand -ContextAction ([string]$ipcObj.Action) -FolderPath ([string]$ipcObj.Path)
+                    }
+                }
+            } catch {}
+        }
+    } finally {
+        $script:IsHandlingIpc = $false
+    }
+}
 
 # Single-instance restore signal: if user re-launches AlphaCloudSync.exe while hidden in Tray, pop window back to front!
 $script:RestoreSignalEvent = $null
@@ -944,20 +1015,13 @@ try {
     $script:RestoreSignalTimer.Interval = [TimeSpan]::FromMilliseconds(350)
     $script:RestoreSignalTimer.Add_Tick({
         try {
-            if ($null -ne $script:RestoreSignalEvent -and $script:RestoreSignalEvent.WaitOne(0)) {
+            $sig = ($null -ne $script:RestoreSignalEvent -and $script:RestoreSignalEvent.WaitOne(0))
+            if ($sig) {
                 Restore-MainWindowFromTray
-                if (Test-Path -LiteralPath $IpcCmdFile) {
-                    try {
-                        $rawIpc = [System.IO.File]::ReadAllText($IpcCmdFile, [System.Text.Encoding]::UTF8)
-                        Remove-Item -LiteralPath $IpcCmdFile -Force -ErrorAction SilentlyContinue
-                        if (-not [string]::IsNullOrWhiteSpace($rawIpc)) {
-                            $ipcObj = $rawIpc | ConvertFrom-Json
-                            if ($ipcObj -and -not [string]::IsNullOrWhiteSpace($ipcObj.Action) -and (Get-Command Invoke-HandleContextCommand -ErrorAction SilentlyContinue)) {
-                                Invoke-HandleContextCommand -ContextAction $ipcObj.Action -FolderPath ([string]$ipcObj.Path)
-                            }
-                        }
-                    } catch {}
-                }
+                Invoke-DrainIpcQueue
+            } elseif (-not $script:IsHandlingIpc) {
+                $hasPending = (Test-Path -LiteralPath $IpcCmdFile) -or ($IpcQueueDir -and (Test-Path -LiteralPath $IpcQueueDir) -and (@(Get-ChildItem -LiteralPath $IpcQueueDir -Filter "*.json" -File -ErrorAction SilentlyContinue).Count -gt 0))
+                if ($hasPending) { Invoke-DrainIpcQueue }
             }
         } catch {}
     })
@@ -1005,7 +1069,7 @@ function Switch-AccountActivityView {
         $TxtProgressPct.Text = $rt.ProgressPctText
         $TxtUploadCounters.Text = if (-not [string]::IsNullOrWhiteSpace($rt.CountersText)) { $rt.CountersText } else { L "countersInitial" }
         $TxtLiveTransfer.Text = if (-not [string]::IsNullOrWhiteSpace($rt.LiveTransferText)) { $rt.LiveTransferText } else { L "statusIdle" }
-        $DotNavActivityLive.Visibility = if ($isThisSyncing) { "Visible" } else { "Collapsed" }
+        Update-ActivityLiveDotState
 
         if ($isThisSyncing) {
             $TxtSyncToggle.Text        = L "stopSync"
@@ -1074,7 +1138,7 @@ function Build-SidebarAccountCardObject {
         $spdPart = if (-not [string]::IsNullOrWhiteSpace($rt.LastSpeedTxt)) { "  $([char]0x2022)  $($rt.LastSpeedTxt)" } else { "" }
         $syncSum = ("{0:N1}%{1}" -f $syncPct, $spdPart)
     } elseif ($rt.WasPausedByUser) {
-        $syncSum = ("{0:N1}%  $([char]0x2022)  {1}" -f $syncPct, (L "islandPause" "Paused"))
+        $syncSum = ("{0:N1}%  $([char]0x2022)  {1}" -f $syncPct, (L "trayPausedShort" "Paused"))
     }
 
     $dotHex = if ($isSyncingThis) { "#38BDF8" } elseif ($isMounted) { if ($isUniMember) { "#FBBF24" } else { "#10B981" } } elseif ($rt.WasPausedByUser) { "#F59E0B" } else { "#64748B" }

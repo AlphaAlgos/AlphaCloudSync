@@ -258,9 +258,9 @@ public class AlphaFolderWatchHub : IDisposable {
 
     private void RecordChange(string root, string fullPath, string kind, bool requireFullSync) {
         if (_paused) return;
-        if (!requireFullSync && IsIgnoredPath(fullPath)) return;
+        if (!string.IsNullOrEmpty(fullPath) && IsIgnoredPath(fullPath)) return;
         string rel = GetRelPath(root, fullPath);
-        if (!string.IsNullOrEmpty(rel) && !Directory.Exists(fullPath) && !IsIgnoredPath(fullPath)) {
+        if (!string.IsNullOrEmpty(rel) && !Directory.Exists(fullPath)) {
             if (_recentEvents.Count < 150) {
                 _recentEvents.Enqueue(new AlphaWatchFileEvent { FolderRoot = root, RelPath = rel, Kind = kind });
             }
@@ -274,7 +274,7 @@ public class AlphaFolderWatchHub : IDisposable {
             st.LastUtc = DateTime.UtcNow;
             if (requireFullSync || string.IsNullOrEmpty(rel) || Directory.Exists(fullPath) || st.Files.Count >= 20) {
                 st.FullSyncRequired = true;
-            } else if (!IsIgnoredPath(fullPath)) {
+            } else {
                 st.Files.Add(rel);
             }
         }

@@ -5,8 +5,8 @@
 function Invoke-HeadlessBatch {
     param([switch]$DryRun, [switch]$Restore, [string]$SingleFolder = "")
     if (-not (Test-GDriveConfigured -TargetRemote $RemoteName)) {
-        Write-Output "ERROR: Profile '$RemoteName' is not signed in."
-        Save-BackupHealth -Mode "Headless" -Status "FAIL" -ExitCode 1 -FoldersProcessed 0 -Summary "Profile '$RemoteName' is not signed in."
+        [Console]::Error.WriteLine("ERROR: Profile '$RemoteName' is not signed in.")
+        Save-BackupHealth -Mode "Headless" -Status "FAIL" -ExitCode 1 -FoldersProcessed 0 -Summary "Profile '$RemoteName' is not signed in." -TargetRemote $RemoteName
         return 1
     }
     $cfg = Get-Settings
@@ -17,8 +17,13 @@ function Invoke-HeadlessBatch {
         $folders = @($folders | Where-Object { $_.Enabled -ne $false })
     }
     if ($folders.Count -eq 0) {
-        Write-Output "WARN: No enabled folders configured for profile '$RemoteName'."
-        Save-BackupHealth -Mode "Headless" -Status "WARN" -ExitCode 0 -FoldersProcessed 0 -Summary "No enabled folders."
+        if (-not [string]::IsNullOrWhiteSpace($SingleFolder)) {
+            [Console]::Error.WriteLine("ERROR: Folder '$SingleFolder' was not found in profile '$RemoteName'.")
+            Save-BackupHealth -Mode "Headless" -Status "FAIL" -ExitCode 2 -FoldersProcessed 0 -Summary "Folder '$SingleFolder' not found." -TargetRemote $RemoteName
+            return 2
+        }
+        [Console]::WriteLine("WARN: No enabled folders configured for profile '$RemoteName'.")
+        Save-BackupHealth -Mode "Headless" -Status "WARN" -ExitCode 0 -FoldersProcessed 0 -Summary "No enabled folders." -TargetRemote $RemoteName
         return 0
     }
 
@@ -27,11 +32,11 @@ function Invoke-HeadlessBatch {
     $exInfo    = Build-SafeExcludeFile -TargetRemote $RemoteName
     if (-not $exInfo.Valid) {
         $err = "Invalid exclusion rules; sync was blocked to prevent unintended uploads. $($exInfo.Error)"
-        Write-Output "ERROR: $err"
+        [Console]::Error.WriteLine("ERROR: $err")
         Save-BackupHealth -Mode "Headless" -Status "FAIL" -ExitCode 5 -FoldersProcessed 0 -Summary $err -TargetRemote $RemoteName
         return 5
     }
-    $exFlag    = if ($exInfo.Enabled -and $exInfo.FilterFile) { "--exclude-from `"$($exInfo.FilterFile)`"" } else { "" }
+    $exFlag    = if ($exInfo.Enabled -and $exInfo.FilterFile) { "--exclude-from $(Format-WinArg $exInfo.FilterFile)" } else { "" }
     if ([bool]$cfg.ShowFolderBadges) { $exFlag = ("$exFlag --exclude `"desktop.ini`"").Trim() }
     $spdFlags  = Get-SpeedFlagsString -Preset $cfg.SpeedPreset
     $resilient = "--retries 10 --low-level-retries 20 --retries-sleep 5s --modify-window 1s"
@@ -53,8 +58,8 @@ function Invoke-HeadlessBatch {
         } else {
             if (-not (Test-Path -LiteralPath $f.LocalPath)) { $overallExit = 3; $failedFolders += "$($f.Name)(Missing)"; continue }
             $sourceCheck = Test-RcloneSourceHasIncludedFiles -LocalPath $f.LocalPath -ExcludeFlags $exFlag
-            if (-not $sourceCheck.Safe) { $overallExit = 5; $failedFolders += "$($f.Name)(SourceCheckFailed)"; Write-Output "ERROR: Source safety check failed for '$($f.Name)': $($sourceCheck.Error)"; continue }
-            if (-not $sourceCheck.HasFiles) { $overallExit = 4; $failedFolders += "$($f.Name)(NoIncludedFiles)"; Write-Output "WARN: No files remain after exclusion rules for '$($f.Name)'; remote data was left untouched."; continue }
+            if (-not $sourceCheck.Safe) { $overallExit = 5; $failedFolders += "$($f.Name)(SourceCheckFailed)"; [Console]::Error.WriteLine("ERROR: Source safety check failed for '$($f.Name)': $($sourceCheck.Error)"); continue }
+            if (-not $sourceCheck.HasFiles) { $overallExit = 4; $failedFolders += "$($f.Name)(NoIncludedFiles)"; [Console]::WriteLine("WARN: No files remain after exclusion rules for '$($f.Name)'; remote data was left untouched."); continue }
             $dryFlag = if ($DryRun) { "--dry-run" } else { "" }
             if ($cfg.DeletePolicy -eq "Copy-Only") {
                 $args = "copy $locArg $remArg $spdFlags $resilient $dryFlag $exFlag --stats 5s --stats-one-line --log-file $(Format-WinArg $runLog)"
@@ -81,6 +86,7 @@ function Invoke-HeadlessBatch {
 
 function Invoke-HeadlessCliDispatch {
     param([string]$CliAction)
+    try { [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false) } catch {}
     if ($CliAction -eq "Status") {
         $ident = Get-ConnectedGoogleIdentity -TargetRemote $RemoteName
         $mntL  = Get-MountedLetterForRemote -TargetRemote $RemoteName
@@ -114,7 +120,10 @@ function Invoke-HeadlessCliDispatch {
     if ($CliAction -eq "Mount")   { $ok = Invoke-ToggleMount -TargetRemote $RemoteName -Letter $DriveLetter -ForceMount; exit $(if ($ok) { 0 } else { 1 }) }
     if ($CliAction -eq "Unmount") {
         $ok = Invoke-ToggleMount -TargetRemote $RemoteName -Letter $DriveLetter -ForceUnmount
-        if ($null -ne (Get-UnifiedMountLetter)) { $null = Invoke-ToggleUnifiedMount -ForceUnmount }
+        if ($null -ne (Get-UnifiedMountLetter)) {
+            $okUni = Invoke-ToggleUnifiedMount -ForceUnmount
+            $ok = ($ok -and $okUni)
+        }
         exit $(if ($ok) { 0 } else { 1 })
     }
     exit 1

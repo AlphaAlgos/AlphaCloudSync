@@ -382,7 +382,7 @@ try {
     # Verify 1-line Explorer volume labels (<= 21 chars so Windows Explorer NEVER hides "X TB free of Y TB")
     $volStream = ($aDrive -match '--volname "([^"]+)"') -and ($Matches[1] -eq "Drive - alice.dev") -and ($Matches[1].Length -le 21)
     $volMirror = ($aComp  -match '--volname "([^"]+)"') -and ($Matches[1].Length -le 21)
-    $volUnified = ($aUni  -match '--volname "([^"]+)"') -and ($Matches[1] -eq "Google Drive Unified") -and ($Matches[1].Length -le 21)
+    $volUnified = ($aUni  -match '--volname "([^"]+)"') -and ($Matches[1] -eq "AlphaCloudSync") -and ($Matches[1].Length -le 21)
     $uniDedup  = ($aUni -match 'alpha=gdrive:') -and ($aUni -match 'alpha \(2\)=gdrive-work:My Computer') -and $volUnified
 
     # Real local rclone :combine: mount test (verifies Unified/Both multi-folder mount works on WinFsp!)
@@ -675,13 +675,14 @@ try {
         Invoke-Expression $fNode.Extent.Text
     }
     $okSep      = Test-MountCommandLineMatchesEntry -CommandLine 'rclone.exe mount "gdrive:" G: --volname "Drive - alice"' -TargetRemote "gdrive" -Letter "G:"
-    $okUni      = Test-MountCommandLineMatchesEntry -CommandLine 'rclone.exe mount :combine: H: --combine-upstreams "a=gdrive:" --cache-dir "C:\tmp\unified-all"' -TargetRemote "__UNIFIED__" -Letter "H:"
+    $okUni      = Test-MountCommandLineMatchesEntry -CommandLine 'rclone.exe mount :combine: H: --combine-upstreams "a=gdrive:" --cache-dir "C:\tmp\vfs-cache\unified-all"' -TargetRemote "__UNIFIED__" -Letter "H:"
+    $noUserHit  = -not (Test-MountCommandLineMatchesEntry -CommandLine 'rclone.exe mount :combine: H: --combine-upstreams "a=gdrive:" --cache-dir "C:\Users\Example\unified-all\vfs-cache\gdrive"' -TargetRemote "__UNIFIED__" -Letter "H:")
     $noSyncPid  = -not (Test-MountCommandLineMatchesEntry -CommandLine 'rclone.exe sync "C:\Data" "gdrive:Data" --fast-list' -TargetRemote "gdrive" -Letter "G:")
     $noWrongRem = -not (Test-MountCommandLineMatchesEntry -CommandLine 'rclone.exe mount "gdrive-2:" G: --volname "Drive - bob"' -TargetRemote "gdrive" -Letter "G:")
     $noWrongLtr = -not (Test-MountCommandLineMatchesEntry -CommandLine 'rclone.exe mount "gdrive:" H: --volname "Drive - alice"' -TargetRemote "gdrive" -Letter "G:")
     $noSepAsUni = -not (Test-MountCommandLineMatchesEntry -CommandLine 'rclone.exe mount "gdrive:" H: --volname "Drive - alice"' -TargetRemote "__UNIFIED__" -Letter "H:")
-    $t21 = $okSep -and $okUni -and $noSyncPid -and $noWrongRem -and $noWrongLtr -and $noSepAsUni
-    Add-TestResult "T21" "Mount PID Identity & Reuse Safety Guard" $t21 "Sep=$okSep Uni=$okUni RejectSync=$noSyncPid RejectRem=$noWrongRem RejectLtr=$noWrongLtr RejectMix=$noSepAsUni"
+    $t21 = $okSep -and $okUni -and $noUserHit -and $noSyncPid -and $noWrongRem -and $noWrongLtr -and $noSepAsUni
+    Add-TestResult "T21" "Mount PID Identity & Reuse Safety Guard" $t21 "Sep=$okSep Uni=$okUni RejectUserColl=$noUserHit RejectSync=$noSyncPid RejectRem=$noWrongRem RejectLtr=$noWrongLtr RejectMix=$noSepAsUni"
 } catch { Add-TestResult "T21" "Mount PID Identity & Reuse Safety Guard" $false $_.Exception.Message }
 
 # T22: Fast Auto-Upload Local Exclusion Filter & Zero --files-from / --exclude-from Collision
@@ -739,6 +740,36 @@ try {
     $t23 = $thinEntry -and $allModsPresent -and $hasGDrive -and $extensibleOk -and $hasGlobalPause -and $hasExplorerMenu -and $hasContextIpc
     Add-TestResult "T23" "Modular Architecture, Provider Registry, Pause & Menu" $t23 "EntryLines=$entryLines, Mods(13)=$allModsPresent, Providers=$hasGDrive/$extensibleOk, GlobalPause=$hasGlobalPause, ExplorerMenu=$hasExplorerMenu/$hasContextIpc"
 } catch { Add-TestResult "T23" "Modular Architecture, Provider Registry, Pause & Menu" $false $_.Exception.Message }
+
+# T24: Audit Regression Guards (Dir/** File Safety, "%V\." + RTL Menu, Atomic IPC Queue, Pulsing Green Upload Dot)
+try {
+    $fnAst = $script:CombinedSrcAst
+    $fNode = $fnAst.Find({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Test-RelPathExcludedByRules' }, $true)
+    if ($null -eq $fNode) { throw "Function 'Test-RelPathExcludedByRules' not found" }
+    Invoke-Expression $fNode.Extent.Text
+
+    $dirPats = @("build/**", "dist/**", "a/b/**")
+    $fileBuildKept = -not (Test-RelPathExcludedByRules -RelPath "build" -ExcludeLines $dirPats -ExcludeDesktopIni $true)
+    $fileDistKept  = -not (Test-RelPathExcludedByRules -RelPath "src/dist" -ExcludeLines $dirPats -ExcludeDesktopIni $true)
+    $fileABKept    = -not (Test-RelPathExcludedByRules -RelPath "a/b" -ExcludeLines $dirPats -ExcludeDesktopIni $true)
+    $dirBuildExcl  = Test-RelPathExcludedByRules -RelPath "build/app.exe" -ExcludeLines $dirPats -ExcludeDesktopIni $true
+    $dirDistExcl   = Test-RelPathExcludedByRules -RelPath "web/dist/bundle.js" -ExcludeLines $dirPats -ExcludeDesktopIni $true
+    $dirABExcl     = Test-RelPathExcludedByRules -RelPath "x/a/b/c.txt" -ExcludeLines $dirPats -ExcludeDesktopIni $true
+
+    $shellTxt = [System.IO.File]::ReadAllText((Join-Path $ProjectRoot "src\modules\Core.Shell.ps1"), [System.Text.Encoding]::UTF8)
+    $ctxSafeArg = ($shellTxt -match '%V\\\.`"') -and ($shellTxt -match '0x202B') -and ($shellTxt -match '0x202C')
+    $normDriveRoot = ([System.IO.Path]::GetFullPath("C:\.") -eq "C:\")
+
+    $themeTxt = [System.IO.File]::ReadAllText((Join-Path $ProjectRoot "src\modules\UI.ThemeAndLayout.ps1"), [System.Text.Encoding]::UTF8)
+    $islTxt   = [System.IO.File]::ReadAllText((Join-Path $ProjectRoot "src\modules\UI.ShellAndIsland.ps1"), [System.Text.Encoding]::UTF8)
+    $greenPulseOk = ($themeTxt -match 'DotNavActivityLive.*Fill="#22C55E".*Visibility="Collapsed"') -and ($islTxt -match 'function Update-ActivityLiveDotState') -and ($islTxt -match 'DoubleAnimation') -and ($islTxt -match 'RepeatBehavior\]::Forever')
+
+    $csText = [System.IO.File]::ReadAllText((Join-Path $ProjectRoot "src\AlphaCloudSyncLauncher.cs"), [System.Text.Encoding]::UTF8)
+    $ipcAtomicOk = ($csText -match 'ipc-queue') -and ($csText -match 'EscapeJsonString') -and ($csText -match 'AttachConsole') -and ($islTxt -match 'function Invoke-DrainIpcQueue')
+
+    $t24 = $fileBuildKept -and $fileDistKept -and $fileABKept -and $dirBuildExcl -and $dirDistExcl -and $dirABExcl -and $ctxSafeArg -and $normDriveRoot -and $greenPulseOk -and $ipcAtomicOk
+    Add-TestResult "T24" "Audit Regression Guards (Dir/**, Context RTL, IPC, Pulse)" $t24 "FilesKept=$fileBuildKept/$fileDistKept/$fileABKept DirsExcl=$dirBuildExcl/$dirDistExcl/$dirABExcl CtxSafe=$ctxSafeArg/$normDriveRoot GreenPulse=$greenPulseOk AtomicIPC=$ipcAtomicOk"
+} catch { Add-TestResult "T24" "Audit Regression Guards (Dir/**, Context RTL, IPC, Pulse)" $false $_.Exception.Message }
 
 $passedCount  = @($results | Where-Object { $_.Status -eq "PASS" }).Count
 $skippedCount = @($results | Where-Object { $_.Status -eq "SKIP" }).Count

@@ -5,7 +5,7 @@
 function Match-MountCommandLineForRemote {
     param([string]$CommandLine, [string]$TargetRemote)
     if ([string]::IsNullOrWhiteSpace($CommandLine) -or [string]::IsNullOrWhiteSpace($TargetRemote)) { return $null }
-    if ($CommandLine -match 'unified-all') { return $null }
+    if ($CommandLine -match 'vfs-cache[\\/]unified-all') { return $null }
     $esc = [regex]::Escape($TargetRemote)
     if ($CommandLine -match "\bmount\s+`"${esc}:[^`"]*`"\s+([A-Za-z]:)") { return $Matches[1].ToUpperInvariant() }
     if ($CommandLine -match "\bmount\s+${esc}:\S*\s+([A-Za-z]:)")       { return $Matches[1].ToUpperInvariant() }
@@ -19,7 +19,7 @@ function Test-MountCommandLineMatchesEntry {
     if ($CommandLine -notmatch '\bmount\b') { return $false }
     $wantLtr = $Letter.Trim().ToUpperInvariant()
     if ($TargetRemote -eq "__UNIFIED__") {
-        return (($CommandLine -match 'unified-all') -and ($CommandLine -match '\bmount\s+:combine:\s+([A-Za-z]:)') -and ($Matches[1].ToUpperInvariant() -eq $wantLtr))
+        return (($CommandLine -match 'vfs-cache[\\/]unified-all') -and ($CommandLine -match '\bmount\s+:combine:\s+([A-Za-z]:)') -and ($Matches[1].ToUpperInvariant() -eq $wantLtr))
     }
     $matchedLtr = Match-MountCommandLineForRemote -CommandLine $CommandLine -TargetRemote $TargetRemote
     return ($null -ne $matchedLtr -and $matchedLtr -eq $wantLtr)
@@ -45,13 +45,15 @@ function Get-MountsState {
         $alive = @()
         $prunedDead = $false
         foreach ($m in $arr) {
-            $isExpectedMount = ($null -ne $m -and $m.Pid -and -not [string]::IsNullOrWhiteSpace($m.Remote) -and -not [string]::IsNullOrWhiteSpace($m.Letter) -and
-                (Test-IsExpectedMountProcess -ProcessId ([int]$m.Pid) -TargetRemote $m.Remote -Letter $m.Letter) -and
-                (Test-Path -LiteralPath "$($m.Letter)\"))
-            if ($isExpectedMount) {
+            $procMatches = ($null -ne $m -and $m.Pid -and -not [string]::IsNullOrWhiteSpace($m.Remote) -and -not [string]::IsNullOrWhiteSpace($m.Letter) -and
+                (Test-IsExpectedMountProcess -ProcessId ([int]$m.Pid) -TargetRemote $m.Remote -Letter $m.Letter))
+            if ($procMatches -and (Test-Path -LiteralPath "$($m.Letter)\")) {
                 $alive += $m
             } else {
                 $prunedDead = $true
+                if ($procMatches) {
+                    Stop-Process -Id ([int]$m.Pid) -Force -ErrorAction SilentlyContinue
+                }
                 if ($m -and -not [string]::IsNullOrWhiteSpace($m.Letter) -and (Get-Command Clear-CloudDriveExplorerIcon -ErrorAction SilentlyContinue)) {
                     Clear-CloudDriveExplorerIcon -Letter $m.Letter
                 }
@@ -105,7 +107,7 @@ function Get-UnifiedMountInfo {
     }
     try {
         $procs = Get-CimInstance Win32_Process -Filter "Name = 'rclone.exe'" -ErrorAction SilentlyContinue |
-            Where-Object { $_.CommandLine -match '\bmount\s+:combine:\s+([A-Za-z]:)' -and $_.CommandLine -match 'unified-all' }
+            Where-Object { $_.CommandLine -match '\bmount\s+:combine:\s+([A-Za-z]:)' -and $_.CommandLine -match 'vfs-cache[\\/]unified-all' }
         if ($procs -and ($procs[0].CommandLine -match '\bmount\s+:combine:\s+([A-Za-z]:)')) {
             $l = $Matches[1].ToUpperInvariant()
             if (Test-Path -LiteralPath "${l}\") {
@@ -178,7 +180,7 @@ function Build-MountCommandArgs {
 
 
 function Invoke-ToggleMount {
-    param([string]$TargetRemote = $RemoteName, [string]$Letter = $DriveLetter, [switch]$ForceMount, [switch]$ForceUnmount, [switch]$QuietExplorer)
+    param([string]$TargetRemote = $RemoteName, [string]$Letter = $DriveLetter, [switch]$ForceMount, [switch]$ForceUnmount, [switch]$QuietExplorer, [switch]$SilentToast)
     $activeLetter = Get-MountedLetterForRemote -TargetRemote $TargetRemote
     if (($null -ne $activeLetter -and -not $ForceMount) -or $ForceUnmount) {
         $mounts = @(Get-MountsState)
@@ -211,7 +213,14 @@ function Invoke-ToggleMount {
             Wait-DriveLetterReleased -Letter $ul -MaxWaitMs 4000
             Refresh-WindowsExplorerSilently -DriveLetter $ul -ChangeKind "Remove"
         }
+        if (-not $SilentToast -and $unmountedLetters.Count -gt 0 -and (Get-Command Show-TrayToast -ErrorAction SilentlyContinue)) {
+            $dispUnm = Get-AccountDisplayLabel -TargetRemote $TargetRemote
+            Show-TrayToast -Title (L "toastDriveUnmountedTitle" "Cloud Drive Disconnected") -Body (LF "toastDriveUnmountedBody" @($dispUnm, (Wrap-Ltr $unmountedLetters[0].ToUpperInvariant()))) -Category "Drive"
+        }
         return $true
+    }
+    if ($null -ne $activeLetter -and $ForceMount) {
+        $null = Invoke-ToggleMount -TargetRemote $TargetRemote -ForceUnmount -SilentToast
     }
 
     if (-not (Test-GDriveConfigured -TargetRemote $TargetRemote)) {
@@ -220,7 +229,7 @@ function Invoke-ToggleMount {
     }
 
     if (-not (Test-WinFspInstalled)) {
-        if ($Action -ne "GUI") { Write-Output "ERROR: WinFsp is not installed."; return $false }
+        if ($Action -ne "GUI") { [Console]::Error.WriteLine("ERROR: WinFsp is not installed."); return $false }
         $wg = Get-Command winget -ErrorAction SilentlyContinue
         if ($null -ne $wg) {
             $ans = Show-AlphaMessageBox -Message (L "msgWinFspBody") -Title (L "msgWinFspTitle") -Buttons "YesNo" -Icon "Question"
@@ -263,7 +272,7 @@ function Invoke-ToggleMount {
         if ([bool]$cfg.ShowFolderBadges) { Set-CloudDriveExplorerIcon -Letter $Letter }
         Refresh-WindowsExplorerSilently -DriveLetter $Letter -ChangeKind "Add"
         if (Get-Command Show-TrayToast -ErrorAction SilentlyContinue) {
-            Show-TrayToast -Title (L "toastDriveMountedTitle" "Cloud Drive Ready") -Body (LF "toastDriveMountedBody" @($volDisp, $Letter.ToUpperInvariant())) -Category "Drive"
+            Show-TrayToast -Title (L "toastDriveMountedTitle" "Cloud Drive Ready") -Body (LF "toastDriveMountedBody" @($volDisp, (Wrap-Ltr $Letter.ToUpperInvariant()))) -Category "Drive"
         }
         if (-not $QuietExplorer) { Start-Process "explorer.exe" -ArgumentList "${Letter}\" }
         return $true
@@ -323,8 +332,8 @@ function Build-UnifiedMountCommandArgs {
     }
     $upRaw = ($upTokens -join " ")
     $upEsc = $upRaw.Replace('"', '\"')
-    # Unified drive label clearly indicates combined pool while staying <= 20 chars for 1-line Explorer space readout
-    return "mount :combine: $Letter --combine-upstreams `"$upEsc`" $vfsFlags --cache-dir `"$VfsCacheDir`" --volname `"Google Drive Unified`" --dir-cache-time 5m --poll-interval 15s"
+    # Unified drive label uses the product brand 'AlphaCloudSync' (14 chars, always fits 1 line in Windows Explorer!)
+    return "mount :combine: $Letter --combine-upstreams `"$upEsc`" $vfsFlags --cache-dir `"$VfsCacheDir`" --volname `"AlphaCloudSync`" --dir-cache-time 5m --poll-interval 15s"
 }
 
 function Get-UnifiedMountLetter {
@@ -332,7 +341,7 @@ function Get-UnifiedMountLetter {
     if ($tracked.Count -gt 0) { return $tracked[0].Letter.ToUpperInvariant() }
     try {
         $procs = Get-CimInstance Win32_Process -Filter "Name = 'rclone.exe'" -ErrorAction SilentlyContinue |
-            Where-Object { $_.CommandLine -match '\bmount\s+:combine:\s+([A-Za-z]:)' -and $_.CommandLine -match 'unified-all' }
+            Where-Object { $_.CommandLine -match '\bmount\s+:combine:\s+([A-Za-z]:)' -and $_.CommandLine -match 'vfs-cache[\\/]unified-all' }
         if ($procs -and ($procs[0].CommandLine -match '\bmount\s+:combine:\s+([A-Za-z]:)')) {
             $l = $Matches[1].ToUpperInvariant()
             if (Test-Path -LiteralPath "${l}\") { return $l }
@@ -342,7 +351,7 @@ function Get-UnifiedMountLetter {
 }
 
 function Invoke-ToggleUnifiedMount {
-    param([string]$Letter = "", [string[]]$TargetRemotes = $null, [switch]$ForceMount, [switch]$ForceUnmount, [switch]$QuietExplorer)
+    param([string]$Letter = "", [string[]]$TargetRemotes = $null, [switch]$ForceMount, [switch]$ForceUnmount, [switch]$QuietExplorer, [switch]$SilentToast)
     $activeUnified = Get-UnifiedMountLetter
     if (($null -ne $activeUnified -and -not $ForceMount) -or $ForceUnmount) {
         $mounts = @(Get-MountsState)
@@ -366,12 +375,15 @@ function Invoke-ToggleUnifiedMount {
         Save-MountsState -List $remaining
         if (-not $stoppedAny) {
             Get-CimInstance Win32_Process -Filter "Name = 'rclone.exe'" -ErrorAction SilentlyContinue |
-                Where-Object { $_.CommandLine -match '\bmount\s+:combine:' -and $_.CommandLine -match 'unified-all' } |
+                Where-Object { $_.CommandLine -match '\bmount\s+:combine:' -and $_.CommandLine -match 'vfs-cache[\\/]unified-all' } |
                 ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
         }
         foreach ($ul in $unmountedLetters) {
             Wait-DriveLetterReleased -Letter $ul -MaxWaitMs 4000
             Refresh-WindowsExplorerSilently -DriveLetter $ul -ChangeKind "Remove"
+        }
+        if (-not $SilentToast -and $unmountedLetters.Count -gt 0 -and (Get-Command Show-TrayToast -ErrorAction SilentlyContinue)) {
+            Show-TrayToast -Title (L "toastDriveUnmountedTitle" "Cloud Drive Disconnected") -Body (LF "toastDriveUnmountedBody" @("AlphaCloudSync", (Wrap-Ltr $unmountedLetters[0].ToUpperInvariant()))) -Category "Drive"
         }
         return $true
     }
@@ -381,17 +393,17 @@ function Invoke-ToggleUnifiedMount {
     if ($remotes.Count -eq 0) { return $false }
 
     # Unmount any stale separate drives for remotes joining the Unified Pool, plus any old unified mount
-    if ($null -ne $activeUnified) { $null = Invoke-ToggleUnifiedMount -ForceUnmount }
+    if ($null -ne $activeUnified) { $null = Invoke-ToggleUnifiedMount -ForceUnmount -SilentToast }
     foreach ($rem in $remotes) {
         if ($null -ne (Get-MountedLetterForRemote -TargetRemote $rem)) {
-            $null = Invoke-ToggleMount -TargetRemote $rem -ForceUnmount
+            $null = Invoke-ToggleMount -TargetRemote $rem -ForceUnmount -SilentToast
         }
     }
 
     if ([string]::IsNullOrWhiteSpace($Letter)) { $Letter = Get-AutoUnifiedDriveLetter }
 
     if (-not (Test-WinFspInstalled)) {
-        if ($Action -ne "GUI") { Write-Output "ERROR: WinFsp is not installed."; return $false }
+        if ($Action -ne "GUI") { [Console]::Error.WriteLine("ERROR: WinFsp is not installed."); return $false }
         $wg = Get-Command winget -ErrorAction SilentlyContinue
         if ($null -ne $wg) {
             $ans = Show-AlphaMessageBox -Message (L "msgWinFspBody") -Title (L "msgWinFspTitle") -Buttons "YesNo" -Icon "Question"
@@ -439,7 +451,7 @@ function Invoke-ToggleUnifiedMount {
         if ([bool]$cfg.ShowFolderBadges) { Set-CloudDriveExplorerIcon -Letter $Letter }
         Refresh-WindowsExplorerSilently -DriveLetter $Letter -ChangeKind "Add"
         if (Get-Command Show-TrayToast -ErrorAction SilentlyContinue) {
-            Show-TrayToast -Title (L "toastDriveMountedTitle" "Cloud Drive Ready") -Body (LF "toastDriveMountedBody" @("Google Drive Unified", $Letter.ToUpperInvariant())) -Category "Drive"
+            Show-TrayToast -Title (L "toastDriveMountedTitle" "Cloud Drive Ready") -Body (LF "toastDriveMountedBody" @("AlphaCloudSync", (Wrap-Ltr $Letter.ToUpperInvariant()))) -Category "Drive"
         }
         if (-not $QuietExplorer) { Start-Process "explorer.exe" -ArgumentList "${Letter}\" }
         return $true
@@ -447,7 +459,8 @@ function Invoke-ToggleUnifiedMount {
         if ($null -ne $proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
         Clear-CloudDriveExplorerIcon -Letter $Letter
         if (Get-Command Write-StudioLog -ErrorAction SilentlyContinue) {
-            Write-StudioLog -Msg "[WARN] Could not mount Unified Drive on $Letter (rclone exited or timed out)." -TargetRemote $RemoteName
+            $logRem = if (-not [string]::IsNullOrWhiteSpace($script:ActiveRemote)) { $script:ActiveRemote } else { $RemoteName }
+            Write-StudioLog -Msg "[WARN] Could not mount Unified Drive on $Letter (rclone exited or timed out)." -TargetRemote $logRem
         }
         return $false
     }

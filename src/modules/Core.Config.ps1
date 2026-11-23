@@ -105,17 +105,21 @@ function Get-Settings {
 function Read-Utf8TailLines {
     param([string]$Path, [int]$MaxLines = 55)
     if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path)) { return @() }
+    $fs = $null; $sr = $null
     try {
         $fs = New-Object System.IO.FileStream($Path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
         $sr = New-Object System.IO.StreamReader($fs, [System.Text.Encoding]::UTF8)
         $content = $sr.ReadToEnd()
-        $sr.Close()
-        $fs.Close()
         if ([string]::IsNullOrEmpty($content)) { return @() }
         $all = $content -split "`r?`n"
         if ($all.Count -gt $MaxLines) { return $all[($all.Count - $MaxLines)..($all.Count - 1)] }
         return $all
-    } catch { return @() }
+    } catch {
+        return @()
+    } finally {
+        if ($null -ne $sr) { try { $sr.Dispose() } catch {} }
+        if ($null -ne $fs) { try { $fs.Dispose() } catch {} }
+    }
 }
 
 function Get-SanitizedName {
@@ -197,41 +201,51 @@ function Build-SafeExcludeFile {
     $rulesFile = $rCfg.JsonRulesPath
     $outFilterFile = Join-Path $AppDataDir "active-excludes-$(Get-SanitizedName $TargetRemote).txt"
     if (-not $rCfg.UseJsonRules) {
-        return [PSCustomObject]@{ Enabled = $false; Valid = $true; Error = ""; Path = $rulesFile; FilterFile = $null; Lines = @(); DirCount = 0; FileCount = 0; PresetName = (L "rulesDisabled" "Disabled") }
+        return [PSCustomObject]@{ Enabled = $false; Valid = $true; Error = ""; Path = $rulesFile; FilterFile = $null; Lines = @(); HasComplexPatterns = $false; DirCount = 0; FileCount = 0; PresetName = (L "rulesDisabled" "Disabled") }
     }
     if ([string]::IsNullOrWhiteSpace($rulesFile) -or -not (Test-Path -LiteralPath $rulesFile -PathType Leaf)) {
-        return [PSCustomObject]@{ Enabled = $false; Valid = $false; Error = "Configured exclusion rules file is missing: $rulesFile"; Path = $rulesFile; FilterFile = $null; Lines = @(); DirCount = 0; FileCount = 0; PresetName = (L "rulesInvalid" "Invalid Rules File") }
+        return [PSCustomObject]@{ Enabled = $false; Valid = $false; Error = "Configured exclusion rules file is missing: $rulesFile"; Path = $rulesFile; FilterFile = $null; Lines = @(); HasComplexPatterns = $false; DirCount = 0; FileCount = 0; PresetName = (L "rulesInvalid" "Invalid Rules File") }
     }
     try {
         $rObj = [System.IO.File]::ReadAllText($rulesFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
         if ($rObj.PSObject.Properties["enabled"] -and -not $rObj.enabled) {
-            return [PSCustomObject]@{ Enabled = $false; Valid = $true; Error = ""; Path = $rulesFile; FilterFile = $null; Lines = @(); DirCount = 0; FileCount = 0; PresetName = (L "rulesDisabled" "Disabled") }
+            return [PSCustomObject]@{ Enabled = $false; Valid = $true; Error = ""; Path = $rulesFile; FilterFile = $null; Lines = @(); HasComplexPatterns = $false; DirCount = 0; FileCount = 0; PresetName = (L "rulesDisabled" "Disabled") }
         }
         $lines = New-Object System.Collections.Generic.List[string]
-        $dCount = 0; $fCount = 0
+        $dCount = 0; $fCount = 0; $hasComplex = $false
         if ($rObj.excludeDirectories) {
             foreach ($d in $rObj.excludeDirectories) {
                 $cleanD = ($d.ToString().Trim().Trim('/') -replace '[\r\n"]', '')
-                if (-not [string]::IsNullOrWhiteSpace($cleanD) -and -not $cleanD.StartsWith("-")) { $lines.Add("$cleanD/**"); $dCount++ }
+                if (-not [string]::IsNullOrWhiteSpace($cleanD) -and -not $cleanD.StartsWith("-")) {
+                    if ($cleanD.Contains("**") -or $cleanD.Contains("{") -or $cleanD.Contains("}")) { $hasComplex = $true }
+                    $lines.Add("$cleanD/**"); $dCount++
+                }
             }
         }
         if ($rObj.excludeFiles) {
             foreach ($f in $rObj.excludeFiles) {
                 $cleanF = ($f.ToString().Trim() -replace '[\r\n"]', '')
-                if (-not [string]::IsNullOrWhiteSpace($cleanF) -and -not $cleanF.StartsWith("-")) { $lines.Add($cleanF); $fCount++ }
+                if (-not [string]::IsNullOrWhiteSpace($cleanF) -and -not $cleanF.StartsWith("-")) {
+                    if ($cleanF.Contains("**") -or $cleanF.Contains("{") -or $cleanF.Contains("}") -or $cleanF.StartsWith("!") -or $cleanF.StartsWith("+")) { $hasComplex = $true }
+                    $lines.Add($cleanF); $fCount++
+                }
             }
         }
         if ($rObj.customRclonePatterns) {
             foreach ($c in $rObj.customRclonePatterns) {
                 $cleanC = ($c.ToString().Trim() -replace '[\r\n"]', '')
-                if (-not [string]::IsNullOrWhiteSpace($cleanC) -and -not $cleanC.StartsWith("-")) { $lines.Add($cleanC); $fCount++ }
+                if (-not [string]::IsNullOrWhiteSpace($cleanC) -and -not $cleanC.StartsWith("-")) {
+                    $trimTail = if ($cleanC.EndsWith("/**")) { $cleanC.Substring(0, $cleanC.Length - 3) } else { $cleanC }
+                    if ($trimTail.Contains("**") -or $cleanC.Contains("{") -or $cleanC.Contains("}") -or $cleanC.StartsWith("!") -or $cleanC.StartsWith("+")) { $hasComplex = $true }
+                    $lines.Add($cleanC); $fCount++
+                }
             }
         }
         [System.IO.File]::WriteAllLines($outFilterFile, $lines, (New-Object System.Text.UTF8Encoding($false)))
         $pName = if ($rObj.PSObject.Properties["presetName"]) { $rObj.presetName } else { Split-Path -Path $rulesFile -Leaf }
-        return [PSCustomObject]@{ Enabled = $true; Valid = $true; Error = ""; Path = $rulesFile; FilterFile = $outFilterFile; Lines = $lines.ToArray(); DirCount = $dCount; FileCount = $fCount; PresetName = $pName }
+        return [PSCustomObject]@{ Enabled = $true; Valid = $true; Error = ""; Path = $rulesFile; FilterFile = $outFilterFile; Lines = $lines.ToArray(); HasComplexPatterns = $hasComplex; DirCount = $dCount; FileCount = $fCount; PresetName = $pName }
     } catch {
-        return [PSCustomObject]@{ Enabled = $false; Valid = $false; Error = $_.Exception.Message; Path = $rulesFile; FilterFile = $null; Lines = @(); DirCount = 0; FileCount = 0; PresetName = (L "rulesInvalid" "Invalid Rules File") }
+        return [PSCustomObject]@{ Enabled = $false; Valid = $false; Error = $_.Exception.Message; Path = $rulesFile; FilterFile = $null; Lines = @(); HasComplexPatterns = $false; DirCount = 0; FileCount = 0; PresetName = (L "rulesInvalid" "Invalid Rules File") }
     }
 }
 
@@ -247,14 +261,16 @@ function Test-RelPathExcludedByRules {
         if ([string]::IsNullOrWhiteSpace($patRaw)) { continue }
         $pat = $patRaw.Trim()
         if ($pat.EndsWith("/**")) {
+            # Directory rule 'dir/**' applies ONLY to files inside a matching directory segment, NEVER to a regular file named 'dir'!
+            if ($parts.Count -lt 2) { continue }
             $dirP = $pat.Substring(0, $pat.Length - 3).Trim('/')
             if ([string]::IsNullOrWhiteSpace($dirP)) { continue }
             if ($dirP.Contains("/")) {
                 $esc = [regex]::Escape($dirP) -replace '\\\*', '[^/]*'
-                if ($norm -imatch "(^|/)$esc(/|$)") { return $true }
+                if ($norm -imatch "(^|/)$esc/") { return $true }
             } else {
-                foreach ($seg in $parts) {
-                    if ($seg -ilike $dirP) { return $true }
+                for ($si = 0; $si -lt ($parts.Count - 1); $si++) {
+                    if ($parts[$si] -ilike $dirP) { return $true }
                 }
             }
         } else {

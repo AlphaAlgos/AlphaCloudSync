@@ -5,7 +5,7 @@
 # 100% MULTILINGUAL UI APPLICATION (ALL 7 LANGUAGES + RTL/BIDI)
 # ==============================================================================
 function Apply-UiLanguage {
-    param([string]$Lang)
+    param([string]$Lang, [switch]$SkipShellSync)
     $code = $Lang.ToLowerInvariant()
     $script:UiLang = $code
     $cfg = Get-Settings; $cfg.Language = $code; Save-Settings -Obj $cfg
@@ -151,7 +151,9 @@ function Apply-UiLanguage {
     $miPauseAll.Text           = if ($script:IsGloballyPaused) { $loc.trayResumeAll } else { $loc.trayPauseAll }
     $miIsland.Text             = $loc.trayIsland
     $miExit.Text               = $loc.trayExit
-    try { if ([bool](Get-Settings).ExplorerContextMenu) { $null = Set-ExplorerContextMenuEnabled -Enable $true } } catch {}
+    if (-not $SkipShellSync) {
+        try { if ([bool](Get-Settings).ExplorerContextMenu) { $null = Set-ExplorerContextMenuEnabled -Enable $true } } catch {}
+    }
 
     if ($GridFolders.Columns.Count -ge 7) {
         $GridFolders.Columns[0].Header = $loc.colBackup
@@ -187,6 +189,7 @@ function Set-SyncControlsRunningState {
 }
 
 function Persist-GridCheckboxChanges {
+    if (-not $script:FoldersGridHydrated) { return }
     $current = @()
     foreach ($row in $script:FolderItems) {
         $current += [PSCustomObject]@{
@@ -246,6 +249,7 @@ function Update-FoldersGrid {
     $BtnRemoveFolder.IsEnabled = $false
     $BtnToggleTarget.IsEnabled = $false
     $BtnSyncSelected.IsEnabled = $false
+    $script:FoldersGridHydrated = $true
 }
 
 $script:CachedDriveRemotes = @()
@@ -436,11 +440,20 @@ function Add-FileActivityRow {
 }
 
 function Complete-StuckUploadingRowsForFolder {
-    param([string]$FolderPrefix, [string]$TargetRemote, [switch]$ClearPendingPreview)
+    param([string]$FolderPrefix, [string]$TargetRemote, [switch]$ClearPendingPreview, [string[]]$TargetFiles = $null)
     if ([string]::IsNullOrWhiteSpace($FolderPrefix)) { return }
     try {
         $rt = Get-AccountRuntime -TargetRemote $TargetRemote
         $doneLbl = L "feedStateUploaded"
+        $targetSet = @{}
+        if ($null -ne $TargetFiles -and $TargetFiles.Count -gt 0) {
+            foreach ($tf in $TargetFiles) {
+                if (-not [string]::IsNullOrWhiteSpace($tf)) {
+                    $tNorm = "$FolderPrefix/$(($tf -replace '\\', '/').TrimStart('/'))".ToLowerInvariant()
+                    $targetSet[$tNorm] = $true
+                }
+            }
+        }
         $toPromote = @()
         for ($i = $rt.ActivityItems.Count - 1; $i -ge 0; $i--) {
             $row = $rt.ActivityItems[$i]
@@ -449,7 +462,7 @@ function Complete-StuckUploadingRowsForFolder {
                 if ($pri -eq 0) {
                     $toPromote += $row
                     $rt.ActivityItems.RemoveAt($i)
-                } elseif ($ClearPendingPreview -and $pri -eq 2) {
+                } elseif ($pri -eq 2 -and ($ClearPendingPreview -or ($targetSet.Count -gt 0 -and $targetSet.ContainsKey($row.FileName.ToLowerInvariant())))) {
                     $rt.ActivityItems.RemoveAt($i)
                 }
             }
@@ -633,14 +646,15 @@ function Invoke-ScanFolderSizes {
     Invoke-UiPump
     $folders = @(Get-SyncFolders -TargetRemote $script:ActiveRemote)
     $exInfo  = Build-SafeExcludeFile -TargetRemote $script:ActiveRemote
-    $exFlag  = if ($exInfo.Enabled -and $exInfo.FilterFile) { "--exclude-from `"$($exInfo.FilterFile)`"" } else { "" }
+    $exFlag  = if ($exInfo.Enabled -and $exInfo.FilterFile) { "--exclude-from $(Format-WinArg $exInfo.FilterFile)" } else { "" }
     $isAuth  = Test-GDriveConfigured -TargetRemote $script:ActiveRemote
     $totalSavedBytes = 0.0; $totalSavedFiles = 0
 
     foreach ($f in $folders) {
         $eff = Resolve-EffectiveRemotePath -FolderItem $f
         if (Test-Path -LiteralPath $f.LocalPath) {
-            $locRes = Invoke-RcloneCapture -Arguments "size `"$($f.LocalPath)`" --json --quiet $exFlag" -TimeoutMs 45000
+            $locArgS = Format-WinArg $f.LocalPath
+            $locRes = Invoke-RcloneCapture -Arguments "size $locArgS --json --quiet $exFlag" -TimeoutMs 45000
             $cleanBytes = 0.0; $cleanCount = 0
             if ($locRes.ExitCode -eq 0 -and -not [string]::IsNullOrWhiteSpace($locRes.StdOut)) {
                 try {
@@ -650,7 +664,7 @@ function Invoke-ScanFolderSizes {
                 } catch {}
             }
             if ($exInfo.Enabled) {
-                $rawRes = Invoke-RcloneCapture -Arguments "size `"$($f.LocalPath)`" --json --quiet" -TimeoutMs 45000
+                $rawRes = Invoke-RcloneCapture -Arguments "size $locArgS --json --quiet" -TimeoutMs 45000
                 if ($rawRes.ExitCode -eq 0 -and -not [string]::IsNullOrWhiteSpace($rawRes.StdOut)) {
                     try {
                         $rjRaw = $rawRes.StdOut | ConvertFrom-Json
@@ -663,7 +677,8 @@ function Invoke-ScanFolderSizes {
         } else { $f.LocalSize = "Missing locally" }
 
         if ($isAuth) {
-            $remRes = Invoke-RcloneCapture -Arguments "size `"$($script:ActiveRemote):$eff`" --fast-list --json --quiet" -TimeoutMs 45000
+            $remArgS = Format-WinArg "$($script:ActiveRemote):$eff"
+            $remRes = Invoke-RcloneCapture -Arguments "size $remArgS --fast-list --json --quiet" -TimeoutMs 45000
             if ($remRes.ExitCode -eq 0 -and -not [string]::IsNullOrWhiteSpace($remRes.StdOut)) {
                 try { $rj = $remRes.StdOut | ConvertFrom-Json; $f.RemoteSize = "$(Format-ByteSize ([double]$rj.bytes)) ($($rj.count) files)" } catch { $f.RemoteSize = "0 MB (Not uploaded)" }
             } else { $f.RemoteSize = "0 MB (Not uploaded)" }

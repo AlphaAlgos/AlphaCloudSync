@@ -13,13 +13,13 @@ $ErrorActionPreference = "Continue"
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch {}
 if (-not [string]::IsNullOrWhiteSpace($RemoteName)) {
     if ($RemoteName -notmatch '^[A-Za-z0-9][A-Za-z0-9_-]*$' -or $RemoteName -ieq "__UNIFIED__") {
-        Write-Output "ERROR: Invalid -RemoteName parameter."
+        [Console]::Error.WriteLine("ERROR: Invalid -RemoteName parameter.")
         exit 1
     }
 }
 if (-not [string]::IsNullOrWhiteSpace($DriveLetter)) {
     if ($DriveLetter -notmatch '^[A-Za-z]:$') {
-        Write-Output "ERROR: Invalid -DriveLetter parameter (expected format like G:)."
+        [Console]::Error.WriteLine("ERROR: Invalid -DriveLetter parameter (expected format like G:).")
         exit 1
     }
     $DriveLetter = $DriveLetter.ToUpperInvariant()
@@ -56,8 +56,9 @@ $AccountPrefsFile = Join-Path $AppDataDir "account-prefs.json"
 $SettingsPath = Join-Path $AppDataDir "settings.json"
 $HealthPath   = Join-Path $AppDataDir "backup-health.json"
 $IpcCmdFile   = Join-Path $LocalDataDir "ipc-command.json"
+$IpcQueueDir  = Join-Path $LocalDataDir "ipc-queue"
 
-foreach ($d in @($AppDataDir, $IconsStoreDir, $LocalBinDir, $LocalLogsDir, $RestoreBkDir, $ProfilesDir)) {
+foreach ($d in @($AppDataDir, $IconsStoreDir, $LocalBinDir, $LocalLogsDir, $RestoreBkDir, $ProfilesDir, $IpcQueueDir)) {
     if (-not (Test-Path -LiteralPath $d)) {
         New-Item -ItemType Directory -Path $d -Force | Out-Null
     }
@@ -112,15 +113,24 @@ if ([string]::IsNullOrWhiteSpace($DriveLetter)) { $DriveLetter = $Settings.Prefe
 $script:PendingContextAction = ""
 $script:PendingContextPath   = ""
 
-# Windows Explorer Right-Click Context Menu actions: forward straight to live GUI if running, else launch GUI with pending action!
+# Windows Explorer Right-Click Context Menu actions: forward atomically to live GUI queue if running, else launch GUI with pending action!
 if ($Action -in @("ContextAdd", "ContextSync", "ContextPreview", "ContextRemove")) {
-    $cleanTarget = if (-not [string]::IsNullOrWhiteSpace($TargetPath)) { $TargetPath.Trim().Trim('"') } else { "" }
+    $cleanTarget = ""
+    if (-not [string]::IsNullOrWhiteSpace($TargetPath)) {
+        $rawTarget = $TargetPath.Trim().Trim('"')
+        try { $cleanTarget = [System.IO.Path]::GetFullPath($rawTarget) } catch { $cleanTarget = $rawTarget }
+        if ($cleanTarget.Length -gt 3) { $cleanTarget = $cleanTarget.TrimEnd('\') }
+    }
     $forwarded = $false
     try {
         $evt = [System.Threading.EventWaitHandle]::OpenExisting("Local\AlphaCloudSync_RestoreSignal")
         if ($null -ne $evt) {
             $ipcPayload = ConvertTo-Json -InputObject ([PSCustomObject]@{ Action = $Action; Path = $cleanTarget }) -Compress
-            [System.IO.File]::WriteAllText($IpcCmdFile, $ipcPayload, (New-Object System.Text.UTF8Encoding($false)))
+            $qStamp = "$([datetime]::UtcNow.Ticks)_$PID"
+            $qTmp   = Join-Path $IpcQueueDir "$qStamp.tmp"
+            $qFin   = Join-Path $IpcQueueDir "$qStamp.json"
+            [System.IO.File]::WriteAllText($qTmp, $ipcPayload, (New-Object System.Text.UTF8Encoding($false)))
+            [System.IO.File]::Move($qTmp, $qFin)
             $null = $evt.Set()
             $evt.Dispose()
             $forwarded = $true
@@ -134,7 +144,7 @@ if ($Action -in @("ContextAdd", "ContextSync", "ContextPreview", "ContextRemove"
 
 $RcloneExe = if ($Action -eq "GUI") { Ensure-RcloneInstalledInteractive } else { Find-RcloneExe }
 if ([string]::IsNullOrWhiteSpace($RcloneExe)) {
-    Write-Output "ERROR: rclone.exe not found."
+    [Console]::Error.WriteLine("ERROR: rclone.exe not found.")
     exit 1
 }
 
@@ -172,7 +182,7 @@ $langIdxMap = @{ "en" = 0; "ar" = 1; "es" = 2; "fr" = 3; "de" = 4; "zh" = 5; "id
 $CmbLanguage.SelectedIndex = if ($langIdxMap.ContainsKey($langCodeInit)) { $langIdxMap[$langCodeInit] } else { 0 }
 $script:IsRefreshing = $false
 
-Apply-UiLanguage -Lang $langCodeInit
+Apply-UiLanguage -Lang $langCodeInit -SkipShellSync
 Select-StudioTab "Folders"
 Refresh-StudioHeader
 if ([bool]$Settings.ShowFolderBadges) { Sync-AllFolderAndDriveBadges -Enable $true }
@@ -192,14 +202,17 @@ if (-not [string]::IsNullOrWhiteSpace($script:PendingContextAction)) {
             $actC = $script:PendingContextAction; $pthC = $script:PendingContextPath
             $script:PendingContextAction = ""; $script:PendingContextPath = ""
             if (-not [string]::IsNullOrWhiteSpace($actC)) { Invoke-HandleContextCommand -ContextAction $actC -FolderPath $pthC }
+            if (Get-Command Invoke-DrainIpcQueue -ErrorAction SilentlyContinue) { Invoke-DrainIpcQueue }
         } catch {}
     })
 } elseif ($AutoStartSync) {
     if ($Minimized) {
         $window.Dispatcher.BeginInvoke([Action]{ try { Start-StudioBatch -Mode "Sync" } catch {} }, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle) | Out-Null
     } else {
-        $window.Add_ContentRendered({ try { Start-StudioBatch -Mode "Sync" } catch {} })
+        $window.Add_ContentRendered({ try { Start-StudioBatch -Mode "Sync"; if (Get-Command Invoke-DrainIpcQueue -ErrorAction SilentlyContinue) { Invoke-DrainIpcQueue } } catch {} })
     }
+} else {
+    $window.Add_ContentRendered({ try { if (Get-Command Invoke-DrainIpcQueue -ErrorAction SilentlyContinue) { Invoke-DrainIpcQueue } } catch {} })
 }
 if (-not $Minimized) {
     $window.Show()
