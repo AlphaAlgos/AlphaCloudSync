@@ -107,9 +107,13 @@ function Set-CloudDriveExplorerIcon {
     $icoUse = if (Test-Path -LiteralPath $StableAppIconPath) { $StableAppIconPath } elseif (Test-Path -LiteralPath $AppIconPath) { $AppIconPath } else { "" }
     if ([string]::IsNullOrWhiteSpace($icoUse)) { return }
     try {
-        $keyPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\DriveIcons\$cleanL\DefaultIcon"
-        if (-not (Test-Path -LiteralPath $keyPath)) { New-Item -Path $keyPath -Force | Out-Null }
-        Set-ItemProperty -Path $keyPath -Name "(Default)" -Value "$icoUse,0" -Force
+        foreach ($keyPath in @(
+            "HKCU:\Software\Classes\Applications\Explorer.exe\Drives\$cleanL\DefaultIcon",
+            "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\DriveIcons\$cleanL\DefaultIcon"
+        )) {
+            if (-not (Test-Path -LiteralPath $keyPath)) { New-Item -Path $keyPath -Force | Out-Null }
+            Set-ItemProperty -Path $keyPath -Name "(Default)" -Value "$icoUse,0" -Force
+        }
         if ("AlphaWinShellHelper" -as [type]) { [AlphaWinShellHelper]::NotifyDriveIconChanged() }
     } catch {}
 }
@@ -120,8 +124,12 @@ function Clear-CloudDriveExplorerIcon {
     $cleanL = ($Letter.Trim().TrimEnd(':', '\', '/')).ToUpperInvariant()
     if ($cleanL.Length -ne 1 -or $cleanL -notmatch '^[A-Z]$') { return }
     try {
-        $keyPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\DriveIcons\$cleanL"
-        if (Test-Path -LiteralPath $keyPath) { Remove-Item -LiteralPath $keyPath -Recurse -Force -ErrorAction SilentlyContinue }
+        foreach ($keyPath in @(
+            "HKCU:\Software\Classes\Applications\Explorer.exe\Drives\$cleanL",
+            "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\DriveIcons\$cleanL"
+        )) {
+            if (Test-Path -LiteralPath $keyPath) { Remove-Item -LiteralPath $keyPath -Recurse -Force -ErrorAction SilentlyContinue }
+        }
         if ("AlphaWinShellHelper" -as [type]) { [AlphaWinShellHelper]::NotifyDriveIconChanged() }
     } catch {}
 }

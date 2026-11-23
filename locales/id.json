@@ -343,5 +343,6 @@
   "splashStage2": "Menyiapkan awal & antarmuka...",
   "splashStage3": "Memuat akun & folder...",
   "splashStage4": "Menyiapkan drive virtual...",
-  "splashStage5": "Membuka ruang kerja..."
+  "splashStage5": "Membuka ruang kerja...",
+  "unifiedDriveVolName": "AlphaCloudSync Terpadu"
 }

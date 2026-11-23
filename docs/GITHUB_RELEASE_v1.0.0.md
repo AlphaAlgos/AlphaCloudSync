@@ -9,19 +9,40 @@
 
 ---
 
+## Screenshots Preview
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/AlphaAlgos/AlphaCloudSync/main/assets/screenshots/01-backup-folders.png" alt="AlphaCloudSync Studio" width="92%"/>
+</p>
+
+| Drive & Storage Hub | Live Activity & Log |
+| :---: | :---: |
+| <img src="https://raw.githubusercontent.com/AlphaAlgos/AlphaCloudSync/main/assets/screenshots/02-drive-and-storage.png" width="100%"/> | <img src="https://raw.githubusercontent.com/AlphaAlgos/AlphaCloudSync/main/assets/screenshots/03-live-activity.png" width="100%"/> |
+
+| Windows Explorer (Standalone + Unified) | Inside `AlphaCloudSync Unified (H:)` |
+| :---: | :---: |
+| <img src="https://raw.githubusercontent.com/AlphaAlgos/AlphaCloudSync/main/assets/screenshots/05-explorer-drives.png" width="100%"/> | <img src="https://raw.githubusercontent.com/AlphaAlgos/AlphaCloudSync/main/assets/screenshots/06-unified-drive-inside.png" width="100%"/> |
+
+---
+
 ## Quick Install (Windows 10 / 11 x64)
 
-### 1-Line Fail-Closed PowerShell Install (Recommended)
+### Option 1 — Direct Windows Setup Installer (Recommended)
+1. Download **[`AlphaCloudSync-Setup-x64.exe`](https://github.com/AlphaAlgos/AlphaCloudSync/releases/latest/download/AlphaCloudSync-Setup-x64.exe)** (`~2.46 MB`) from the release assets below.
+2. Double-click to install cleanly into `%LOCALAPPDATA%\AlphaCloudSync\app\` (English, Arabic RTL, Spanish, French & German wizard; Desktop/Start Menu shortcuts, optional `PATH` CLI & standard Windows uninstaller).
+
+### Option 2 — 1-Line Fail-Closed PowerShell Install
 ```powershell
 irm https://raw.githubusercontent.com/AlphaAlgos/AlphaCloudSync/main/install.ps1 | iex
 ```
 Downloads `AlphaCloudSync.exe` and `SHA256SUMS.txt` into `%LOCALAPPDATA%\AlphaCloudSync\app\`, **enforces Fail-Closed SHA-256 verification** (immediately aborts & deletes the downloaded file if `SHA256SUMS.txt` is missing, malformed, or mismatched), creates Desktop & Start Menu shortcuts, and adds `AlphaCloudSync` to your user `PATH`.
 
-### Manual Portable Download
-1. Download **`AlphaCloudSync.exe`** and **`SHA256SUMS.txt`** from the release assets below.
+### Option 3 — Manual Portable Download (Zero Installation)
+1. Download **`AlphaCloudSync.exe`** (`~1.16 MB`) and **`SHA256SUMS.txt`** from the release assets below.
 2. Verify integrity in PowerShell against `SHA256SUMS.txt`:
    ```powershell
    Get-FileHash .\AlphaCloudSync.exe -Algorithm SHA256
+   Get-FileHash .\AlphaCloudSync-Setup-x64.exe -Algorithm SHA256
    ```
 3. Double-click `AlphaCloudSync.exe` — if `rclone` is not installed yet, click **Yes** on the first-launch prompt to install it automatically with official `SHA256SUMS` verification.
 
@@ -60,7 +81,7 @@ Downloads `AlphaCloudSync.exe` and `SHA256SUMS.txt` into `%LOCALAPPDATA%\AlphaCl
 - **3 Delete Policies + Safety Guards:** `Safe Archive` (`_CloudSync_Trash_Archive/<timestamp>/`), `Copy Only`, `Exact Match`, filter-aware Empty-Source Guard (enumerates included files using rclone's active filters), fail-closed invalid rules, and `--max-delete 200`.
 - **Overwrite-Protected Safe Restore:** Dark review screen with **Preview Only (No Files Changed)** first, plus automatic local backups into `%LOCALAPPDATA%\AlphaCloudSync\restore-backups\` before replacing differing local files.
 - **Freely Draggable Dynamic Cloud Island + Quick-Snap:** Translucent non-focus-stealing pill (`~250 × 32 px`) with 6-dot grip, auto-saved multi-monitor coordinates, 220ms hover-to-expand, right-click dark Quick-Snap menu, and Windows Taskbar progress glow.
-- **7 Built-In Languages (`345` Identical Keys, Zero Jargon):** English · العربية (Full RTL & BiDi) · Español · Français · Deutsch · 中文 (简体) · Bahasa Indonesia.
+- **7 Built-In Languages (`346` Identical Keys, Zero Jargon):** English · العربية (Full RTL & BiDi) · Español · Français · Deutsch · 中文 (简体) · Bahasa Indonesia — including localized 1-line Unified Drive volume labels (`AlphaCloudSync Unified` / `AlphaCloudSync الموحد` / etc.) and Windows 11 per-user Explorer Drive Icons.
 - **Instant ~30ms 5-Stage Splash Card, Foreground Launch & Sequential Account Hydration:** Native Obsidian Dark rounded Splash Card displays live stacked startup stages in your language, forces the studio cleanly into the desktop foreground, and refreshes connected accounts asynchronously one by one (active account first) for instant startup even with 10+ accounts.
 - **Modular Architecture + Provider Registry (`src/modules/`):** Clean 13-module layout (`Core`, `Providers/Provider.GoogleDrive`, `Engine.Mount`, `Engine.Headless`, `UI`), ready for OneDrive/Dropbox/S3/Nextcloud modules in `v1.1+`.
 - **3 Speed Modes + Faster Mode:** `Turbo`, `Balanced`, `Eco` (2 MB/s cap), plus optional personal Google Cloud Desktop Client ID for up to 5x faster uploads.

@@ -343,5 +343,6 @@
   "splashStage2": "Préparation du démarrage et de l'interface...",
   "splashStage3": "Chargement des comptes et dossiers...",
   "splashStage4": "Préparation des lecteurs virtuels...",
-  "splashStage5": "Ouverture de l'espace de travail..."
+  "splashStage5": "Ouverture de l'espace de travail...",
+  "unifiedDriveVolName": "AlphaCloudSync Unifié"
 }

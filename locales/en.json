@@ -343,5 +343,6 @@
   "splashStage2": "Preparing startup & interface...",
   "splashStage3": "Loading accounts & folders...",
   "splashStage4": "Preparing virtual drives...",
-  "splashStage5": "Opening studio workspace..."
+  "splashStage5": "Opening studio workspace...",
+  "unifiedDriveVolName": "AlphaCloudSync Unified"
 }

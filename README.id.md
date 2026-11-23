@@ -12,10 +12,12 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-38BDF8.svg" alt="Lisensi MIT"/></a>
   <img src="https://img.shields.io/badge/Windows-10%20%2F%2011%20(x64)-10B981.svg" alt="Windows 10/11 x64"/>
-  <img src="https://img.shields.io/badge/Portable%20EXE-~1.16%20MB-6366F1.svg" alt="EXE Portabel"/>
-  <img src="https://img.shields.io/badge/Bahasa-7%20(345%20Kunci%20%2B%20RTL)-F59E0B.svg" alt="7 Bahasa (345 Kunci)"/>
+  <a href="https://github.com/AlphaAlgos/AlphaCloudSync/releases/latest/download/AlphaCloudSync-Setup-x64.exe"><img src="https://img.shields.io/badge/Installer%20Setup-~2.46%20MB-0EA5E9.svg" alt="Installer Windows"/></a>
+  <a href="https://github.com/AlphaAlgos/AlphaCloudSync/releases/latest/download/AlphaCloudSync.exe"><img src="https://img.shields.io/badge/Portable%20EXE-~1.16%20MB-6366F1.svg" alt="EXE Portabel"/></a>
+  <img src="https://img.shields.io/badge/Bahasa-7%20(346%20Kunci%20%2B%20RTL)-F59E0B.svg" alt="7 Bahasa (346 Kunci)"/>
   <img src="https://img.shields.io/badge/Tes%20Otomatis-25%2F25%20PASS-22C55E.svg" alt="25/25 Tes Lulus"/>
   <img src="https://img.shields.io/badge/Telemetri-Nol-4ADE80.svg" alt="Nol Telemetri"/>
+  <a href="https://github.com/sponsors/AlphaAlgos"><img src="https://img.shields.io/badge/Sponsor-Dukung-EA4AAA?logo=githubsponsors&logoColor=white" alt="Sponsor"/></a>
 </p>
 
 <p align="center">
@@ -23,8 +25,33 @@
 </p>
 
 <p align="center">
-  <a href="docs/USER_GUIDE.md">Panduan Pengguna</a> · <a href="BENCHMARKS.md">Benchmark</a> · <a href="CHANGELOG.md">Log Perubahan</a> · <a href="SECURITY.md">Keamanan</a> · <a href="CONTRIBUTING.md">Kontribusi</a>
+  <a href="https://github.com/AlphaAlgos/AlphaCloudSync/releases/latest/download/AlphaCloudSync-Setup-x64.exe"><strong>⬇ Unduh Installer Windows (.exe)</strong></a> · <a href="https://github.com/AlphaAlgos/AlphaCloudSync/releases/latest/download/AlphaCloudSync.exe">Portabel (.exe)</a> · <a href="docs/USER_GUIDE.md">Panduan Pengguna</a> · <a href="BENCHMARKS.md">Benchmark</a> · <a href="CHANGELOG.md">Log Perubahan</a> · <a href="SECURITY.md">Keamanan</a> · <a href="CONTRIBUTING.md">Kontribusi</a>
 </p>
+
+---
+
+## Galeri Tangkapan Layar
+
+<p align="center">
+  <img src="assets/screenshots/01-backup-folders.png" alt="AlphaCloudSync — Folder Cadangan" width="96%"/>
+  <br/>
+  <em><strong>Studio Folder Cadangan</strong> — Antarmuka Obsidian Dark Fluent, kartu multi-akun &amp; bilah progres spektrum</em>
+</p>
+
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="assets/screenshots/02-drive-and-storage.png" width="100%"/><br/><sub><strong>Drive &amp; Penyimpanan</strong> — Hub hibrida Drive Terpadu (<code>★ H:</code>) &amp; drive mandiri</sub></td>
+    <td width="50%" align="center"><img src="assets/screenshots/03-live-activity.png" width="100%"/><br/><sub><strong>Aktivitas &amp; Log Langsung</strong> — Antrean prioritas &amp; titik hijau berdenyut saat unggah</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="assets/screenshots/04-settings.png" width="100%"/><br/><sub><strong>Pengaturan</strong> — 7 bahasa, lencana Explorer, notifikasi &amp; Sinkronisasi Otomatis</sub></td>
+    <td width="50%" align="center"><img src="assets/screenshots/07-dynamic-cloud-island.png" width="88%"/><br/><sub><strong>Pulau Cloud Dinamis</strong> — Kapsul melayang bebas digeser di atas taskbar</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="assets/screenshots/05-explorer-drives.png" width="100%"/><br/><sub><strong>Windows Explorer</strong> — Drive mandiri (<code>G:</code>) + Drive Terpadu (<code>H:</code>) berdampingan</sub></td>
+    <td width="50%" align="center"><img src="assets/screenshots/06-unified-drive-inside.png" width="100%"/><br/><sub><strong>Di dalam Drive Terpadu (<code>H:</code>)</strong> — Setiap akun terhubung muncul sebagai folder rapi</sub></td>
+  </tr>
+</table>
 
 ---
 

@@ -12,10 +12,12 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-38BDF8.svg" alt="MIT License"/></a>
   <img src="https://img.shields.io/badge/Windows-10%20%2F%2011%20(x64)-10B981.svg" alt="Windows 10/11"/>
-  <img src="https://img.shields.io/badge/EXE%20%D8%A7%D9%84%D8%AD%D8%AC%D9%85-~1.16%20MB-6366F1.svg" alt="Portable EXE"/>
-  <img src="https://img.shields.io/badge/%D8%A7%D9%84%D9%84%D8%BA%D8%A7%D8%AA-7%20(345%20%D9%85%D9%81%D8%AA%D8%A7%D8%AD%20%2B%20RTL)-F59E0B.svg" alt="7 Languages (345 Keys)"/>
+  <a href="https://github.com/AlphaAlgos/AlphaCloudSync/releases/latest/download/AlphaCloudSync-Setup-x64.exe"><img src="https://img.shields.io/badge/%D9%85%D9%84%D9%81%20%D8%A7%D9%84%D8%AA%D8%AB%D8%A8%D9%8A%D8%AA%20Setup-~2.46%20MB-0EA5E9.svg" alt="Download Windows Setup Installer"/></a>
+  <a href="https://github.com/AlphaAlgos/AlphaCloudSync/releases/latest/download/AlphaCloudSync.exe"><img src="https://img.shields.io/badge/EXE%20%D9%85%D8%AD%D9%85%D9%88%D9%84-~1.16%20MB-6366F1.svg" alt="Portable EXE"/></a>
+  <img src="https://img.shields.io/badge/%D8%A7%D9%84%D9%84%D8%BA%D8%A7%D8%AA-7%20(346%20%D9%85%D9%81%D8%AA%D8%A7%D8%AD%20%2B%20RTL)-F59E0B.svg" alt="7 Languages (346 Keys)"/>
   <img src="https://img.shields.io/badge/%D8%A7%D8%AE%D8%AA%D8%A8%D8%A7%D8%B1%D8%A7%D8%AA%20%D8%A2%D9%84%D9%8A%D8%A9-25%2F25%20PASS-22C55E.svg" alt="25/25 PASS"/>
   <img src="https://img.shields.io/badge/%D8%A7%D9%84%D8%AA%D8%AA%D8%A8%D8%B9-%D8%B5%D9%81%D8%B1-4ADE80.svg" alt="Zero Telemetry"/>
+  <a href="https://github.com/sponsors/AlphaAlgos"><img src="https://img.shields.io/badge/Sponsor-%D8%AF%D8%B9%D9%85%20%D8%A7%D9%84%D9%85%D8%B4%D8%B1%D9%88%D8%B9-EA4AAA?logo=githubsponsors&logoColor=white" alt="Sponsor AlphaAlgos"/></a>
 </p>
 
 <p align="center">
@@ -23,8 +25,51 @@
 </p>
 
 <p align="center">
-  <a href="docs/USER_GUIDE.ar.md">دليل الاستخدام الشامل</a> · <a href="BENCHMARKS.md">قياسات الأداء</a> · <a href="CHANGELOG.md">سجل التغييرات</a> · <a href="SECURITY.md">الأمان والخصوصية</a> · <a href="CONTRIBUTING.md">المساهمة</a>
+  <a href="https://github.com/AlphaAlgos/AlphaCloudSync/releases/latest/download/AlphaCloudSync-Setup-x64.exe"><strong>⬇ تحميل ملف التثبيت المباشر (Setup .exe)</strong></a> · <a href="https://github.com/AlphaAlgos/AlphaCloudSync/releases/latest/download/AlphaCloudSync.exe">النسخة المحمولة (.exe)</a> · <a href="docs/USER_GUIDE.ar.md">دليل الاستخدام الشامل</a> · <a href="BENCHMARKS.md">قياسات الأداء</a> · <a href="CHANGELOG.md">سجل التغييرات</a> · <a href="SECURITY.md">الأمان والخصوصية</a> · <a href="CONTRIBUTING.md">المساهمة</a>
 </p>
+
+---
+
+## لقطات حقيقية من واجهة البرنامج والأقراص
+
+<p align="center">
+  <img src="assets/screenshots/01-backup-folders.png" alt="AlphaCloudSync — شاشة مجلدات النسخ الاحتياطي والواجهة الداكنة" width="96%"/>
+  <br/>
+  <em><strong>استوديو مجلدات النسخ الاحتياطي</strong> — واجهة Obsidian Dark Fluent الداكنة 100%، بطاقات الحسابات الحية، شريط التقدم الطيفي، وسياسة الأرشفة الآمنة</em>
+</p>
+
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <img src="assets/screenshots/02-drive-and-storage.png" alt="إدارة المساحة والأقراص المتعددة" width="100%"/>
+      <br/><sub><strong>المساحة والأقراص الهجينة</strong> — تحكم كامل بالقرص الموحّد (<code>★ H:</code>) والأقراص المستقلة ومساحة كل حساب</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="assets/screenshots/03-live-activity.png" alt="النشاط والسجل الحي" width="100%"/>
+      <br/><sub><strong>النشاط والسجل الحي</strong> — طابور الملفات المرتّب بالأولوية، المؤشر الأخضر النابض أثناء الرفع، والسجل الفوري</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <img src="assets/screenshots/04-settings.png" alt="شاشة الإعدادات" width="100%"/>
+      <br/><sub><strong>الإعدادات</strong> — 7 لغات، شارات وقائمة Explorer، تحكم تفصيلي بالإشعارات، والمزامنة الفورية التلقائية</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="assets/screenshots/07-dynamic-cloud-island.png" alt="الجزيرة السحابية العائمة" width="88%"/>
+      <br/><sub><strong>الجزيرة السحابية العائمة (Dynamic Cloud Island)</strong> — كبسولة شفافة قابلة للسحب والتثبيت فوق شريط المهام</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <img src="assets/screenshots/05-explorer-drives.png" alt="الأقراص الموحدة والمستقلة داخل Windows Explorer" width="100%"/>
+      <br/><sub><strong>الأقراص داخل مستكشف ويندوز (This PC)</strong> — قرص مستقل (<code>Drive - alice.dev (G:)</code>) + القرص الموحّد (<code>AlphaCloudSync Unified (H:)</code>) معاً</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="assets/screenshots/06-unified-drive-inside.png" alt="داخل القرص الموحّد في مستكشف ويندوز" width="100%"/>
+      <br/><sub><strong>داخل القرص الموحّد (<code>AlphaCloudSync Unified (H:)</code>)</strong> — كل حساب Google مرتبط يظهر كمجلد مستقل ومنظّم</sub>
+    </td>
+  </tr>
+</table>
 
 ---
 
@@ -133,29 +178,33 @@
 
 ## التثبيت في 30 ثانية (Windows 10 / 11 x64)
 
-### الطريقة 1 — التثبيت بسطر واحد عبر PowerShell (تحقق SHA-256 إلزامي Fail-Closed)
+### الطريقة 1 — ملف التثبيت المباشر لويندوز (`AlphaCloudSync-Setup-x64.exe` — الأسهل لمعظم المستخدمين)
+1. حمّل **[`AlphaCloudSync-Setup-x64.exe`](https://github.com/AlphaAlgos/AlphaCloudSync/releases/latest/download/AlphaCloudSync-Setup-x64.exe)** (`~2.46 MB`، معالج Inno Setup 6 يدعم العربية RTL والإنجليزية واللغات العالمية) من صفحة [الإصدارات (Releases)](https://github.com/AlphaAlgos/AlphaCloudSync/releases).
+2. اضغط مرتين للتثبيت النظيف في `%LOCALAPPDATA%\AlphaCloudSync\app\` (بدون الحاجة لصلاحيات مسؤول UAC) مع إنشاء اختصارات سطح المكتب وقائمة ابدأ وإضافة `PATH` وإزالة نظيفة من قائمة تطبيقات ويندوز.
+
+### الطريقة 2 — التثبيت بسطر واحد عبر PowerShell (تحقق SHA-256 إلزامي Fail-Closed)
 ```powershell
 irm https://raw.githubusercontent.com/AlphaAlgos/AlphaCloudSync/main/install.ps1 | iex
 ```
 يقوم بتحميل أحدث إصدار إلى `%LOCALAPPDATA%\AlphaCloudSync\app\`، **ويفرض التحقق الإلزامي ببصمة SHA-256** (يرفض التثبيت ويحذف الملف فوراً إن غابت `SHA256SUMS.txt` أو اختلفت البصمة)، ثم ينشئ اختصارات سطح المكتب وقائمة ابدأ ويضيف `AlphaCloudSync` إلى `PATH`.
 
-### الطريقة 2 — ملف محمول `.exe`
-1. حمّل **`AlphaCloudSync.exe`** و **`SHA256SUMS.txt`** من صفحة [الإصدارات (Releases)](https://github.com/AlphaAlgos/AlphaCloudSync/releases).
+### الطريقة 3 — ملف محمول `.exe` (بدون تثبيت)
+1. حمّل **[`AlphaCloudSync.exe`](https://github.com/AlphaAlgos/AlphaCloudSync/releases/latest/download/AlphaCloudSync.exe)** (`~1.16 MB`) و **`SHA256SUMS.txt`** من صفحة [الإصدارات (Releases)](https://github.com/AlphaAlgos/AlphaCloudSync/releases).
 2. تحقق من البصمة بمطابقة ناتج الأمر التالي مع ملف `SHA256SUMS.txt`:
    ```powershell
    Get-FileHash .\AlphaCloudSync.exe -Algorithm SHA256
    ```
 3. اضغط مرتين على **`AlphaCloudSync.exe`** — وإذا لم يكن `rclone` مثبتاً بعد، اضغط **نعم** ليتم تثبيته تلقائياً مع التحقق من بصمة `SHA256SUMS`.
 
-### الطريقة 3 — البناء المحلي من الكود المصدري (في ثانيتين)
+### الطريقة 4 — البناء المحلي للملف المحمول ومثبّت ويندوز من الكود المصدري
 ```powershell
 git clone https://github.com/AlphaAlgos/AlphaCloudSync.git
 cd AlphaCloudSync
-.\build\build-release.ps1
-# الناتج: .\dist\AlphaCloudSync.exe (27 مورداً مدمجاً) + .\dist\SHA256SUMS.txt
+.\build\build-release.ps1      # الناتج: .\dist\AlphaCloudSync.exe (27 مورداً مدمجاً)
+.\build\build-installer.ps1    # الناتج: .\dist\AlphaCloudSync-Setup-x64.exe + .\dist\SHA256SUMS.txt
 ```
 
-### الطريقة 4 — ملف حزمة WinGet
+### الطريقة 5 — ملف حزمة WinGet
 يتضمن المستودع ملف التعريف الجاهز [`winget/AlphaAlgorithms.AlphaCloudSync.yaml`](winget/AlphaAlgorithms.AlphaCloudSync.yaml) (`AlphaAlgorithms.AlphaCloudSync`). وبعد اعتماده في مستودع WinGet الرسمي يمكن التثبيت عبر:
 ```powershell
 winget install AlphaAlgorithms.AlphaCloudSync
@@ -244,7 +293,7 @@ AlphaCloudSync.exe -AutoStartSync
 
 ## الدعم والرعاية الاختيارية (Optional Sponsorship)
 
-برنامج **AlphaCloudSync** مجاني ومفتوح المصدر بالكامل تحت رخصة **MIT** دون أي قيود أو ميزات مدفوعة. إذا وفّر عليك البرنامج وقتاً أو مساحة، وأردت دعم تغطية تكاليف **شهادات التوقيع الرقمي EV** (لإزالة تحذير SmartScreen مستقبلاً) واختبارات دعم المزوّدين المتعددين، يمكنك وضع نجمة ⭐ على المستودع أو رعاية **Alpha Algorithms Company** فور تفعيل GitHub Sponsors على حساب [`AlphaAlgos`](https://github.com/AlphaAlgos) *(رابط الرعاية الاختياري — قريباً عبر GitHub Sponsors)*.
+برنامج **AlphaCloudSync** مجاني ومفتوح المصدر بالكامل تحت رخصة **MIT** دون أي قيود أو ميزات مدفوعة. إذا وفّر عليك البرنامج وقتاً أو مساحة، وأردت دعم التطوير المستمر وتغطية تكاليف **شهادات التوقيع الرقمي EV** (لإزالة تحذير SmartScreen مستقبلاً) ودعم المزوّدين المتعددين (`v1.1+`)، يمكنك وضع نجمة ⭐ على المستودع أو دعم المشروع مباشرة عبر **[GitHub Sponsors (`@AlphaAlgos`)](https://github.com/sponsors/AlphaAlgos)** (مفعّل عبر [`.github/FUNDING.yml`](.github/FUNDING.yml)).
 
 ---
 

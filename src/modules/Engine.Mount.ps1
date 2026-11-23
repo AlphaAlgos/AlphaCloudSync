@@ -330,7 +330,8 @@ function Build-UnifiedMountCommandArgs {
         [string]$Letter,
         [string]$MountMode = "Stream",
         [string]$ComputerLabel = "My Computer",
-        [string]$VfsCacheDir = ""
+        [string]$VfsCacheDir = "",
+        [string]$VolumeLabel = "AlphaCloudSync Unified"
     )
     $vfsFlags = if ($MountMode -eq "Mirror") {
         "--vfs-cache-mode full --vfs-cache-max-age 720h --vfs-cache-max-size 50G --vfs-write-back 5s"
@@ -370,8 +371,11 @@ function Build-UnifiedMountCommandArgs {
     }
     $upRaw = ($upTokens -join " ")
     $upEsc = $upRaw.Replace('"', '\"')
-    # Unified drive label uses the product brand 'AlphaCloudSync' (14 chars, always fits 1 line in Windows Explorer!)
-    return "mount :combine: $Letter --combine-upstreams `"$upEsc`" $vfsFlags --cache-dir `"$VfsCacheDir`" --volname `"AlphaCloudSync`" --dir-cache-time 5m --poll-interval 15s"
+    $cleanVol = (($VolumeLabel -replace '["=\\/:*?<>|]', '').Trim())
+    if ([string]::IsNullOrWhiteSpace($cleanVol)) { $cleanVol = "AlphaCloudSync Unified" }
+    if ($cleanVol.Length -gt 24) { $cleanVol = $cleanVol.Substring(0, 22) + ".." }
+    # Unified drive label fits cleanly on 1 line in Windows Explorer (<= 24 chars) and adapts to UI language
+    return "mount :combine: $Letter --combine-upstreams `"$upEsc`" $vfsFlags --cache-dir `"$VfsCacheDir`" --volname `"$cleanVol`" --dir-cache-time 5m --poll-interval 15s"
 }
 
 function Get-UnifiedMountLetter {
@@ -422,7 +426,8 @@ function Invoke-ToggleUnifiedMount {
             Refresh-WindowsExplorerSilently -DriveLetter $ul -ChangeKind "Remove"
         }
         if (-not $SilentToast -and $unmountedLetters.Count -gt 0 -and (Get-Command Show-TrayToast -ErrorAction SilentlyContinue)) {
-            Show-TrayToast -Title (L "toastDriveUnmountedTitle" "Cloud Drive Disconnected") -Body (LF "toastDriveUnmountedBody" @("AlphaCloudSync", (Wrap-Ltr $unmountedLetters[0].ToUpperInvariant()))) -Category "Drive"
+            $uniToastLbl = (L "unifiedDriveVolName" "AlphaCloudSync Unified")
+            Show-TrayToast -Title (L "toastDriveUnmountedTitle" "Cloud Drive Disconnected") -Body (LF "toastDriveUnmountedBody" @($uniToastLbl, (Wrap-Ltr $unmountedLetters[0].ToUpperInvariant()))) -Category "Drive"
         }
         return $true
     }
@@ -474,7 +479,8 @@ function Invoke-ToggleUnifiedMount {
     $vfsCacheDir = Join-Path $env:LOCALAPPDATA "AlphaCloudSync\vfs-cache\unified-all"
     if (-not (Test-Path -LiteralPath $vfsCacheDir)) { New-Item -ItemType Directory -Path $vfsCacheDir -Force | Out-Null }
 
-    $mountArgs = Build-UnifiedMountCommandArgs -RemotePairs $pairs -Letter $Letter -MountMode $modeTag -ComputerLabel $cleanComp -VfsCacheDir $vfsCacheDir
+    $uniVolLbl = (L "unifiedDriveVolName" "AlphaCloudSync Unified")
+    $mountArgs = Build-UnifiedMountCommandArgs -RemotePairs $pairs -Letter $Letter -MountMode $modeTag -ComputerLabel $cleanComp -VfsCacheDir $vfsCacheDir -VolumeLabel $uniVolLbl
     if ([bool]$cfg.ShowFolderBadges) { Set-CloudDriveExplorerIcon -Letter $Letter }
     $proc = Start-Process -FilePath $RcloneExe -ArgumentList $mountArgs -PassThru -WindowStyle Hidden
     for ($w = 0; $w -lt 72; $w++) {
@@ -490,7 +496,7 @@ function Invoke-ToggleUnifiedMount {
         if ([bool]$cfg.ShowFolderBadges) { Set-CloudDriveExplorerIcon -Letter $Letter }
         Refresh-WindowsExplorerSilently -DriveLetter $Letter -ChangeKind "Add"
         if (Get-Command Show-TrayToast -ErrorAction SilentlyContinue) {
-            Show-TrayToast -Title (L "toastDriveMountedTitle" "Cloud Drive Ready") -Body (LF "toastDriveMountedBody" @("AlphaCloudSync", (Wrap-Ltr $Letter.ToUpperInvariant()))) -Category "Drive"
+            Show-TrayToast -Title (L "toastDriveMountedTitle" "Cloud Drive Ready") -Body (LF "toastDriveMountedBody" @($uniVolLbl, (Wrap-Ltr $Letter.ToUpperInvariant()))) -Category "Drive"
         }
         if (-not $QuietExplorer) { Start-Process "explorer.exe" -ArgumentList "${Letter}\" }
         return $true

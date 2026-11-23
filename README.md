@@ -12,10 +12,12 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-38BDF8.svg" alt="MIT License"/></a>
   <img src="https://img.shields.io/badge/Windows-10%20%2F%2011%20(x64)-10B981.svg" alt="Windows 10/11 x64"/>
-  <img src="https://img.shields.io/badge/Portable%20EXE-~1.16%20MB-6366F1.svg" alt="Portable EXE"/>
-  <img src="https://img.shields.io/badge/Languages-7%20(345%20Keys%20%2B%20Arabic%20RTL)-F59E0B.svg" alt="7 Languages (345 Keys)"/>
+  <a href="https://github.com/AlphaAlgos/AlphaCloudSync/releases/latest/download/AlphaCloudSync-Setup-x64.exe"><img src="https://img.shields.io/badge/Setup%20Installer-~2.46%20MB-0EA5E9.svg" alt="Download Windows Setup Installer"/></a>
+  <a href="https://github.com/AlphaAlgos/AlphaCloudSync/releases/latest/download/AlphaCloudSync.exe"><img src="https://img.shields.io/badge/Portable%20EXE-~1.16%20MB-6366F1.svg" alt="Portable EXE"/></a>
+  <img src="https://img.shields.io/badge/Languages-7%20(346%20Keys%20%2B%20Arabic%20RTL)-F59E0B.svg" alt="7 Languages (346 Keys)"/>
   <img src="https://img.shields.io/badge/Automated%20Tests-25%2F25%20PASS-22C55E.svg" alt="25/25 Tests Pass"/>
   <img src="https://img.shields.io/badge/Telemetry-Zero-4ADE80.svg" alt="Zero Telemetry"/>
+  <a href="https://github.com/sponsors/AlphaAlgos"><img src="https://img.shields.io/badge/Sponsor-Support%20Project-EA4AAA?logo=githubsponsors&logoColor=white" alt="Sponsor AlphaAlgos"/></a>
 </p>
 
 <p align="center">
@@ -23,12 +25,55 @@
 </p>
 
 <p align="center">
-  <a href="docs/USER_GUIDE.md">User Guide</a> · <a href="BENCHMARKS.md">Benchmarks</a> · <a href="CHANGELOG.md">Changelog</a> · <a href="SECURITY.md">Security</a> · <a href="CONTRIBUTING.md">Contributing</a>
+  <a href="https://github.com/AlphaAlgos/AlphaCloudSync/releases/latest/download/AlphaCloudSync-Setup-x64.exe"><strong>⬇ Download Windows Installer (.exe)</strong></a> · <a href="https://github.com/AlphaAlgos/AlphaCloudSync/releases/latest/download/AlphaCloudSync.exe">Portable (.exe)</a> · <a href="docs/USER_GUIDE.md">User Guide</a> · <a href="BENCHMARKS.md">Benchmarks</a> · <a href="CHANGELOG.md">Changelog</a> · <a href="SECURITY.md">Security</a> · <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
 <p align="center">
-  <a href="#why-switch-from-official-google-drive-for-desktop">Why Switch</a> · <a href="#complete-feature-matrix-verified-in-srcalphacloudsyncps1--srcmodules">Features</a> · <a href="#modular-architecture--extensible-cloud-providers">Architecture</a> · <a href="#real-measured-performance-reproducible-on-your-pc">Benchmarks</a> · <a href="#get-started-in-30-seconds-windows-10--11-x64">Install</a> · <a href="#cli--task-scheduler-automation">CLI</a> · <a href="#frequently-asked-questions">FAQ</a>
+  <a href="#screenshots-gallery">Screenshots</a> · <a href="#why-switch-from-official-google-drive-for-desktop">Why Switch</a> · <a href="#complete-feature-matrix-verified-in-srcalphacloudsyncps1--srcmodules">Features</a> · <a href="#modular-architecture--extensible-cloud-providers">Architecture</a> · <a href="#real-measured-performance-reproducible-on-your-pc">Benchmarks</a> · <a href="#get-started-in-30-seconds-windows-10--11-x64">Install</a> · <a href="#cli--task-scheduler-automation">CLI</a> · <a href="#frequently-asked-questions">FAQ</a>
 </p>
+
+---
+
+## Screenshots Gallery
+
+<p align="center">
+  <img src="assets/screenshots/01-backup-folders.png" alt="AlphaCloudSync — Backup Folders & Obsidian Dark Studio" width="96%"/>
+  <br/>
+  <em><strong>Backup Folders Studio</strong> — Obsidian Dark Fluent UI, Multi-Account Sidebar Overview, Rainbow Progress Bar &amp; Safe Archive Mode</em>
+</p>
+
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <img src="assets/screenshots/02-drive-and-storage.png" alt="Drive & Storage Hub" width="100%"/>
+      <br/><sub><strong>Drive &amp; Storage Hub</strong> — Unified (<code>★ H:</code>) &amp; Standalone Multi-Account Windows Drives</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="assets/screenshots/03-live-activity.png" alt="Live File Activity & Activity Log" width="100%"/>
+      <br/><sub><strong>Live Activity &amp; Log</strong> — Priority Queue, Pulsing Green Upload Dot &amp; Real-Time Console</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <img src="assets/screenshots/04-settings.png" alt="Settings & Automation" width="100%"/>
+      <br/><sub><strong>Settings</strong> — 7 Languages, Explorer Badges &amp; Context Menu, Granular Notifications &amp; Auto-Sync</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="assets/screenshots/07-dynamic-cloud-island.png" alt="Dynamic Cloud Island" width="88%"/>
+      <br/><sub><strong>Dynamic Cloud Island</strong> — Freely Draggable Translucent Pill Above the Taskbar</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <img src="assets/screenshots/05-explorer-drives.png" alt="Windows Explorer Unified & Standalone Drives" width="100%"/>
+      <br/><sub><strong>Windows Explorer ("This PC")</strong> — Standalone (<code>Drive - alice.dev (G:)</code>) + Unified (<code>AlphaCloudSync Unified (H:)</code>) Side-by-Side</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="assets/screenshots/06-unified-drive-inside.png" alt="Inside Unified Drive in Windows Explorer" width="100%"/>
+      <br/><sub><strong>Inside <code>AlphaCloudSync Unified (H:)</code></strong> — Each Connected Google Account Mounted Cleanly as Its Own Folder</sub>
+    </td>
+  </tr>
+</table>
 
 ---
 
@@ -161,29 +206,33 @@ See full methodology in [`BENCHMARKS.md`](BENCHMARKS.md).
 
 ## Get Started in 30 Seconds (Windows 10 / 11 x64)
 
-### Option 1 — One-Line PowerShell Install (Fail-Closed SHA-256 Verified)
+### Option 1 — Direct Windows Setup Installer (Recommended for Most Users)
+1. Download **[`AlphaCloudSync-Setup-x64.exe`](https://github.com/AlphaAlgos/AlphaCloudSync/releases/latest/download/AlphaCloudSync-Setup-x64.exe)** (`~2.46 MB`, Inno Setup 6 wizard with English, Arabic RTL, Spanish, French & German) from [GitHub Releases](https://github.com/AlphaAlgos/AlphaCloudSync/releases).
+2. Double-click to install cleanly into `%LOCALAPPDATA%\AlphaCloudSync\app\` (no Admin/UAC required) with Desktop & Start Menu shortcuts, optional `PATH` CLI support, and a standard Windows Apps & Features uninstaller.
+
+### Option 2 — One-Line PowerShell Install (Fail-Closed SHA-256 Verified)
 ```powershell
 irm https://raw.githubusercontent.com/AlphaAlgos/AlphaCloudSync/main/install.ps1 | iex
 ```
 Downloads the latest release to `%LOCALAPPDATA%\AlphaCloudSync\app\`, **enforces Fail-Closed SHA-256 verification** (immediately aborts & deletes the download if `SHA256SUMS.txt` is missing, malformed, or mismatched), creates Desktop & Start Menu shortcuts, and adds `AlphaCloudSync` to your user `PATH`.
 
-### Option 2 — Portable `.exe`
-1. Download **`AlphaCloudSync.exe`** and **`SHA256SUMS.txt`** from [GitHub Releases](https://github.com/AlphaAlgos/AlphaCloudSync/releases).
+### Option 3 — Portable `.exe` (Zero Installation)
+1. Download **[`AlphaCloudSync.exe`](https://github.com/AlphaAlgos/AlphaCloudSync/releases/latest/download/AlphaCloudSync.exe)** (`~1.16 MB`) and **`SHA256SUMS.txt`** from [GitHub Releases](https://github.com/AlphaAlgos/AlphaCloudSync/releases).
 2. Verify the hash against `SHA256SUMS.txt`:
    ```powershell
    Get-FileHash .\AlphaCloudSync.exe -Algorithm SHA256
    ```
 3. Double-click **`AlphaCloudSync.exe`** — if `rclone` is not installed yet, click **Yes** in the first-run setup to install it automatically (verified with official `SHA256SUMS`).
 
-### Option 3 — Build Locally from Source (2 Seconds)
+### Option 4 — Build Portable EXE & Setup Installer Locally from Source
 ```powershell
 git clone https://github.com/AlphaAlgos/AlphaCloudSync.git
 cd AlphaCloudSync
-.\build\build-release.ps1
-# Output: .\dist\AlphaCloudSync.exe (27 embedded resources) + .\dist\SHA256SUMS.txt
+.\build\build-release.ps1      # Output: .\dist\AlphaCloudSync.exe (27 embedded resources)
+.\build\build-installer.ps1    # Output: .\dist\AlphaCloudSync-Setup-x64.exe + .\dist\SHA256SUMS.txt
 ```
 
-### Option 4 — WinGet Package Manifest
+### Option 5 — WinGet Package Manifest
 A WinGet singleton manifest is included at [`winget/AlphaAlgorithms.AlphaCloudSync.yaml`](winget/AlphaAlgorithms.AlphaCloudSync.yaml) (`PackageIdentifier: AlphaAlgorithms.AlphaCloudSync`). Once published to the official WinGet community repository, you can install via:
 ```powershell
 winget install AlphaAlgorithms.AlphaCloudSync
@@ -272,7 +321,7 @@ Never. AlphaCloudSync has **zero telemetry** and zero third-party servers. Googl
 
 ## Support & Sponsorship (Optional)
 
-AlphaCloudSync is **100% free and MIT-licensed open-source software** with no paywalls or locked features. If AlphaCloudSync saves you time or SSD space and you would like to help cover future **EV Code-Signing Certificates** (to eliminate Windows SmartScreen prompts) and multi-cloud testing, you can star the repository or sponsor **Alpha Algorithms Company** once GitHub Sponsors is enabled on [`AlphaAlgos`](https://github.com/AlphaAlgos) *(optional sponsorship link placeholder — coming soon via GitHub Sponsors)*.
+AlphaCloudSync is **100% free and MIT-licensed open-source software** with no paywalls or locked features. If AlphaCloudSync saves you time or SSD space and you would like to support ongoing development, multi-cloud providers (`v1.1+`), and future **EV Code-Signing Certificates** (to eliminate Windows SmartScreen prompts), you can ⭐ star the repository or sponsor the project directly via **[GitHub Sponsors (`@AlphaAlgos`)](https://github.com/sponsors/AlphaAlgos)** (configured in [`.github/FUNDING.yml`](.github/FUNDING.yml)).
 
 ---
 

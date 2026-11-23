@@ -12,10 +12,12 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-38BDF8.svg" alt="MIT 许可证"/></a>
   <img src="https://img.shields.io/badge/Windows-10%20%2F%2011%20(x64)-10B981.svg" alt="Windows 10/11 x64"/>
-  <img src="https://img.shields.io/badge/便携版%20EXE-~1.16%20MB-6366F1.svg" alt="便携 EXE"/>
-  <img src="https://img.shields.io/badge/多语言-7%20种%20(345%20词条%20%2B%20RTL)-F59E0B.svg" alt="7 种语言 (345 词条)"/>
-  <img src="https://img.shields.io/badge/自动化测试-25%2F25%20PASS-22C55E.svg" alt="25/25 测试通过"/>
-  <img src="https://img.shields.io/badge/遥测追踪-零-4ADE80.svg" alt="零遥测"/>
+  <a href="https://github.com/AlphaAlgos/AlphaCloudSync/releases/latest/download/AlphaCloudSync-Setup-x64.exe"><img src="https://img.shields.io/badge/%E5%AE%89%E8%A3%85%E5%8C%85%20Setup-~2.46%20MB-0EA5E9.svg" alt="Windows 安装包"/></a>
+  <a href="https://github.com/AlphaAlgos/AlphaCloudSync/releases/latest/download/AlphaCloudSync.exe"><img src="https://img.shields.io/badge/%E4%BE%BF%E6%90%BA%E7%89%88%20EXE-~1.16%20MB-6366F1.svg" alt="便携 EXE"/></a>
+  <img src="https://img.shields.io/badge/%E5%A4%9A%E8%AF%AD%E8%A8%80-7%20%E7%A7%8D%20(346%20%E8%AF%8D%E6%9D%A1%20%2B%20RTL)-F59E0B.svg" alt="7 种语言 (346 词条)"/>
+  <img src="https://img.shields.io/badge/%E8%87%AA%E5%8A%A8%E5%8C%96%E6%B5%8B%E8%AF%95-25%2F25%20PASS-22C55E.svg" alt="25/25 测试通过"/>
+  <img src="https://img.shields.io/badge/%E9%81%A5%E6%B5%8B%E8%BF%BD%E8%B8%AA-%E9%9B%B6-4ADE80.svg" alt="零遥测"/>
+  <a href="https://github.com/sponsors/AlphaAlgos"><img src="https://img.shields.io/badge/Sponsor-%E8%B5%9E%E5%8A%A9%E6%94%AF%E6%8C%81-EA4AAA?logo=githubsponsors&logoColor=white" alt="Sponsor"/></a>
 </p>
 
 <p align="center">
@@ -23,8 +25,33 @@
 </p>
 
 <p align="center">
-  <a href="docs/USER_GUIDE.md">使用指南</a> · <a href="BENCHMARKS.md">性能基准</a> · <a href="CHANGELOG.md">更新日志</a> · <a href="SECURITY.md">安全说明</a> · <a href="CONTRIBUTING.md">参与贡献</a>
+  <a href="https://github.com/AlphaAlgos/AlphaCloudSync/releases/latest/download/AlphaCloudSync-Setup-x64.exe"><strong>⬇ 直接下载 Windows 安装包 (.exe)</strong></a> · <a href="https://github.com/AlphaAlgos/AlphaCloudSync/releases/latest/download/AlphaCloudSync.exe">便携版 (.exe)</a> · <a href="docs/USER_GUIDE.md">使用指南</a> · <a href="BENCHMARKS.md">性能基准</a> · <a href="CHANGELOG.md">更新日志</a> · <a href="SECURITY.md">安全说明</a> · <a href="CONTRIBUTING.md">参与贡献</a>
 </p>
+
+---
+
+## 界面与虚拟盘截图预览
+
+<p align="center">
+  <img src="assets/screenshots/01-backup-folders.png" alt="AlphaCloudSync — 备份文件夹工作台" width="96%"/>
+  <br/>
+  <em><strong>备份文件夹工作台</strong> — Obsidian Dark Fluent 暗黑界面、多账号侧边概览与彩虹光谱总进度条</em>
+</p>
+
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="assets/screenshots/02-drive-and-storage.png" width="100%"/><br/><sub><strong>驱动器与存储管理</strong> — 混合统一盘 (<code>★ H:</code>) 与多账号独立虚拟盘</sub></td>
+    <td width="50%" align="center"><img src="assets/screenshots/03-live-activity.png" width="100%"/><br/><sub><strong>实时活动与日志</strong> — 优先级文件队列、上传脉冲绿点与实时控制台</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="assets/screenshots/04-settings.png" width="100%"/><br/><sub><strong>设置</strong> — 7 种语言、资源管理器徽标与右键菜单、细分通知与实时自动同步</sub></td>
+    <td width="50%" align="center"><img src="assets/screenshots/07-dynamic-cloud-island.png" width="88%"/><br/><sub><strong>灵动云岛 (Dynamic Cloud Island)</strong> — 任务栏上方可自由拖动的半透明胶囊</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="assets/screenshots/05-explorer-drives.png" width="100%"/><br/><sub><strong>Windows 资源管理器</strong> — 独立盘 (<code>G:</code>) 与统一盘 (<code>H:</code>) 并列显示</sub></td>
+    <td width="50%" align="center"><img src="assets/screenshots/06-unified-drive-inside.png" width="100%"/><br/><sub><strong>统一盘内部 (<code>H:</code>)</strong> — 每个已连接账号自动显示为独立文件夹</sub></td>
+  </tr>
+</table>
 
 ---
 

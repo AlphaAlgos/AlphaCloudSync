@@ -12,10 +12,12 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-38BDF8.svg" alt="Licence MIT"/></a>
   <img src="https://img.shields.io/badge/Windows-10%20%2F%2011%20(x64)-10B981.svg" alt="Windows 10/11 x64"/>
-  <img src="https://img.shields.io/badge/Portable%20EXE-~1.16%20MB-6366F1.svg" alt="EXE Portable"/>
-  <img src="https://img.shields.io/badge/Langues-7%20(345%20Clés%20%2B%20RTL)-F59E0B.svg" alt="7 Langues (345 Clés)"/>
+  <a href="https://github.com/AlphaAlgos/AlphaCloudSync/releases/latest/download/AlphaCloudSync-Setup-x64.exe"><img src="https://img.shields.io/badge/Installateur%20Setup-~2.46%20MB-0EA5E9.svg" alt="Installateur Windows"/></a>
+  <a href="https://github.com/AlphaAlgos/AlphaCloudSync/releases/latest/download/AlphaCloudSync.exe"><img src="https://img.shields.io/badge/Portable%20EXE-~1.16%20MB-6366F1.svg" alt="EXE Portable"/></a>
+  <img src="https://img.shields.io/badge/Langues-7%20(346%20Clés%20%2B%20RTL)-F59E0B.svg" alt="7 Langues (346 Clés)"/>
   <img src="https://img.shields.io/badge/Tests%20Automatisés-25%2F25%20PASS-22C55E.svg" alt="25/25 Tests Réussis"/>
   <img src="https://img.shields.io/badge/Télémétrie-Zéro-4ADE80.svg" alt="Zéro Télémétrie"/>
+  <a href="https://github.com/sponsors/AlphaAlgos"><img src="https://img.shields.io/badge/Sponsor-Soutenir-EA4AAA?logo=githubsponsors&logoColor=white" alt="Sponsor"/></a>
 </p>
 
 <p align="center">
@@ -23,8 +25,33 @@
 </p>
 
 <p align="center">
-  <a href="docs/USER_GUIDE.md">Guide Utilisateur</a> · <a href="BENCHMARKS.md">Benchmarks</a> · <a href="CHANGELOG.md">Historique</a> · <a href="SECURITY.md">Sécurité</a> · <a href="CONTRIBUTING.md">Contribuer</a>
+  <a href="https://github.com/AlphaAlgos/AlphaCloudSync/releases/latest/download/AlphaCloudSync-Setup-x64.exe"><strong>⬇ Télécharger l'installateur Windows (.exe)</strong></a> · <a href="https://github.com/AlphaAlgos/AlphaCloudSync/releases/latest/download/AlphaCloudSync.exe">Portable (.exe)</a> · <a href="docs/USER_GUIDE.md">Guide Utilisateur</a> · <a href="BENCHMARKS.md">Benchmarks</a> · <a href="CHANGELOG.md">Historique</a> · <a href="SECURITY.md">Sécurité</a> · <a href="CONTRIBUTING.md">Contribuer</a>
 </p>
+
+---
+
+## Captures d'écran
+
+<p align="center">
+  <img src="assets/screenshots/01-backup-folders.png" alt="AlphaCloudSync — Dossiers de sauvegarde" width="96%"/>
+  <br/>
+  <em><strong>Studio des dossiers de sauvegarde</strong> — Interface Obsidian Dark Fluent, aperçu multi-comptes et barre de progression spectrale</em>
+</p>
+
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="assets/screenshots/02-drive-and-storage.png" width="100%"/><br/><sub><strong>Lecteurs &amp; Stockage</strong> — Hub hybride unifié (<code>★ H:</code>) et lecteurs autonomes</sub></td>
+    <td width="50%" align="center"><img src="assets/screenshots/03-live-activity.png" width="100%"/><br/><sub><strong>Activité &amp; Journal en direct</strong> — File prioritaire et voyant vert pulsant d'envoi</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="assets/screenshots/04-settings.png" width="100%"/><br/><sub><strong>Paramètres</strong> — 7 langues, badges Explorer, notifications et Auto-Sync</sub></td>
+    <td width="50%" align="center"><img src="assets/screenshots/07-dynamic-cloud-island.png" width="88%"/><br/><sub><strong>Îlot Cloud Dynamique</strong> — Pilule flottante déplaçable au-dessus de la barre des tâches</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="assets/screenshots/05-explorer-drives.png" width="100%"/><br/><sub><strong>Explorateur Windows</strong> — Lecteur autonome (<code>G:</code>) + Lecteur unifié (<code>H:</code>)</sub></td>
+    <td width="50%" align="center"><img src="assets/screenshots/06-unified-drive-inside.png" width="100%"/><br/><sub><strong>Dans le lecteur unifié (<code>H:</code>)</strong> — Chaque compte connecté affiché comme dossier</sub></td>
+  </tr>
+</table>
 
 ---
 

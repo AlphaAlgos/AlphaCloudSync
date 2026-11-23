@@ -379,11 +379,13 @@ try {
     $mOk3 = (Match-MountCommandLineForRemote -CommandLine $aBoth  -TargetRemote "gdrive") -eq "G:"
     $mOk4 = (Match-MountCommandLineForRemote -CommandLine 'mount gdrive: H: --volname "Test"' -TargetRemote "gdrive") -eq "H:"
 
-    # Verify 1-line Explorer volume labels (<= 21 chars so Windows Explorer NEVER hides "X TB free of Y TB")
+    # Verify 1-line Explorer volume labels (<= 24 chars so Windows Explorer NEVER hides "X TB free of Y TB")
     $volStream = ($aDrive -match '--volname "([^"]+)"') -and ($Matches[1] -eq "Drive - alice.dev") -and ($Matches[1].Length -le 21)
     $volMirror = ($aComp  -match '--volname "([^"]+)"') -and ($Matches[1].Length -le 21)
-    $volUnified = ($aUni  -match '--volname "([^"]+)"') -and ($Matches[1] -eq "AlphaCloudSync") -and ($Matches[1].Length -le 21)
-    $uniDedup  = ($aUni -match 'alpha=gdrive:') -and ($aUni -match 'alpha \(2\)=gdrive-work:My Computer') -and $volUnified
+    $volUnified = ($aUni  -match '--volname "([^"]+)"') -and ($Matches[1] -eq "AlphaCloudSync Unified") -and ($Matches[1].Length -le 24)
+    $aUniCustom = Build-UnifiedMountCommandArgs -RemotePairs @([PSCustomObject]@{ Remote = "gdrive"; Label = "alpha"; Scope = "MyDrive" }) -Letter "G:" -VolumeLabel "AlphaCloudSync Unido"
+    $volUniLoc = ($aUniCustom -match '--volname "([^"]+)"') -and ($Matches[1] -eq "AlphaCloudSync Unido")
+    $uniDedup  = ($aUni -match 'alpha=gdrive:') -and ($aUni -match 'alpha \(2\)=gdrive-work:My Computer') -and $volUnified -and $volUniLoc
 
     # Real local rclone :combine: mount test (verifies Unified/Both multi-folder mount works on WinFsp!)
     $combMountOk = $true
