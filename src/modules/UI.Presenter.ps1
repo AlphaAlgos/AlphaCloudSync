@@ -415,17 +415,24 @@ function Add-FileActivityRow {
     }
 
     # Keep Activity Queue strictly organized:
-    # Priority 0 = Active Uploading (ALWAYS TOP) -> Priority 1 = Completed / Archived (auto-dismisses after 3.5s) -> Priority 2 = Queued / Preview (BELOW)
+    # Priority 0 = Active Uploading (ALWAYS TOP) -> Priority 1 = Completed / Archived (right below, auto-dismisses after 3.5s) -> Priority 2 = Queued / Preview (appended at BOTTOM, FIFO!)
     $insertIdx = $rt.ActivityItems.Count
-    for ($i = 0; $i -lt $rt.ActivityItems.Count; $i++) {
-        $itemPri = if ($rt.ActivityItems[$i].PSObject.Properties["Priority"]) { [int]$rt.ActivityItems[$i].Priority } else { 1 }
-        if ($itemPri -ge $Priority) {
-            $insertIdx = $i
-            break
+    if ($Priority -lt 2) {
+        for ($i = 0; $i -lt $rt.ActivityItems.Count; $i++) {
+            $itemPri = if ($rt.ActivityItems[$i].PSObject.Properties["Priority"]) { [int]$rt.ActivityItems[$i].Priority } else { 1 }
+            if ($itemPri -ge $Priority) {
+                $insertIdx = $i
+                break
+            }
         }
     }
     $rt.ActivityItems.Insert($insertIdx, $newItem)
     while ($rt.ActivityItems.Count -gt 300) { $rt.ActivityItems.RemoveAt($rt.ActivityItems.Count - 1) }
+
+    # Automatically keep the top event ceiling (active uploads & latest completions) visible in the live feed!
+    if ($TargetRemote -eq $script:ActiveRemote -and $Priority -le 1 -and $rt.ActivityItems.Count -gt 0) {
+        try { if ($null -ne $GridActivity) { $GridActivity.ScrollIntoView($rt.ActivityItems[0]) } } catch {}
+    }
 }
 
 function Complete-StuckUploadingRowsForFolder {
