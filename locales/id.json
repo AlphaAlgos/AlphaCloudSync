@@ -420,5 +420,15 @@
   "tipStatusDisconnected": "Sesi akun ini berakhir — klik untuk login kembali dan mengaktifkan status hijau",
   "msgAccountDeduplicatedTitle": "Sesi Akun Diperbarui",
   "msgAccountDeduplicatedBody": "Akun ({0}) sudah terhubung sebelumnya! Sesi login diperbarui otomatis tanpa membuat duplikat, dengan semua folder tetap aman.",
-  "btnResetApiKey": "Hapus Kunci Pribadi"
+  "btnResetApiKey": "Hapus Kunci Pribadi",
+  "driveChoiceHiddenShort": "⊘ Off",
+  "mountModeExcluded": "Tersembunyi (Jangan tampilkan)",
+  "accountDriveExcluded": "Akun ini: Tersembunyi (Dikecualikan)",
+  "hideAccountFromUnified": "Sembunyikan akun ini dari",
+  "showAccountInUnified": "Tampilkan akun ini di",
+  "ctxDriveToggle": "Tampilkan / Sembunyikan Akun Ini Saja",
+  "ctxDriveUnified": "Tampilkan di Drive Terpadu (★)",
+  "ctxDriveSeparate": "Tampilkan sebagai Drive Terpisah",
+  "ctxDriveHide": "Sembunyikan / Kecualikan dari Windows",
+  "ctxDriveRename": "Ubah Nama Akun"
 }

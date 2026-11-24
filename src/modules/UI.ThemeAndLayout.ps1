@@ -342,7 +342,7 @@ $script:DarkControlStylesXaml = @"
 [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="AlphaCloudSync v1.2.4"
+        Title="AlphaCloudSync v1.2.5"
         WindowStyle="SingleBorderWindow"
         ResizeMode="CanResize"
         WindowStartupLocation="Manual"
@@ -543,7 +543,7 @@ $script:DarkControlStylesXaml = @"
                         <Image x:Name="ImgTitleIcon" FlowDirection="LeftToRight" Width="20" Height="20" Margin="0,0,9,0" RenderOptions.BitmapScalingMode="HighQuality"/>
                         <TextBlock x:Name="TxtWindowTitle" FlowDirection="LeftToRight" Text="AlphaCloudSync" FontSize="13" FontWeight="Bold" Foreground="#F1F5F9" VerticalAlignment="Center"/>
                         <Border Background="#12243D" BorderBrush="#1F3B61" BorderThickness="1" CornerRadius="4" Padding="6,1" Margin="8,0,0,0" VerticalAlignment="Center">
-                            <TextBlock x:Name="TxtBrandBadge" Text="v1.2.4" FontSize="10" FontWeight="SemiBold" Foreground="#38BDF8"/>
+                            <TextBlock x:Name="TxtBrandBadge" Text="v1.2.5" FontSize="10" FontWeight="SemiBold" Foreground="#38BDF8"/>
                         </Border>
                         <TextBlock x:Name="TxtWindowSubtitle" Text="" FontSize="11.5" Foreground="#64748B" VerticalAlignment="Center" Margin="10,0,0,0"/>
                         <Button x:Name="BtnUpdateBanner" Visibility="Collapsed" Background="#064E3B" BorderBrush="#10B981" Foreground="#A7F3D0" FontSize="11" FontWeight="Bold" Padding="10,2" Height="24" Margin="12,0,0,0" VerticalAlignment="Center" Cursor="Hand">
@@ -706,7 +706,7 @@ $script:DarkControlStylesXaml = @"
                                 </StackPanel>
                                 <Grid Margin="0,0,0,7">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="66"/>
+                                        <ColumnDefinition Width="74"/>
                                         <ColumnDefinition Width="6"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
@@ -715,6 +715,7 @@ $script:DarkControlStylesXaml = @"
                                         <ComboBoxItem x:Name="CbiMountStream" Content="Online Only" Tag="Stream"/>
                                         <ComboBoxItem x:Name="CbiMountMirror" Content="Offline Copy" Tag="Mirror"/>
                                         <ComboBoxItem x:Name="CbiMountUnified" Content="Show in Unified Drive" Tag="Unified"/>
+                                        <ComboBoxItem x:Name="CbiMountHidden" Content="Hidden (Do not show)" Tag="Hidden"/>
                                     </ComboBox>
                                 </Grid>
                                 <ComboBox x:Name="CmbMountScope" Height="27" Margin="0,0,0,7">
@@ -957,6 +958,17 @@ $script:DarkControlStylesXaml = @"
                                     </ComboBox>
                                 </WrapPanel>
                                 <DataGrid x:Name="GridMultiDrives" Grid.Row="3" RowHeight="40" IsReadOnly="True" HorizontalScrollBarVisibility="Auto" Margin="0,0,0,12">
+                                    <DataGrid.ContextMenu>
+                                        <ContextMenu x:Name="CtxMenuDrives">
+                                            <MenuItem x:Name="CtxDriveToggle" Header="Show / Hide This Account Only"/>
+                                            <Separator/>
+                                            <MenuItem x:Name="CtxDriveUnified" Header="Show in Unified Drive"/>
+                                            <MenuItem x:Name="CtxDriveSeparate" Header="Show as Separate Drive"/>
+                                            <MenuItem x:Name="CtxDriveHide" Header="Hide / Exclude from Windows"/>
+                                            <Separator/>
+                                            <MenuItem x:Name="CtxDriveRename" Header="Rename Account"/>
+                                        </ContextMenu>
+                                    </DataGrid.ContextMenu>
                                     <DataGrid.ColumnHeaderStyle>
                                         <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}">
                                             <Setter Property="HorizontalContentAlignment" Value="Center"/>
@@ -977,10 +989,10 @@ $script:DarkControlStylesXaml = @"
                                                 </Style>
                                             </DataGridTextColumn.ElementStyle>
                                         </DataGridTextColumn>
-                                        <DataGridTemplateColumn Header="Drive Letter" Width="0.72*" MinWidth="78">
+                                        <DataGridTemplateColumn Header="Drive Letter" Width="0.82*" MinWidth="88">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
-                                                    <ComboBox Uid="DriveLetter" Tag="{Binding Remote}" Width="66" Height="28" FontSize="11.5" FontWeight="Bold" Foreground="#38BDF8"
+                                                    <ComboBox Uid="DriveLetter" Tag="{Binding Remote}" Width="78" Height="28" FontSize="11.2" FontWeight="Bold" Foreground="{Binding LetterBrush}"
                                                               FlowDirection="LeftToRight" HorizontalAlignment="Center" VerticalAlignment="Center" HorizontalContentAlignment="Center"
                                                               ItemsSource="{Binding AvailableLetters}" SelectedItem="{Binding SelectedLetter, Mode=OneWay}"/>
                                                 </DataTemplate>
@@ -1410,6 +1422,7 @@ $CmbMountMode       = $window.FindName("CmbMountMode")
 $CbiMountStream     = $window.FindName("CbiMountStream")
 $CbiMountMirror     = $window.FindName("CbiMountMirror")
 $CbiMountUnified    = $window.FindName("CbiMountUnified")
+$CbiMountHidden     = $window.FindName("CbiMountHidden")
 $CmbMountScope      = $window.FindName("CmbMountScope")
 $CbiScopeMyDrive    = $window.FindName("CbiScopeMyDrive")
 $CbiScopeMyComputer = $window.FindName("CbiScopeMyComputer")
@@ -1472,6 +1485,12 @@ $CmbDriveLayoutSettings = $window.FindName("CmbDriveLayoutSettings")
 $CbiLayoutSetSeparate   = $window.FindName("CbiLayoutSetSeparate")
 $CbiLayoutSetUnified    = $window.FindName("CbiLayoutSetUnified")
 $GridMultiDrives    = $window.FindName("GridMultiDrives")
+$CtxMenuDrives      = $window.FindName("CtxMenuDrives")
+$CtxDriveToggle     = $window.FindName("CtxDriveToggle")
+$CtxDriveUnified    = $window.FindName("CtxDriveUnified")
+$CtxDriveSeparate   = $window.FindName("CtxDriveSeparate")
+$CtxDriveHide       = $window.FindName("CtxDriveHide")
+$CtxDriveRename     = $window.FindName("CtxDriveRename")
 $BtnMountAll        = $window.FindName("BtnMountAll")
 $BtnUnmountAll      = $window.FindName("BtnUnmountAll")
 $BtnToggleDriveRow  = $window.FindName("BtnToggleDriveRow")

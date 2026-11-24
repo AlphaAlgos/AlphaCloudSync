@@ -420,5 +420,15 @@
   "tipStatusDisconnected": "انتهت جلسة الاتصال لهذا الحساب — اضغط لإعادة تسجيل الدخول وتفعيل النقطة الخضراء فوراً",
   "msgAccountDeduplicatedTitle": "تم تحديث جلسة الحساب الموجود",
   "msgAccountDeduplicatedBody": "الحساب ({0}) مضاف مسبقاً! تم تجديد جلسة الاتصال لنفس الحساب تلقائياً دون تكرار مع الحفاظ على كافة مجلداتك وإعداداتك.",
-  "btnResetApiKey": "إزالة المفتاح الشخصي"
+  "btnResetApiKey": "إزالة المفتاح الشخصي",
+  "driveChoiceHiddenShort": "⊘ مخفي",
+  "mountModeExcluded": "مخفي (منع الظهور)",
+  "accountDriveExcluded": "هذا الحساب: مخفي (غير ظاهر)",
+  "hideAccountFromUnified": "إخفاء هذا الحساب من",
+  "showAccountInUnified": "إظهار هذا الحساب في",
+  "ctxDriveToggle": "إظهار / إخفاء هذا الحساب فقط",
+  "ctxDriveUnified": "إظهار في القرص الموحّد (★)",
+  "ctxDriveSeparate": "إظهار كقرص منفصل",
+  "ctxDriveHide": "إخفاء / منع الظهور في ويندوز",
+  "ctxDriveRename": "تغيير اسم الحساب"
 }

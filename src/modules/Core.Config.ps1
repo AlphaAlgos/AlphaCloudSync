@@ -480,7 +480,7 @@ function Get-AccountDriveAssignment {
     param([string]$TargetRemote)
     if (-not [string]::IsNullOrWhiteSpace($TargetRemote)) {
         $map = Get-AccountPrefsMap
-        if ($map.ContainsKey($TargetRemote) -and $map[$TargetRemote].DriveAssignment -in @("Unified", "Separate")) {
+        if ($map.ContainsKey($TargetRemote) -and $map[$TargetRemote].DriveAssignment -in @("Unified", "Separate", "Hidden")) {
             return $map[$TargetRemote].DriveAssignment
         }
     }

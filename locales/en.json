@@ -420,5 +420,15 @@
   "tipStatusDisconnected": "Session expired for this account — click to sign in again and restore green connected status",
   "msgAccountDeduplicatedTitle": "Existing Account Refreshed",
   "msgAccountDeduplicatedBody": "Account ({0}) is already connected! Its sign-in session was automatically refreshed without creating a duplicate, preserving all your folders and settings.",
-  "btnResetApiKey": "Remove Custom Key"
+  "btnResetApiKey": "Remove Custom Key",
+  "driveChoiceHiddenShort": "⊘ Off",
+  "mountModeExcluded": "Hidden (Do not show)",
+  "accountDriveExcluded": "This account: Hidden (Excluded)",
+  "hideAccountFromUnified": "Hide this account from",
+  "showAccountInUnified": "Show this account in",
+  "ctxDriveToggle": "Show / Hide This Account Only",
+  "ctxDriveUnified": "Show in Unified Drive (★)",
+  "ctxDriveSeparate": "Show as Separate Drive",
+  "ctxDriveHide": "Hide / Exclude from Windows",
+  "ctxDriveRename": "Rename Account"
 }

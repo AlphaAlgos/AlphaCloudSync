@@ -420,5 +420,15 @@
   "tipStatusDisconnected": "Sesión expirada — haz clic para iniciar sesión de nuevo y restaurar la conexión",
   "msgAccountDeduplicatedTitle": "Sesión de cuenta actualizada",
   "msgAccountDeduplicatedBody": "¡La cuenta ({0}) ya estaba conectada! Se renovó su sesión automáticamente sin duplicarla, conservando todas tus carpetas y ajustes.",
-  "btnResetApiKey": "Quitar clave personal"
+  "btnResetApiKey": "Quitar clave personal",
+  "driveChoiceHiddenShort": "⊘ Oculto",
+  "mountModeExcluded": "Oculto (No mostrar)",
+  "accountDriveExcluded": "Esta cuenta: Oculta (Excluida)",
+  "hideAccountFromUnified": "Ocultar esta cuenta de",
+  "showAccountInUnified": "Mostrar esta cuenta en",
+  "ctxDriveToggle": "Mostrar / ocultar solo esta cuenta",
+  "ctxDriveUnified": "Mostrar en unidad unificada (★)",
+  "ctxDriveSeparate": "Mostrar como unidad separada",
+  "ctxDriveHide": "Ocultar / excluir de Windows",
+  "ctxDriveRename": "Renombrar cuenta"
 }

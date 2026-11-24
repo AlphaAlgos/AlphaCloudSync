@@ -696,42 +696,123 @@ function Invoke-RefreshActiveUnifiedPool {
     }
 }
 
+function Invoke-HideSingleAccountDrive {
+    param([string]$TargetRemote)
+    if ([string]::IsNullOrWhiteSpace($TargetRemote)) { return }
+    $disp = Get-AccountDisplayLabel -TargetRemote $TargetRemote
+    $uInfo = Get-UnifiedMountInfo
+    $wasInUni = ($null -ne $uInfo -and ($uInfo.Remotes.Count -eq 0 -or ($uInfo.Remotes -contains $TargetRemote)))
+    $activeSep = Get-MountedLetterForRemote -TargetRemote $TargetRemote
+    Set-AccountPref -Remote $TargetRemote -DriveAssignment "Hidden"
+    if ($null -ne $activeSep) {
+        Write-StudioLog -Msg "Hiding drive ($activeSep) for '$disp'..." -TargetRemote $TargetRemote
+        Invoke-UiPump
+        Invoke-ToggleMount -TargetRemote $TargetRemote -ForceUnmount
+    } elseif ($wasInUni) {
+        Write-StudioLog -Msg "Excluding '$disp' from Unified Drive while keeping other accounts active..." -TargetRemote $TargetRemote
+        Invoke-UiPump
+        Invoke-RefreshActiveUnifiedPool -QuietExplorer
+    }
+}
+
+function Invoke-ShowSingleAccountDrive {
+    param(
+        [string]$TargetRemote,
+        [ValidateSet("Auto", "Unified", "Separate")][string]$Mode = "Auto",
+        [string]$Letter = "",
+        [switch]$QuietExplorer
+    )
+    if ([string]::IsNullOrWhiteSpace($TargetRemote)) { return }
+    if (-not (Test-GDriveConfigured -TargetRemote $TargetRemote)) {
+        $okAuth = Invoke-GDriveAuth -TargetRemote $TargetRemote
+        if (-not $okAuth) { return }
+    }
+    $disp = Get-AccountDisplayLabel -TargetRemote $TargetRemote
+    $effMode = $Mode
+    if ($effMode -eq "Auto") {
+        $cfg = Get-Settings
+        $uInfoCheck = Get-UnifiedMountInfo
+        $effMode = if ($cfg.DriveLayout -eq "Unified" -or $null -ne $uInfoCheck) { "Unified" } else { "Separate" }
+    }
+    if ($effMode -eq "Unified") {
+        Set-AccountPref -Remote $TargetRemote -DriveAssignment "Unified"
+        $activeSep = Get-MountedLetterForRemote -TargetRemote $TargetRemote
+        if ($null -ne $activeSep) { Invoke-ToggleMount -TargetRemote $TargetRemote -ForceUnmount -SilentToast }
+        Write-StudioLog -Msg "Showing '$disp' inside Unified Drive..." -TargetRemote $TargetRemote
+        Invoke-UiPump
+        Invoke-RefreshActiveUnifiedPool -ForceShow -QuietExplorer:$QuietExplorer
+    } else {
+        $uInfo = Get-UnifiedMountInfo
+        $wasInUni = ($null -ne $uInfo -and ($uInfo.Remotes.Count -eq 0 -or ($uInfo.Remotes -contains $TargetRemote)))
+        $prefLtr = if ($Letter -match '^[A-Z]:$') { $Letter.ToUpperInvariant() } else { Get-AccountPreferredDrive -TargetRemote $TargetRemote -DefaultLetter "" }
+        $avail = @(Get-AvailableDriveLetters -TargetRemote $TargetRemote -Preferred $prefLtr)
+        if ($avail.Count -eq 0) {
+            Write-StudioLog -Msg "[WARN] No free Windows drive letters available for '$disp'." -TargetRemote $TargetRemote
+            return
+        }
+        $ltrUse = if ($avail -contains $prefLtr) { $prefLtr } else { $avail[0] }
+        Set-AccountPref -Remote $TargetRemote -DriveAssignment "Separate" -PreferredDrive $ltrUse
+        if ($TargetRemote -eq $script:ActiveRemote) { $cfg = Get-Settings; $cfg.PreferredDrive = $ltrUse; Save-Settings -Obj $cfg }
+        $activeSep = Get-MountedLetterForRemote -TargetRemote $TargetRemote
+        if ($null -ne $activeSep -and $activeSep -ne $ltrUse) {
+            Write-StudioLog -Msg "Moving '$disp' Windows drive from $activeSep to $ltrUse..." -TargetRemote $TargetRemote
+            Invoke-UiPump
+            Invoke-ToggleMount -TargetRemote $TargetRemote -ForceUnmount -SilentToast
+            Invoke-ToggleMount -TargetRemote $TargetRemote -Letter $ltrUse -ForceMount -QuietExplorer:$QuietExplorer
+        } elseif ($wasInUni) {
+            Write-StudioLog -Msg "Moving '$disp' out of Unified Drive to standalone drive $ltrUse..." -TargetRemote $TargetRemote
+            Invoke-UiPump
+            Invoke-RefreshActiveUnifiedPool -QuietExplorer
+            Invoke-ToggleMount -TargetRemote $TargetRemote -Letter $ltrUse -ForceMount -QuietExplorer:$QuietExplorer
+        } elseif ($null -eq $activeSep) {
+            Write-StudioLog -Msg "Mounting '$disp' on Windows drive $ltrUse..." -TargetRemote $TargetRemote
+            Invoke-UiPump
+            Invoke-ToggleMount -TargetRemote $TargetRemote -Letter $ltrUse -ForceMount -QuietExplorer:$QuietExplorer
+        }
+    }
+}
+
+function Invoke-ToggleSingleAccountDrive {
+    param([string]$TargetRemote, [string]$PreferredLetter = "")
+    if ([string]::IsNullOrWhiteSpace($TargetRemote)) { return }
+    $assign = Get-AccountDriveAssignment -TargetRemote $TargetRemote
+    $activeSep = Get-MountedLetterForRemote -TargetRemote $TargetRemote
+    $uInfo = Get-UnifiedMountInfo
+    $inUni = ($null -eq $activeSep -and $null -ne $uInfo -and (($uInfo.Remotes.Count -gt 0 -and ($uInfo.Remotes -contains $TargetRemote)) -or ($uInfo.Remotes.Count -eq 0 -and $assign -ne "Hidden")))
+    if ($null -ne $activeSep -or $inUni) {
+        Invoke-HideSingleAccountDrive -TargetRemote $TargetRemote
+    } elseif ($assign -eq "Hidden") {
+        Invoke-ShowSingleAccountDrive -TargetRemote $TargetRemote -Mode "Auto" -Letter $PreferredLetter -QuietExplorer
+    } elseif ($assign -eq "Unified") {
+        Invoke-ShowSingleAccountDrive -TargetRemote $TargetRemote -Mode "Unified" -QuietExplorer
+    } else {
+        Invoke-ShowSingleAccountDrive -TargetRemote $TargetRemote -Mode "Separate" -Letter $PreferredLetter -QuietExplorer
+    }
+}
+
 $CmbMountMode.Add_SelectionChanged({
     if ($script:IsRefreshing) { return }
     try {
         if ($null -ne $CmbMountMode.SelectedItem -and $CmbMountMode.SelectedItem.Tag) {
             $tag = $CmbMountMode.SelectedItem.Tag.ToString()
-            if ($tag -eq "Unified") {
-                Set-AccountPref -Remote $script:ActiveRemote -DriveAssignment "Unified"
-                $hadSep = ($null -ne (Get-MountedLetterForRemote -TargetRemote $script:ActiveRemote))
-                if ($hadSep) { Invoke-ToggleMount -TargetRemote $script:ActiveRemote -ForceUnmount }
-                if ($hadSep -or ($null -ne (Get-UnifiedMountInfo))) {
-                    Invoke-RefreshActiveUnifiedPool -ForceShow -QuietExplorer
-                }
+            if ($tag -eq "Hidden") {
+                Invoke-HideSingleAccountDrive -TargetRemote $script:ActiveRemote
+                Refresh-StudioHeader
+            } elseif ($tag -eq "Unified") {
+                Invoke-ShowSingleAccountDrive -TargetRemote $script:ActiveRemote -Mode "Unified" -QuietExplorer
                 Refresh-StudioHeader
             } else {
                 $cfg = Get-Settings
                 $prevMode = $cfg.MountMode
                 $cfg.MountMode = $tag
                 Save-Settings -Obj $cfg
-                $wasUni = ((Get-AccountDriveAssignment -TargetRemote $script:ActiveRemote) -eq "Unified")
-                if ($wasUni) {
-                    $uInfo = Get-UnifiedMountInfo
-                    $wasInActiveUni = ($null -ne $uInfo -and ($uInfo.Remotes.Count -eq 0 -or ($uInfo.Remotes -contains $script:ActiveRemote)))
-                    Set-AccountPref -Remote $script:ActiveRemote -DriveAssignment "Separate"
-                    if ($wasInActiveUni) {
-                        Invoke-RefreshActiveUnifiedPool -QuietExplorer
-                        $prefLtr = Get-AccountPreferredDrive -TargetRemote $script:ActiveRemote -DefaultLetter ""
-                        $avail = @(Get-AvailableDriveLetters -TargetRemote $script:ActiveRemote -Preferred $prefLtr)
-                        if ($avail.Count -gt 0) {
-                            Set-AccountPref -Remote $script:ActiveRemote -PreferredDrive $avail[0]
-                            Invoke-ToggleMount -TargetRemote $script:ActiveRemote -Letter $avail[0] -ForceMount -QuietExplorer
-                        }
-                    }
+                $curAssign = Get-AccountDriveAssignment -TargetRemote $script:ActiveRemote
+                if ($curAssign -eq "Unified" -or $curAssign -eq "Hidden") {
+                    Invoke-ShowSingleAccountDrive -TargetRemote $script:ActiveRemote -Mode "Separate" -QuietExplorer
                 } elseif ($prevMode -ne $tag) {
                     $activeSep = Get-MountedLetterForRemote -TargetRemote $script:ActiveRemote
                     if ($null -ne $activeSep) {
-                        Invoke-ToggleMount -TargetRemote $script:ActiveRemote -ForceUnmount
+                        Invoke-ToggleMount -TargetRemote $script:ActiveRemote -ForceUnmount -SilentToast
                         Invoke-ToggleMount -TargetRemote $script:ActiveRemote -Letter $activeSep -ForceMount -QuietExplorer
                     }
                 }
@@ -784,28 +865,14 @@ $CmbDriveLetter.Add_SelectionChanged({
     try {
         if ($null -ne $CmbDriveLetter.SelectedItem) {
             $selVal = Get-SelectedDriveLetter
-            if ($selVal -eq "__UNIFIED__") {
-                Set-AccountPref -Remote $script:ActiveRemote -DriveAssignment "Unified"
-                $hadSep = ($null -ne (Get-MountedLetterForRemote -TargetRemote $script:ActiveRemote))
-                if ($hadSep) { Invoke-ToggleMount -TargetRemote $script:ActiveRemote -ForceUnmount }
-                if ($hadSep -or ($null -ne (Get-UnifiedMountInfo))) {
-                    Invoke-RefreshActiveUnifiedPool -ForceShow -QuietExplorer
-                }
+            if ($selVal -eq "__HIDDEN__") {
+                Invoke-HideSingleAccountDrive -TargetRemote $script:ActiveRemote
+                Refresh-StudioHeader
+            } elseif ($selVal -eq "__UNIFIED__") {
+                Invoke-ShowSingleAccountDrive -TargetRemote $script:ActiveRemote -Mode "Unified" -QuietExplorer
                 Refresh-StudioHeader
             } else {
-                $cfg = Get-Settings; $cfg.PreferredDrive = $selVal; Save-Settings -Obj $cfg
-                $wasInUni = $false
-                $uInfo = Get-UnifiedMountInfo
-                if ($null -ne $uInfo -and ($uInfo.Remotes.Count -eq 0 -or ($uInfo.Remotes -contains $script:ActiveRemote))) { $wasInUni = $true }
-                Set-AccountPref -Remote $script:ActiveRemote -DriveAssignment "Separate" -PreferredDrive $selVal
-                $activeSep = Get-MountedLetterForRemote -TargetRemote $script:ActiveRemote
-                if ($null -ne $activeSep -and $activeSep -ne $selVal) {
-                    Invoke-ToggleMount -TargetRemote $script:ActiveRemote -ForceUnmount
-                    Invoke-ToggleMount -TargetRemote $script:ActiveRemote -Letter $selVal -ForceMount -QuietExplorer
-                } elseif ($wasInUni) {
-                    Invoke-RefreshActiveUnifiedPool -QuietExplorer
-                    Invoke-ToggleMount -TargetRemote $script:ActiveRemote -Letter $selVal -ForceMount -QuietExplorer
-                }
+                Invoke-ShowSingleAccountDrive -TargetRemote $script:ActiveRemote -Mode "Separate" -Letter $selVal -QuietExplorer
                 Refresh-StudioHeader
             }
         }
@@ -900,8 +967,13 @@ function Apply-DriveLayoutChange {
     $hadUnified = ($null -ne (Get-UnifiedMountLetter))
     $hadSeparate = $false
     $remotes = @(Get-ConfiguredDriveRemotes)
+    $activeRemotes = @()
     foreach ($rem in $remotes) {
-        Set-AccountPref -Remote $rem -DriveAssignment $NewLayout
+        $curA = Get-AccountDriveAssignment -TargetRemote $rem
+        if ($curA -ne "Hidden") {
+            Set-AccountPref -Remote $rem -DriveAssignment $NewLayout
+            $activeRemotes += $rem
+        }
         if ($null -ne (Get-MountedLetterForRemote -TargetRemote $rem)) { $hadSeparate = $true }
     }
     if ($hadUnified -or $hadSeparate) {
@@ -909,14 +981,14 @@ function Apply-DriveLayoutChange {
         foreach ($rem in $remotes) {
             if ($null -ne (Get-MountedLetterForRemote -TargetRemote $rem)) { Invoke-ToggleMount -TargetRemote $rem -ForceUnmount }
         }
-        if ($NewLayout -eq "Unified") {
+        if ($NewLayout -eq "Unified" -and $activeRemotes.Count -gt 0) {
             $autoU = Get-AutoUnifiedDriveLetter
-            Write-StudioLog "Switching to Unified Single Drive ($autoU) for all $($remotes.Count) account(s)..."
+            Write-StudioLog "Switching to Unified Single Drive ($autoU) for $($activeRemotes.Count) active account(s)..."
             Invoke-UiPump
-            Invoke-ToggleUnifiedMount -Letter $autoU -TargetRemotes $remotes -ForceMount -QuietExplorer
-        } else {
+            Invoke-ToggleUnifiedMount -Letter $autoU -TargetRemotes $activeRemotes -ForceMount -QuietExplorer
+        } elseif ($NewLayout -eq "Separate") {
             $reservedInBatch = @()
-            foreach ($rem in $remotes) {
+            foreach ($rem in $activeRemotes) {
                 $prefLtr = Get-AccountPreferredDrive -TargetRemote $rem -DefaultLetter ""
                 $avail = @(Get-AvailableDriveLetters -TargetRemote $rem -Preferred $prefLtr -ReservedLetters $reservedInBatch)
                 if ($avail.Count -gt 0) {
@@ -954,11 +1026,13 @@ $BtnMountAll.Add_Click({
     try {
         $cfg = Get-Settings
         $remotes = @(Get-ConfiguredDriveRemotes)
-        $pool = @(Get-UnifiedPoolRemotes)
-        if ($cfg.DriveLayout -eq "Unified" -and $pool.Count -eq 0 -and $remotes.Count -gt 0) {
-            foreach ($r in $remotes) { Set-AccountPref -Remote $r -DriveAssignment "Unified" }
-            $pool = $remotes
+        $visibleRemotes = @($remotes | Where-Object { (Get-AccountDriveAssignment -TargetRemote $_) -ne "Hidden" })
+        if ($visibleRemotes.Count -eq 0 -and $remotes.Count -gt 0) {
+            $defAssign = if ($cfg.DriveLayout -eq "Unified") { "Unified" } else { "Separate" }
+            foreach ($r in $remotes) { Set-AccountPref -Remote $r -DriveAssignment $defAssign }
+            $visibleRemotes = $remotes
         }
+        $pool = @(Get-UnifiedPoolRemotes)
         $reservedInBatch = @()
         if ($pool.Count -gt 0) {
             $autoU = Get-AutoUnifiedDriveLetter
@@ -969,7 +1043,7 @@ $BtnMountAll.Add_Click({
         } else {
             Invoke-ToggleUnifiedMount -ForceUnmount
         }
-        foreach ($rem in ($remotes | Where-Object { $pool -notcontains $_ })) {
+        foreach ($rem in ($visibleRemotes | Where-Object { $pool -notcontains $_ })) {
             $already = Get-MountedLetterForRemote -TargetRemote $rem
             if ($null -eq $already) {
                 $prefLtr = Get-AccountPreferredDrive -TargetRemote $rem -DefaultLetter ""
@@ -1005,27 +1079,72 @@ $BtnToggleDriveRow.Add_Click({
     try {
         $sel = $GridMultiDrives.SelectedItem
         $targetRem = if ($null -ne $sel -and -not [string]::IsNullOrWhiteSpace($sel.Remote)) { $sel.Remote } else { $script:ActiveRemote }
-        $assign = Get-AccountDriveAssignment -TargetRemote $targetRem
-        $activeLtr = Get-MountedLetterForRemote -TargetRemote $targetRem
-        if ($null -ne $activeLtr) {
-            Invoke-ToggleMount -TargetRemote $targetRem -ForceUnmount
-        } elseif ($assign -eq "Unified") {
-            $uInfo = Get-UnifiedMountInfo
-            $inUni = ($null -ne $uInfo -and ($uInfo.Remotes.Count -eq 0 -or ($uInfo.Remotes -contains $targetRem)))
-            if ($inUni) { Invoke-ToggleUnifiedMount -ForceUnmount }
-            else { Invoke-RefreshActiveUnifiedPool -ForceShow }
-        } else {
-            $pickLtr = if ($null -ne $sel -and -not [string]::IsNullOrWhiteSpace($sel.SelectedLetter) -and $sel.SelectedLetter -match '^[A-Z]:$') { $sel.SelectedLetter } else { Get-AccountPreferredDrive -TargetRemote $targetRem -DefaultLetter "" }
-            $avail = @(Get-AvailableDriveLetters -TargetRemote $targetRem -Preferred $pickLtr)
-            if ($avail.Count -gt 0) {
-                $ltrUse = if ($avail -contains $pickLtr) { $pickLtr } else { $avail[0] }
-                Set-AccountPref -Remote $targetRem -DriveAssignment "Separate" -PreferredDrive $ltrUse
-                Invoke-ToggleMount -TargetRemote $targetRem -Letter $ltrUse -ForceMount
-            }
-        }
+        $pickLtr = if ($null -ne $sel -and -not [string]::IsNullOrWhiteSpace($sel.SelectedLetter) -and $sel.SelectedLetter -match '^[A-Z]:$') { $sel.SelectedLetter } else { "" }
+        Invoke-ToggleSingleAccountDrive -TargetRemote $targetRem -PreferredLetter $pickLtr
         Refresh-StudioHeader
     } catch { Write-StudioLog "[ERR] $($_.Exception.Message)" }
 })
+
+# Auto-select DataGridRow on right-click so CtxMenuDrives always targets the clicked account!
+$GridMultiDrives.Add_PreviewMouseRightButtonDown({
+    param($s, $e)
+    try {
+        $cur = $e.OriginalSource
+        while ($null -ne $cur -and $cur -isnot [System.Windows.Controls.DataGridRow]) {
+            if ($cur -is [System.Windows.Media.Visual] -or $cur -is [System.Windows.Media.Media3D.Visual3D]) { $cur = [System.Windows.Media.VisualTreeHelper]::GetParent($cur) }
+            else { $cur = [System.Windows.LogicalTreeHelper]::GetParent($cur) }
+        }
+        if ($null -ne $cur) { $GridMultiDrives.SelectedItem = $cur.Item }
+    } catch {}
+})
+
+if ($null -ne $CtxDriveToggle) {
+    $CtxDriveToggle.Add_Click({
+        try {
+            $sel = $GridMultiDrives.SelectedItem
+            if ($null -eq $sel -or [string]::IsNullOrWhiteSpace($sel.Remote)) { return }
+            $pickLtr = if ($sel.SelectedLetter -match '^[A-Z]:$') { $sel.SelectedLetter } else { "" }
+            Invoke-ToggleSingleAccountDrive -TargetRemote $sel.Remote -PreferredLetter $pickLtr
+            Refresh-StudioHeader
+        } catch {}
+    })
+}
+if ($null -ne $CtxDriveUnified) {
+    $CtxDriveUnified.Add_Click({
+        try {
+            $sel = $GridMultiDrives.SelectedItem
+            if ($null -eq $sel -or [string]::IsNullOrWhiteSpace($sel.Remote)) { return }
+            Invoke-ShowSingleAccountDrive -TargetRemote $sel.Remote -Mode "Unified" -QuietExplorer
+            Refresh-StudioHeader
+        } catch {}
+    })
+}
+if ($null -ne $CtxDriveSeparate) {
+    $CtxDriveSeparate.Add_Click({
+        try {
+            $sel = $GridMultiDrives.SelectedItem
+            if ($null -eq $sel -or [string]::IsNullOrWhiteSpace($sel.Remote)) { return }
+            $pickLtr = if ($sel.SelectedLetter -match '^[A-Z]:$') { $sel.SelectedLetter } else { "" }
+            Invoke-ShowSingleAccountDrive -TargetRemote $sel.Remote -Mode "Separate" -Letter $pickLtr -QuietExplorer
+            Refresh-StudioHeader
+        } catch {}
+    })
+}
+if ($null -ne $CtxDriveHide) {
+    $CtxDriveHide.Add_Click({
+        try {
+            $sel = $GridMultiDrives.SelectedItem
+            if ($null -eq $sel -or [string]::IsNullOrWhiteSpace($sel.Remote)) { return }
+            Invoke-HideSingleAccountDrive -TargetRemote $sel.Remote
+            Refresh-StudioHeader
+        } catch {}
+    })
+}
+if ($null -ne $CtxDriveRename) {
+    $CtxDriveRename.Add_Click({
+        try { $BtnRenameAccount.RaiseEvent((New-Object System.Windows.RoutedEventArgs([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))) } catch {}
+    })
+}
 
 $BtnRenameAccount.Add_Click({
     try {
@@ -1095,32 +1214,16 @@ $GridMultiDrives.AddHandler([System.Windows.Controls.Primitives.Selector]::Selec
             $newLtrRaw = if ($null -ne $cb.SelectedItem) { $cb.SelectedItem.ToString() } else { "" }
             if ([string]::IsNullOrWhiteSpace($newLtrRaw) -or $newLtrRaw -eq $row.SelectedLetter) { return }
             $starCh = [string][char]0x2605
-            if ($newLtrRaw.StartsWith($starCh)) {
-                Set-AccountPref -Remote $rem -DriveAssignment "Unified"
-                $activeLtr = Get-MountedLetterForRemote -TargetRemote $rem
-                if ($null -ne $activeLtr) { Invoke-ToggleMount -TargetRemote $rem -ForceUnmount }
-                if ($null -ne $activeLtr -or ($null -ne (Get-UnifiedMountInfo))) {
-                    Invoke-RefreshActiveUnifiedPool -ForceShow -QuietExplorer
-                }
+            $hidCh  = [string][char]0x2298
+            $hidLbl = L "driveChoiceHiddenShort" "$([char]0x2298) Off"
+            if ($newLtrRaw -eq $hidLbl -or $newLtrRaw.StartsWith($hidCh)) {
+                Invoke-HideSingleAccountDrive -TargetRemote $rem
+                Refresh-StudioHeader
+            } elseif ($newLtrRaw.StartsWith($starCh)) {
+                Invoke-ShowSingleAccountDrive -TargetRemote $rem -Mode "Unified" -QuietExplorer
                 Refresh-StudioHeader
             } else {
-                $newLtr = $newLtrRaw.ToUpperInvariant()
-                $uInfo = Get-UnifiedMountInfo
-                $wasInUni = ($null -ne $uInfo -and ($uInfo.Remotes.Count -eq 0 -or ($uInfo.Remotes -contains $rem)))
-                Set-AccountPref -Remote $rem -DriveAssignment "Separate" -PreferredDrive $newLtr
-                if ($rem -eq $script:ActiveRemote) { $cfg = Get-Settings; $cfg.PreferredDrive = $newLtr; Save-Settings -Obj $cfg }
-                $activeLtr = Get-MountedLetterForRemote -TargetRemote $rem
-                if ($null -ne $activeLtr -and $activeLtr -ne $newLtr) {
-                    Write-StudioLog "Moving '$disp' Windows drive from $activeLtr to $newLtr..."
-                    Invoke-UiPump
-                    Invoke-ToggleMount -TargetRemote $rem -ForceUnmount
-                    Invoke-ToggleMount -TargetRemote $rem -Letter $newLtr -ForceMount -QuietExplorer
-                } elseif ($wasInUni) {
-                    Write-StudioLog "Moving '$disp' out of Unified Drive to standalone drive $newLtr..."
-                    Invoke-UiPump
-                    Invoke-RefreshActiveUnifiedPool -QuietExplorer
-                    Invoke-ToggleMount -TargetRemote $rem -Letter $newLtr -ForceMount -QuietExplorer
-                }
+                Invoke-ShowSingleAccountDrive -TargetRemote $rem -Mode "Separate" -Letter $newLtrRaw.ToUpperInvariant() -QuietExplorer
                 Refresh-StudioHeader
             }
         } elseif ($cb.Uid -eq "BackupTarget") {
@@ -1175,19 +1278,17 @@ $GridMultiDrives.Add_MouseDoubleClick({
                 Start-Process "explorer.exe" -ArgumentList "$($sel.Letter)\"
             }
         } elseif (-not [string]::IsNullOrWhiteSpace($sel.Remote)) {
-            if ((Get-AccountDriveAssignment -TargetRemote $sel.Remote) -eq "Unified") {
-                Invoke-RefreshActiveUnifiedPool -ForceShow
+            $curA = Get-AccountDriveAssignment -TargetRemote $sel.Remote
+            if ($curA -eq "Hidden") {
+                Invoke-ShowSingleAccountDrive -TargetRemote $sel.Remote -Mode "Auto"
+                Refresh-StudioHeader
+            } elseif ($curA -eq "Unified") {
+                Invoke-ShowSingleAccountDrive -TargetRemote $sel.Remote -Mode "Unified"
                 Refresh-StudioHeader
             } else {
-                $prefLtr = if ($sel.SelectedLetter -match '^[A-Z]:$') { $sel.SelectedLetter } else { Get-AccountPreferredDrive -TargetRemote $sel.Remote -DefaultLetter "" }
-                $avail = @(Get-AvailableDriveLetters -TargetRemote $sel.Remote -Preferred $prefLtr)
-                if ($avail.Count -gt 0) {
-                    $disp = Get-AccountDisplayLabel -TargetRemote $sel.Remote
-                    Write-StudioLog "Mounting account '$disp' to Windows drive $($avail[0])..."
-                    Invoke-UiPump
-                    Invoke-ToggleMount -TargetRemote $sel.Remote -Letter $avail[0] -ForceMount
-                    Refresh-StudioHeader
-                }
+                $prefLtr = if ($sel.SelectedLetter -match '^[A-Z]:$') { $sel.SelectedLetter } else { "" }
+                Invoke-ShowSingleAccountDrive -TargetRemote $sel.Remote -Mode "Separate" -Letter $prefLtr
+                Refresh-StudioHeader
             }
         }
     } catch {}
@@ -1475,25 +1576,8 @@ $BtnMount.Add_Click({
             if (-not $okAuth) { Refresh-StudioHeader; return }
         }
         $letter = Get-SelectedDriveLetter
-        $activeSep = Get-MountedLetterForRemote -TargetRemote $script:ActiveRemote
-        $assign = Get-AccountDriveAssignment -TargetRemote $script:ActiveRemote
-        if ($null -ne $activeSep) {
-            Invoke-ToggleMount -TargetRemote $script:ActiveRemote -ForceUnmount
-        } elseif ($letter -eq "__UNIFIED__" -or $assign -eq "Unified") {
-            Set-AccountPref -Remote $script:ActiveRemote -DriveAssignment "Unified"
-            $uInfo = Get-UnifiedMountInfo
-            $pool  = @(Get-UnifiedPoolRemotes)
-            $inUni = ($null -ne $uInfo -and ($uInfo.Remotes.Count -eq 0 -or ($uInfo.Remotes -contains $script:ActiveRemote)))
-            $allPoolInUni = ($inUni -and ($uInfo.Remotes.Count -eq 0 -or $uInfo.Remotes.Count -ge $pool.Count))
-            if ($allPoolInUni) {
-                Invoke-ToggleUnifiedMount -ForceUnmount
-            } else {
-                Invoke-RefreshActiveUnifiedPool -ForceShow
-            }
-        } else {
-            Set-AccountPref -Remote $script:ActiveRemote -DriveAssignment "Separate" -PreferredDrive $letter
-            Invoke-ToggleMount -TargetRemote $script:ActiveRemote -Letter $letter -ForceMount
-        }
+        $prefSep = if ($letter -match '^[A-Z]:$') { $letter } else { "" }
+        Invoke-ToggleSingleAccountDrive -TargetRemote $script:ActiveRemote -PreferredLetter $prefSep
         Refresh-StudioHeader
     } catch { Write-StudioLog "[ERR] $($_.Exception.Message)" }
 })

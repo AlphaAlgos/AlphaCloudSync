@@ -420,5 +420,15 @@
   "tipStatusDisconnected": "Sitzung abgelaufen — klicken Sie hier, um sich erneut anzumelden",
   "msgAccountDeduplicatedTitle": "Bestehendes Konto aktualisiert",
   "msgAccountDeduplicatedBody": "Das Konto ({0}) ist bereits verbunden! Die Sitzung wurde ohne Duplikat erneuert und alle Ordner blieben erhalten.",
-  "btnResetApiKey": "Eigenen Schlüssel entfernen"
+  "btnResetApiKey": "Eigenen Schlüssel entfernen",
+  "driveChoiceHiddenShort": "⊘ Aus",
+  "mountModeExcluded": "Ausgeblendet (Nicht anzeigen)",
+  "accountDriveExcluded": "Dieses Konto: Ausgeblendet",
+  "hideAccountFromUnified": "Dieses Konto ausblenden aus",
+  "showAccountInUnified": "Dieses Konto anzeigen in",
+  "ctxDriveToggle": "Nur dieses Konto anzeigen / ausblenden",
+  "ctxDriveUnified": "Im kombinierten Laufwerk anzeigen (★)",
+  "ctxDriveSeparate": "Als eigenes Laufwerk anzeigen",
+  "ctxDriveHide": "In Windows ausblenden / ausschließen",
+  "ctxDriveRename": "Konto umbenennen"
 }

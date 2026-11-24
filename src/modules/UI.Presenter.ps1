@@ -17,6 +17,7 @@ function Apply-UiLanguage {
     $uiFlow = if ($loc.rtl) { "RightToLeft" } else { "LeftToRight" }
     $WindowOuterBorder.FlowDirection  = $uiFlow
     $CtxMenuFolders.FlowDirection     = $uiFlow
+    if ($null -ne $CtxMenuDrives) { $CtxMenuDrives.FlowDirection = $uiFlow }
     $trayMenu.RightToLeft             = if ($loc.rtl) { [System.Windows.Forms.RightToLeft]::Yes } else { [System.Windows.Forms.RightToLeft]::No }
 
     $window.Title              = "$($loc.windowTitle) " + [char]0x2014 + " $($loc.windowSubtitle)"
@@ -72,6 +73,7 @@ function Apply-UiLanguage {
     $CbiMountStream.Content    = $loc.mountModeStream
     $CbiMountMirror.Content    = $loc.mountModeMirror
     $CbiMountUnified.Content   = $loc.mountModeUnified
+    if ($null -ne $CbiMountHidden -and $loc.mountModeExcluded) { $CbiMountHidden.Content = $loc.mountModeExcluded }
     $CmbMountScope.ToolTip     = $loc.mountScopeTooltip
     $CbiScopeMyDrive.Content   = $loc.mountScopeMyDrive
     $CbiScopeMyComputer.Content= $loc.mountScopeMyComputer
@@ -165,6 +167,11 @@ function Apply-UiLanguage {
     $CtxSwitchTarget.Header    = $loc.ctxSwitchTarget
     $CtxOpenLocal.Header       = $loc.ctxOpenLocal
     $CtxRemoveFolder.Header    = $loc.ctxRemoveFolder
+    if ($null -ne $CtxDriveToggle   -and $loc.ctxDriveToggle)   { $CtxDriveToggle.Header   = $loc.ctxDriveToggle }
+    if ($null -ne $CtxDriveUnified  -and $loc.ctxDriveUnified)  { $CtxDriveUnified.Header  = $loc.ctxDriveUnified }
+    if ($null -ne $CtxDriveSeparate -and $loc.ctxDriveSeparate) { $CtxDriveSeparate.Header = $loc.ctxDriveSeparate }
+    if ($null -ne $CtxDriveHide     -and $loc.ctxDriveHide)     { $CtxDriveHide.Header     = $loc.ctxDriveHide }
+    if ($null -ne $CtxDriveRename   -and $loc.ctxDriveRename)   { $CtxDriveRename.Header   = $loc.ctxDriveRename }
     $miOpen.Text               = $loc.trayOpen
     $miSync.Text               = $loc.traySync
     $miPauseAll.Text           = if ($script:IsGloballyPaused) { $loc.trayResumeAll } else { $loc.trayPauseAll }
@@ -293,9 +300,9 @@ function Refresh-MultiDrivesGrid {
         $uniInfo = Get-UnifiedMountInfo
         $uniLtr  = if ($null -ne $uniInfo) { $uniInfo.Letter } else { $null }
         $uniAutoLtr = Get-AutoUnifiedDriveLetter
-        $showUniChoice = ($cfg.DriveLayout -eq "Unified" -or $null -ne $uniLtr -or (@(Get-UnifiedPoolRemotes)).Count -gt 0)
         $starCh  = [string][char]0x2605
         $uniChoiceLbl = "$starCh $uniAutoLtr"
+        $hidChoiceLbl = L "driveChoiceHiddenShort" "$([char]0x2298) Off"
         $defModeLoc = if ($cfg.MountMode -eq "Mirror") { L "mountModeMirror" } else { L "mountModeStream" }
         $lblDrive  = L "targetMyDrive"
         $lblComp   = L "targetMyComputer"
@@ -306,21 +313,18 @@ function Refresh-MultiDrivesGrid {
         $lblAct    = L "driveStatusActive" "Active"
         $lblHid    = L "driveStatusHidden" "Hidden"
         $newRows = @()
-        $reservedInGrid = if ($showUniChoice) { @($uniAutoLtr) } else { @() }
+        $reservedInGrid = @($uniAutoLtr)
         foreach ($rem in $remotes) {
             $m = $mounts | Where-Object { $_.Remote -eq $rem } | Select-Object -First 1
             $ltr = if ($null -ne $m) { $m.Letter } else { Get-MountedLetterForRemote -TargetRemote $rem }
             $remAssign = Get-AccountDriveAssignment -TargetRemote $rem
-            $inActiveUni = ($null -eq $ltr -and $null -ne $uniLtr -and ($uniInfo.Remotes.Count -eq 0 -or ($uniInfo.Remotes -contains $rem)))
+            $inActiveUni = ($null -eq $ltr -and $null -ne $uniLtr -and (($uniInfo.Remotes.Count -gt 0 -and ($uniInfo.Remotes -contains $rem)) -or ($uniInfo.Remotes.Count -eq 0 -and $remAssign -ne "Hidden")))
             $effLtr = if ($null -ne $ltr) { $ltr } elseif ($inActiveUni) { $uniLtr } else { $null }
             $prefLtr = if ($ltr) { $ltr } else { Get-AccountPreferredDrive -TargetRemote $rem -DefaultLetter "" }
             $availRaw = @(Get-AvailableDriveLetters -TargetRemote $rem -Preferred $prefLtr -ReservedLetters $reservedInGrid)
-            if ($showUniChoice) {
-                $availLtrs = @($uniChoiceLbl) + @($availRaw | Where-Object { $_ -ne $uniAutoLtr })
-            } else {
-                $availLtrs = $availRaw
-            }
-            $selLtr = if ($null -ne $ltr) { $ltr } elseif ($showUniChoice -and ($remAssign -eq "Unified" -or $inActiveUni)) { $uniChoiceLbl } elseif ($prefLtr -and ($availLtrs -contains $prefLtr)) { $prefLtr } elseif ($availLtrs.Count -gt 0) { $availLtrs[0] } else { $uniChoiceLbl }
+            $availSep = @($availRaw | Where-Object { $_ -ne $uniAutoLtr -or $ltr -eq $uniAutoLtr })
+            $availLtrs = @($uniChoiceLbl, $hidChoiceLbl) + $availSep
+            $selLtr = if ($null -ne $ltr) { $ltr } elseif ($inActiveUni) { $uniChoiceLbl } elseif ($remAssign -eq "Hidden") { $hidChoiceLbl } elseif ($remAssign -eq "Unified") { $uniChoiceLbl } elseif ($prefLtr -and ($availLtrs -contains $prefLtr)) { $prefLtr } elseif ($availSep.Count -gt 0) { $availSep[0] } else { $uniChoiceLbl }
             if ($selLtr -match '^[A-Z]:$' -and ($reservedInGrid -notcontains $selLtr)) { $reservedInGrid += $selLtr }
 
             $tSummary = Get-AccountTargetModeSummary -TargetRemote $rem
@@ -342,15 +346,17 @@ function Refresh-MultiDrivesGrid {
             $scOpts  = @($scDrive, $scComp, $scBoth)
             $selSc   = switch ($scVal) { "MyComputer" { $scComp } "Both" { $scBoth } default { $scDrive } }
 
-            $modeTxt = if ($inActiveUni) { L "mountModeUnified" "Unified Drive" } elseif ($null -ne $m) { if ($m.Mode -eq "Mirror") { L "mountModeMirror" } else { L "mountModeStream" } } elseif ($remAssign -eq "Unified") { L "mountModeUnified" "Unified Drive" } else { $defModeLoc }
+            $modeTxt = if ($inActiveUni) { L "mountModeUnified" "Unified Drive" } elseif ($null -ne $m) { if ($m.Mode -eq "Mirror") { L "mountModeMirror" } else { L "mountModeStream" } } elseif ($remAssign -eq "Hidden") { L "mountModeExcluded" "Hidden (Do not show)" } elseif ($remAssign -eq "Unified") { L "mountModeUnified" "Unified Drive" } else { $defModeLoc }
             $uniPoolCnt = if ($null -ne $uniInfo -and $uniInfo.Remotes.Count -gt 0) { $uniInfo.Remotes.Count } else { $remotes.Count }
-            $stTxt   = if ($null -ne $ltr) { LF "mountMounted" @((Wrap-Ltr $ltr), $modeTxt) } elseif ($inActiveUni) { LF "unifiedDriveActive" @((Wrap-Ltr $uniLtr), $uniPoolCnt) } else { L "mountHidden" }
+            $stTxt   = if ($null -ne $ltr) { LF "mountMounted" @((Wrap-Ltr $ltr), $modeTxt) } elseif ($inActiveUni) { LF "unifiedDriveActive" @((Wrap-Ltr $uniLtr), $uniPoolCnt) } elseif ($remAssign -eq "Hidden") { L "accountDriveExcluded" "This account: Hidden (Excluded)" } else { L "mountHidden" }
+            $ltrBrush = if ($selLtr -eq $hidChoiceLbl) { "#F87171" } elseif ($selLtr -eq $uniChoiceLbl) { "#FBBF24" } else { "#38BDF8" }
             $newRows += [PSCustomObject]@{
                 Remote               = $rem
                 DisplayName          = (Get-AccountDisplayLabel -TargetRemote $rem)
                 Letter               = $effLtr
                 IsUnifiedRow         = $inActiveUni
                 SelectedLetter       = $selLtr
+                LetterBrush          = $ltrBrush
                 AvailableLetters     = $availLtrs
                 SelectedTargetValue  = $tSummary
                 TargetOptions        = $tOpts
@@ -514,29 +520,34 @@ function Refresh-DriveLettersDropdown {
     $bc = New-Object System.Windows.Media.BrushConverter
     $mounted = Get-MountedLetterForRemote -TargetRemote $script:ActiveRemote
     $assign  = Get-AccountDriveAssignment -TargetRemote $script:ActiveRemote
-    $uniInfo = Get-UnifiedMountInfo
     $uniAuto = Get-AutoUnifiedDriveLetter
-    $showUniChoice = ($cfg.DriveLayout -eq "Unified" -or $null -ne $uniInfo -or $assign -eq "Unified")
     $starCh  = [string][char]0x2605
     $accPref = Get-AccountPreferredDrive -TargetRemote $script:ActiveRemote -DefaultLetter $(if ($cfg.PreferredDrive) { $cfg.PreferredDrive } else { "G:" })
     $pref = if ($mounted) { $mounted } else { $accPref }
     $avail = @(Get-AvailableDriveLetters -TargetRemote $script:ActiveRemote -Preferred $pref)
 
     $CmbDriveLetter.Items.Clear()
-    $cbiUni = $null
-    if ($showUniChoice) {
-        $cbiUni = New-Object System.Windows.Controls.ComboBoxItem
-        $cbiUni.Content = "$starCh $uniAuto"
-        $cbiUni.Tag = "__UNIFIED__"
-        $cbiUni.Foreground = $bc.ConvertFromString("#FBBF24")
-        $cbiUni.FontWeight = [System.Windows.FontWeights]::Bold
-        $cbiUni.FlowDirection = [System.Windows.FlowDirection]::LeftToRight
-        $cbiUni.ToolTip = "$(L 'mountModeUnified' 'Show in Unified Drive') ($uniAuto)"
-        [void]$CmbDriveLetter.Items.Add($cbiUni)
-        # Never duplicate the Unified Drive letter as a separate letter unless this account itself holds it separately
-        if ($mounted -ne $uniAuto) {
-            $avail = @($avail | Where-Object { $_ -ne $uniAuto })
-        }
+    $cbiUni = New-Object System.Windows.Controls.ComboBoxItem
+    $cbiUni.Content = "$starCh $uniAuto"
+    $cbiUni.Tag = "__UNIFIED__"
+    $cbiUni.Foreground = $bc.ConvertFromString("#FBBF24")
+    $cbiUni.FontWeight = [System.Windows.FontWeights]::Bold
+    $cbiUni.FlowDirection = [System.Windows.FlowDirection]::LeftToRight
+    $cbiUni.ToolTip = "$(L 'mountModeUnified' 'Show in Unified Drive') ($uniAuto)"
+    [void]$CmbDriveLetter.Items.Add($cbiUni)
+
+    $cbiHid = New-Object System.Windows.Controls.ComboBoxItem
+    $cbiHid.Content = L "driveChoiceHiddenShort" "$([char]0x2298) Off"
+    $cbiHid.Tag = "__HIDDEN__"
+    $cbiHid.Foreground = $bc.ConvertFromString("#F87171")
+    $cbiHid.FontWeight = [System.Windows.FontWeights]::Bold
+    $cbiHid.FlowDirection = [System.Windows.FlowDirection]::LeftToRight
+    $cbiHid.ToolTip = L "mountModeExcluded" "Hidden (Do not show)"
+    [void]$CmbDriveLetter.Items.Add($cbiHid)
+
+    # Never duplicate the Unified Drive letter as a separate letter unless this account itself holds it separately
+    if ($mounted -ne $uniAuto) {
+        $avail = @($avail | Where-Object { $_ -ne $uniAuto })
     }
 
     $selItem = $null
@@ -549,7 +560,11 @@ function Refresh-DriveLettersDropdown {
         if ($l -eq $pref -and $null -eq $selItem) { $selItem = $cbi }
     }
 
-    if ($null -ne $cbiUni -and $null -eq $mounted -and $assign -eq "Unified") {
+    if ($null -eq $mounted -and $assign -eq "Hidden") {
+        $CmbDriveLetter.SelectedItem = $cbiHid
+        $CmbDriveLetter.Foreground = $bc.ConvertFromString("#F87171")
+        $CmbDriveLetter.FontWeight = [System.Windows.FontWeights]::Bold
+    } elseif ($null -eq $mounted -and $assign -eq "Unified") {
         $CmbDriveLetter.SelectedItem = $cbiUni
         $CmbDriveLetter.Foreground = $bc.ConvertFromString("#FBBF24")
         $CmbDriveLetter.FontWeight = [System.Windows.FontWeights]::Bold
@@ -557,12 +572,14 @@ function Refresh-DriveLettersDropdown {
         $CmbDriveLetter.SelectedItem = $selItem
         $CmbDriveLetter.Foreground = $bc.ConvertFromString("#E2E8F0")
         $CmbDriveLetter.FontWeight = [System.Windows.FontWeights]::SemiBold
+    } elseif ($CmbDriveLetter.Items.Count -gt 2) {
+        $CmbDriveLetter.SelectedIndex = 2
+        $CmbDriveLetter.Foreground = $bc.ConvertFromString("#E2E8F0")
+        $CmbDriveLetter.FontWeight = [System.Windows.FontWeights]::SemiBold
     } elseif ($CmbDriveLetter.Items.Count -gt 0) {
-        $pickIdx = if ($null -ne $cbiUni -and $CmbDriveLetter.Items.Count -gt 1 -and $assign -ne "Unified") { 1 } else { 0 }
-        $CmbDriveLetter.SelectedIndex = $pickIdx
-        $isPickUni = ($null -ne $cbiUni -and $pickIdx -eq 0)
-        $CmbDriveLetter.Foreground = $bc.ConvertFromString($(if ($isPickUni) { "#FBBF24" } else { "#E2E8F0" }))
-        $CmbDriveLetter.FontWeight = if ($isPickUni) { [System.Windows.FontWeights]::Bold } else { [System.Windows.FontWeights]::SemiBold }
+        $CmbDriveLetter.SelectedIndex = 0
+        $CmbDriveLetter.Foreground = $bc.ConvertFromString("#FBBF24")
+        $CmbDriveLetter.FontWeight = [System.Windows.FontWeights]::Bold
     }
     $CmbDriveLetter.IsEnabled = $true
 }
@@ -779,11 +796,12 @@ function Refresh-StudioHeader {
         $uniInfoActive = Get-UnifiedMountInfo
         $uniLtrActive  = if ($null -ne $uniInfoActive) { $uniInfoActive.Letter } else { $null }
         $uniAutoLtr    = Get-AutoUnifiedDriveLetter
-        $inActiveUni   = ($null -eq $activeLetter -and $null -ne $uniLtrActive -and ($uniInfoActive.Remotes.Count -eq 0 -or ($uniInfoActive.Remotes -contains $script:ActiveRemote)))
+        $inActiveUni   = ($null -eq $activeLetter -and $null -ne $uniLtrActive -and (($uniInfoActive.Remotes.Count -gt 0 -and ($uniInfoActive.Remotes -contains $script:ActiveRemote)) -or ($uniInfoActive.Remotes.Count -eq 0 -and $assignActive -ne "Hidden")))
 
         $mModeRaw = (Get-Settings).MountMode
         $mModeLoc = if ($mModeRaw -eq "Mirror") { L "mountModeMirror" } else { L "mountModeStream" }
         $CmbMountMode.IsEnabled = $true
+        $starCh = [string][char]0x2605
         if ($null -ne $activeLetter) {
             $CmbMountMode.SelectedIndex = if ($mModeRaw -eq "Mirror") { 1 } else { 0 }
             $TxtMountStatus.Text = LF "mountMounted" @((Wrap-Ltr $activeLetter), $mModeLoc)
@@ -791,28 +809,41 @@ function Refresh-StudioHeader {
             $BtnMount.Content = "$(L 'hideDrive') ($(Wrap-Ltr $activeLetter))"
             $BtnMount.Background  = $bc.ConvertFromString("#162238")
             $BtnMount.BorderBrush = $bc.ConvertFromString("#38BDF8")
-        } elseif ($assignActive -eq "Unified" -or $inActiveUni) {
+        } elseif ($inActiveUni) {
             $CmbMountMode.SelectedIndex = 2
             $poolCnt = if ($null -ne $uniInfoActive -and $uniInfoActive.Remotes.Count -gt 0) { $uniInfoActive.Remotes.Count } else { (@(Get-UnifiedPoolRemotes)).Count }
-            $starCh = [string][char]0x2605
-            if ($inActiveUni) {
-                $uniLtrTok = if ($script:CurrentLocale -and $script:CurrentLocale.rtl) { "$(Wrap-Ltr $uniLtrActive)$($script:RLM)" } else { Wrap-Ltr $uniLtrActive }
-                $TxtMountStatus.Text = LF "unifiedDriveActive" @($uniLtrTok, $poolCnt)
-                $DotMount.Fill = $bc.ConvertFromString("#FBBF24")
-                $BtnMount.Content = "$(L 'hideUnifiedDrive' 'Hide Unified Drive') ($(Wrap-Ltr "$starCh $uniLtrActive"))"
-                $BtnMount.Background  = $bc.ConvertFromString("#261D0B")
-                $BtnMount.BorderBrush = $bc.ConvertFromString("#D97706")
+            $uniLtrTok = if ($script:CurrentLocale -and $script:CurrentLocale.rtl) { "$(Wrap-Ltr $uniLtrActive)$($script:RLM)" } else { Wrap-Ltr $uniLtrActive }
+            $TxtMountStatus.Text = LF "unifiedDriveActive" @($uniLtrTok, $poolCnt)
+            $DotMount.Fill = $bc.ConvertFromString("#FBBF24")
+            $BtnMount.Content = "$(L 'hideAccountFromUnified' 'Hide this account from') $(Wrap-Ltr "$starCh $uniLtrActive")"
+            $BtnMount.Background  = $bc.ConvertFromString("#261D0B")
+            $BtnMount.BorderBrush = $bc.ConvertFromString("#D97706")
+        } elseif ($assignActive -eq "Hidden") {
+            $CmbMountMode.SelectedIndex = 3
+            $TxtMountStatus.Text = L "accountDriveExcluded" "This account: Hidden (Excluded)"
+            $DotMount.Fill = $bc.ConvertFromString("#64748B")
+            if ($dlCur -eq "Unified" -or $null -ne $uniLtrActive) {
+                $showUniLtr = if ($null -ne $uniLtrActive) { $uniLtrActive } else { $uniAutoLtr }
+                $BtnMount.Content = "$(L 'showAccountInUnified' 'Show this account in') $(Wrap-Ltr "$starCh $showUniLtr")"
             } else {
-                $TxtMountStatus.Text = L "mountHidden"
-                $DotMount.Fill = $bc.ConvertFromString("#475569")
-                $BtnMount.Content = "$(L 'btnMountUnified' 'Mount Unified Drive') ($(Wrap-Ltr "$starCh $uniAutoLtr"))"
-                $BtnMount.Background  = $bc.ConvertFromString("#B45309")
-                $BtnMount.BorderBrush = $bc.ConvertFromString("#FBBF24")
+                $prefShow = Get-AccountPreferredDrive -TargetRemote $script:ActiveRemote -DefaultLetter ""
+                $avShow = @(Get-AvailableDriveLetters -TargetRemote $script:ActiveRemote -Preferred $prefShow)
+                $showSepLtr = if ($avShow.Count -gt 0) { $avShow[0] } else { $uniAutoLtr }
+                $BtnMount.Content = "$(L 'showDrive') ($(Wrap-Ltr $showSepLtr))"
             }
+            $BtnMount.Background  = $bc.ConvertFromString("#0E7490")
+            $BtnMount.BorderBrush = $bc.ConvertFromString("#06B6D4")
+        } elseif ($assignActive -eq "Unified") {
+            $CmbMountMode.SelectedIndex = 2
+            $TxtMountStatus.Text = L "mountHidden"
+            $DotMount.Fill = $bc.ConvertFromString("#475569")
+            $BtnMount.Content = "$(L 'showAccountInUnified' 'Show this account in') $(Wrap-Ltr "$starCh $uniAutoLtr")"
+            $BtnMount.Background  = $bc.ConvertFromString("#B45309")
+            $BtnMount.BorderBrush = $bc.ConvertFromString("#FBBF24")
         } else {
             $CmbMountMode.SelectedIndex = if ($mModeRaw -eq "Mirror") { 1 } else { 0 }
             $selL = Get-SelectedDriveLetter
-            if ($selL -eq "__UNIFIED__") { $selL = $uniAutoLtr }
+            if ($selL -eq "__UNIFIED__" -or $selL -eq "__HIDDEN__") { $selL = $uniAutoLtr }
             $TxtMountStatus.Text = L "mountHidden"
             $DotMount.Fill = $bc.ConvertFromString("#475569")
             $BtnMount.Content = "$(L 'showDrive') ($(Wrap-Ltr $selL))"

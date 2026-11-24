@@ -1205,16 +1205,18 @@ function Build-SidebarAccountCardObject {
     $isUniMember = $false
     $isMounted   = ($null -ne $ltr)
     $uniInfo = if ($UniInfoProvided) { $UniInfo } else { Get-UnifiedMountInfo }
+    $assign = Get-AccountDriveAssignment -TargetRemote $TargetRemote
     if (-not $isMounted -and $null -ne $uniInfo -and -not [string]::IsNullOrWhiteSpace($uniInfo.Letter)) {
-        if ($uniInfo.Remotes.Count -eq 0 -or ($uniInfo.Remotes -contains $TargetRemote)) {
+        if (($uniInfo.Remotes.Count -gt 0 -and ($uniInfo.Remotes -contains $TargetRemote)) -or ($uniInfo.Remotes.Count -eq 0 -and $assign -ne "Hidden")) {
             $ltr = $uniInfo.Letter
             $isUniMember = $true
             $isMounted   = $true
         }
     }
-    $assign = Get-AccountDriveAssignment -TargetRemote $TargetRemote
     if (-not $isMounted) {
-        if ($assign -eq "Unified") {
+        if ($assign -eq "Hidden") {
+            $ltr = ""
+        } elseif ($assign -eq "Unified") {
             $ltr = Get-AutoUnifiedDriveLetter
             $isUniMember = $true
         } else {
@@ -1327,16 +1329,18 @@ function Build-SettingsAccountCardObject {
     $isUniMember = $false
     $isMounted   = ($null -ne $ltr)
     $uniInfo = if ($UniInfoProvided) { $UniInfo } else { Get-UnifiedMountInfo }
+    $assign = Get-AccountDriveAssignment -TargetRemote $TargetRemote
     if (-not $isMounted -and $null -ne $uniInfo -and -not [string]::IsNullOrWhiteSpace($uniInfo.Letter)) {
-        if ($uniInfo.Remotes.Count -eq 0 -or ($uniInfo.Remotes -contains $TargetRemote)) {
+        if (($uniInfo.Remotes.Count -gt 0 -and ($uniInfo.Remotes -contains $TargetRemote)) -or ($uniInfo.Remotes.Count -eq 0 -and $assign -ne "Hidden")) {
             $ltr = $uniInfo.Letter
             $isUniMember = $true
             $isMounted   = $true
         }
     }
-    $assign = Get-AccountDriveAssignment -TargetRemote $TargetRemote
     if (-not $isMounted) {
-        if ($assign -eq "Unified") {
+        if ($assign -eq "Hidden") {
+            $ltr = ""
+        } elseif ($assign -eq "Unified") {
             $ltr = Get-AutoUnifiedDriveLetter
             $isUniMember = $true
         } else {

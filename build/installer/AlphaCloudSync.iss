@@ -5,7 +5,7 @@
 ; ==============================================================================
 
 #define MyAppName "AlphaCloudSync"
-#define MyAppVersion "1.2.4"
+#define MyAppVersion "1.2.5"
 #define MyAppPublisher "Alpha Algorithms Company"
 #define MyAppURL "https://github.com/AlphaAlgos/AlphaCloudSync"
 #define MyAppExeName "AlphaCloudSync.exe"

@@ -2,6 +2,14 @@
 
 All notable changes to **AlphaCloudSync** are documented in this file.
 
+## [1.2.5] - 2026-11-25
+### Added & Improved
+- **Per-Account Hide / Exclude, Unified, or Separate Windows Drive Control (7 Languages x 432 Keys):**
+  - Selecting any account in the **Sidebar Accounts Overview** and clicking the drive action button underneath (`$BtnMount`) now hides or shows **ONLY that selected account** — excluding it cleanly from the Unified Drive (`★ H:`) while keeping all other accounts mounted and untouched!
+  - Added a dedicated **`⊘ Hidden / Off`** (`DriveAssignment = "Hidden"`) option directly inside both the **Sidebar Drive Letter & Mode dropdowns** AND every row's **Drive Letter dropdown** in the **Drive & Storage** table (`GridMultiDrives`), allowing instant per-account switching between **Unified Drive (`★`)**, **Separate individual drive letter**, or **Hidden / Excluded from Windows Explorer**.
+  - Added a native dark **Right-Click Context Menu (`CtxMenuDrives`)** on `GridMultiDrives` with auto-row selection (`Show / Hide This Account Only`, `Show in Unified Drive (★)`, `Show as Separate Drive`, `Hide / Exclude from Windows`, `Rename Account`).
+  - Preserved per-account `Hidden` exclusions across global layout switches (`Apply-DriveLayoutChange`), `Mount All`, and email-bound profile snapshots (`Save-AccountEmailSnapshot` / `Restore-AccountEmailSnapshot`).
+
 ## [1.2.4] - 2026-11-25
 ### Added
 - **Interactive Account Connection Status Button (`BtnReconnectAccount`) & Live Red/Amber/Green Health Dots (7 Languages x 422 Keys):**

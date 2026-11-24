@@ -420,5 +420,15 @@
   "tipStatusDisconnected": "此账户会话已过期 — 点击重新登录并恢复绿色连接状态",
   "msgAccountDeduplicatedTitle": "已刷新现有账户会话",
   "msgAccountDeduplicatedBody": "账户 ({0}) 已连接！系统已自动刷新其登录会话而未创建重复项，您的所有文件夹和设置均完整保留。",
-  "btnResetApiKey": "移除自定义密钥"
+  "btnResetApiKey": "移除自定义密钥",
+  "driveChoiceHiddenShort": "⊘ 隐藏",
+  "mountModeExcluded": "已隐藏（不显示）",
+  "accountDriveExcluded": "此账号：已隐藏（已排除）",
+  "hideAccountFromUnified": "从此驱动器隐藏此账号",
+  "showAccountInUnified": "在此驱动器显示此账号",
+  "ctxDriveToggle": "仅显示 / 隐藏此账号",
+  "ctxDriveUnified": "在统一驱动器中显示 (★)",
+  "ctxDriveSeparate": "作为独立驱动器显示",
+  "ctxDriveHide": "从 Windows 隐藏 / 排除",
+  "ctxDriveRename": "重命名账号"
 }
