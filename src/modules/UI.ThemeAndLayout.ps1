@@ -1077,19 +1077,72 @@ $script:DarkControlStylesXaml = @"
                             <!-- TAB 1: ACCOUNTS & CONNECTIONS -->
                             <Border x:Name="CardSetAccounts" Visibility="Visible" Background="#0F1829" BorderBrush="#1E2C42" BorderThickness="1" CornerRadius="10" Padding="16,14" Margin="0,0,0,12">
                                 <StackPanel Orientation="Vertical">
-                                    <TextBlock x:Name="TxtSettingsSecAccounts" Text="Accounts &amp; Connections" FontSize="13.5" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,10"/>
-                                    <DockPanel LastChildFill="False">
-                                        <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,2,12,2">
-                                            <Ellipse x:Name="DotSettingsAccount" Width="9" Height="9" Fill="#10B981" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                            <TextBlock x:Name="TxtSettingsAccount" Text="..." FontSize="12.5" FontWeight="SemiBold" Foreground="#E2E8F0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                    <DockPanel LastChildFill="False" Margin="0,0,0,10">
+                                        <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <TextBlock x:Name="TxtSettingsSecAccounts" Text="Accounts &amp; Connections" FontSize="14" FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                            <Border Background="#162A48" BorderBrush="#25477B" BorderThickness="1" CornerRadius="4" Padding="6,1" VerticalAlignment="Center">
+                                                <TextBlock x:Name="TxtSettingsAccountsCount" Text="0" FontSize="11" FontWeight="Bold" Foreground="#38BDF8"/>
+                                            </Border>
                                         </StackPanel>
                                         <WrapPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                            <Button x:Name="BtnAddAccount" Content="+ Add Account" Background="#0284C7" BorderBrush="#38BDF8" Foreground="#FFFFFF" Margin="0,2,8,2"/>
-                                            <Button x:Name="BtnAuthToggle" Content="Sign In" Margin="0,2,8,2"/>
-                                            <Button x:Name="BtnCustomClientId" Content="Faster Mode" Margin="0,2,8,2"/>
-                                            <Button x:Name="BtnCloudTransferSet" Content="Cloud-to-Cloud Transfer" Background="#065F46" BorderBrush="#10B981" Foreground="#FFFFFF" Margin="0,2,0,2"/>
+                                            <Button x:Name="BtnAddAccount" Content="+ Add Account" Background="#0284C7" BorderBrush="#38BDF8" Foreground="#FFFFFF" FontWeight="Bold" Padding="12,5" Margin="0,2,8,2"/>
+                                            <Button x:Name="BtnCloudTransferSet" Content="Cloud-to-Cloud Transfer" Background="#065F46" BorderBrush="#10B981" Foreground="#FFFFFF" Padding="11,5" Margin="0,2,8,2"/>
+                                            <Button x:Name="BtnCustomClientId" Content="Faster Mode" FontSize="11.5" Padding="10,5" Margin="0,2,0,2"/>
                                         </WrapPanel>
                                     </DockPanel>
+
+                                    <TextBlock x:Name="TxtAccountsListHint" Text="All connected cloud accounts. The highlighted card with blue border is your active default account." FontSize="11.5" Foreground="#94A3B8" Margin="0,0,0,12" TextWrapping="Wrap"/>
+
+                                    <!-- ACCOUNTS STACKED VERTICAL CARDS (ONE UNDER ANOTHER) -->
+                                    <ItemsControl x:Name="ListSettingsAccounts">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="{Binding CardBg}" BorderBrush="{Binding CardBorder}" BorderThickness="{Binding CardBorderThickness}" CornerRadius="9" Padding="14,12" Margin="0,0,0,8">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <!-- Account Info (Left) -->
+                                                        <StackPanel Grid.Column="0" Orientation="Vertical" VerticalAlignment="Center">
+                                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,4">
+                                                                <Ellipse Width="10" Height="10" Fill="{Binding DotBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                                <TextBlock Text="{Binding DisplayName}" FontSize="13.5" FontWeight="Bold" Foreground="#F8FAFC" VerticalAlignment="Center"/>
+                                                                <!-- Active Default Badge -->
+                                                                <Border Visibility="{Binding DefaultBadgeVis}" Background="#064E3B" BorderBrush="#10B981" BorderThickness="1" CornerRadius="4" Padding="7,2" Margin="10,0,0,0" VerticalAlignment="Center">
+                                                                    <TextBlock Text="{Binding DefaultBadgeText}" FontSize="11" FontWeight="Bold" Foreground="#6EE7B7"/>
+                                                                </Border>
+                                                                <!-- Drive Letter Badge if mounted -->
+                                                                <Border Visibility="{Binding DriveBadgeVis}" Background="{Binding DriveBadgeBg}" BorderBrush="{Binding DriveBadgeBorder}" BorderThickness="1" CornerRadius="4" Padding="6,1" Margin="8,0,0,0" VerticalAlignment="Center">
+                                                                    <TextBlock FlowDirection="LeftToRight" Text="{Binding DriveLetter}" FontSize="10.5" FontWeight="Bold" Foreground="{Binding DriveBadgeFg}"/>
+                                                                </Border>
+                                                            </StackPanel>
+
+                                                            <WrapPanel Orientation="Horizontal" Margin="18,0,0,0">
+                                                                <TextBlock Text="{Binding QuotaSummary}" FontSize="11.5" Foreground="#94A3B8" Margin="0,0,12,0"/>
+                                                                <TextBlock Text="{Binding RemoteLabel}" FontSize="11" Foreground="#64748B"/>
+                                                            </WrapPanel>
+                                                        </StackPanel>
+
+                                                        <!-- Actions (Right) -->
+                                                        <WrapPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <!-- Set as Default Button (Visible only when NOT default) -->
+                                                            <Button Uid="BtnSetDefaultAccount" Tag="{Binding Remote}" Visibility="{Binding SetDefaultBtnVis}" Content="{Binding SetDefaultBtnText}" ToolTip="{Binding SetDefaultToolTip}" Background="#0284C7" BorderBrush="#38BDF8" Foreground="#FFFFFF" FontSize="11.5" FontWeight="SemiBold" Padding="11,5" Margin="0,2,8,2" Cursor="Hand"/>
+                                                            <!-- Current Default Indicator (Visible only when IS default) -->
+                                                            <Border Visibility="{Binding ActiveBtnVis}" Background="#0C2542" BorderBrush="#38BDF8" BorderThickness="1" CornerRadius="5" Padding="10,5" Margin="0,2,8,2">
+                                                                <TextBlock Text="{Binding ActiveStatusText}" FontSize="11.5" FontWeight="Bold" Foreground="#38BDF8"/>
+                                                            </Border>
+                                                            <!-- Open Web Button -->
+                                                            <Button Uid="BtnOpenWebAccount" Tag="{Binding Remote}" Content="{Binding OpenWebBtnText}" Background="#162238" BorderBrush="#253A5A" Foreground="#CBD5E1" FontSize="11.5" Padding="9,5" Margin="0,2,8,2" Cursor="Hand"/>
+                                                            <!-- Sign Out / Disconnect Button -->
+                                                            <Button Uid="BtnSignOutAccount" Tag="{Binding Remote}" Content="{Binding SignOutBtnText}" Background="#3A171E" BorderBrush="#991B1B" Foreground="#FCA5A5" FontSize="11.5" Padding="9,5" Margin="0,2,0,2" Cursor="Hand"/>
+                                                        </WrapPanel>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
                                 </StackPanel>
                             </Border>
 
@@ -1435,6 +1488,9 @@ $BtnSetTabBackup    = $window.FindName("BtnSetTabBackup")
 $BtnSetTabGeneral   = $window.FindName("BtnSetTabGeneral")
 $BtnSetTabNotif     = $window.FindName("BtnSetTabNotif")
 $CardSetAccounts    = $window.FindName("CardSetAccounts")
+$ListSettingsAccounts     = $window.FindName("ListSettingsAccounts")
+$TxtSettingsAccountsCount = $window.FindName("TxtSettingsAccountsCount")
+$TxtAccountsListHint      = $window.FindName("TxtAccountsListHint")
 $CardSetSync        = $window.FindName("CardSetSync")
 $CardSetBackup      = $window.FindName("CardSetBackup")
 $CardSetGeneral     = $window.FindName("CardSetGeneral")

@@ -386,5 +386,12 @@
   "c2cServerSideHint": "Uses direct Cloud-to-Cloud streaming & server-side transfer whenever supported — zero local disk space used.",
   "c2cStartBtn": "Start Cloud Transfer Now",
   "c2cNeedTwoAccountsBody": "Please connect at least two cloud accounts (Settings -> + Add Account) to transfer or copy files directly between accounts.",
-  "c2cSameSourceDestMsg": "Source and destination account/folder cannot be identical."
+  "c2cSameSourceDestMsg": "Source and destination account/folder cannot be identical.",
+  "lblConnectedAccounts": "Connected Cloud Accounts",
+  "badgeDefaultAccount": "Active Default",
+  "btnSetDefaultAccount": "Set as Default",
+  "btnCurrentDefault": "✓ Current Default",
+  "btnDisconnectAccount": "Sign Out",
+  "tipSetDefault": "Make this account the active default for quick syncing and folder browsing",
+  "accountsListDesc": "All connected cloud accounts. The highlighted card with blue border is your active default account."
 }

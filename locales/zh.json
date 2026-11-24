@@ -386,5 +386,12 @@
   "c2cServerSideHint": "优先使用云端直传与跨账户流式传输 — 完全不占用本地硬盘空间。",
   "c2cStartBtn": "立即开始云端互传",
   "c2cNeedTwoAccountsBody": "请先在“设置 -> + 添加账户”中连接至少两个云账户，即可在账户之间直接互传文件。",
-  "c2cSameSourceDestMsg": "源账户/文件夹与目标账户/文件夹不能完全相同。"
+  "c2cSameSourceDestMsg": "源账户/文件夹与目标账户/文件夹不能完全相同。",
+  "lblConnectedAccounts": "已连接的云端账户",
+  "badgeDefaultAccount": "当前默认",
+  "btnSetDefaultAccount": "设为默认",
+  "btnCurrentDefault": "✓ 当前默认账户",
+  "btnDisconnectAccount": "退出登录",
+  "tipSetDefault": "将此账户设为快速同步和浏览文件夹的当前默认账户",
+  "accountsListDesc": "所有已连接的云端账户。带有蓝色边框的高亮卡片为当前默认账户。"
 }

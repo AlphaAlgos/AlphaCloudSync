@@ -563,6 +563,37 @@ function Switch-ActiveAccountRemote {
     }
 }
 
+function Invoke-DisconnectAccountRemote {
+    param([string]$TargetRemote)
+    if ([string]::IsNullOrWhiteSpace($TargetRemote)) { return }
+    $disp = Get-AccountDisplayLabel -TargetRemote $TargetRemote
+    $ans = Show-AlphaMessageBox -Message (LF "msgConfirmSignOutBody" @($disp)) -Title (L "msgConfirmSignOutTitle") -Buttons "YesNo" -Icon "Question"
+    if ($ans -eq [System.Windows.MessageBoxResult]::Yes) {
+        $signedOutRem = $TargetRemote
+        if ($script:IsSyncRunning -and $script:SyncingRemote -eq $signedOutRem) {
+            Invoke-PauseOrStopSync
+        }
+        $uInfo = Get-UnifiedMountInfo
+        $wasInUni = ($null -ne $uInfo -and ($uInfo.Remotes.Count -eq 0 -or ($uInfo.Remotes -contains $signedOutRem)))
+        Invoke-ToggleMount -TargetRemote $signedOutRem -ForceUnmount
+        $null = Invoke-RcloneCapture -Arguments "config delete $(Format-WinArg $signedOutRem) --quiet"
+        Clear-RcloneConfigDumpCache
+        if ($script:IdentityCache.ContainsKey($signedOutRem))  { $script:IdentityCache.Remove($signedOutRem) }
+        if ($script:LastAboutCache.ContainsKey($signedOutRem)) { $script:LastAboutCache.Remove($signedOutRem) }
+        Save-UiAccountCache
+        $pMap = Get-AccountPrefsMap
+        if ($pMap.ContainsKey($signedOutRem)) { $pMap.Remove($signedOutRem); Save-AccountPrefsMap -Map $pMap }
+        if ($wasInUni) { Invoke-RefreshActiveUnifiedPool -QuietExplorer }
+        $remLeft = @(Get-ConfiguredDriveRemotes)
+        if ($script:ActiveRemote -eq $signedOutRem) {
+            $script:ActiveRemote = if ($remLeft.Count -gt 0) { $remLeft[0] } else { "gdrive" }
+            $cfg = Get-Settings; $cfg.ActiveRemote = $script:ActiveRemote; Save-Settings -Obj $cfg
+        }
+        Refresh-StudioHeader
+        Sync-RealTimeWatchers
+    }
+}
+
 $ListSidebarAccounts.AddHandler([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent, [System.Windows.RoutedEventHandler]{
     param($s, $e)
     try {
@@ -576,6 +607,32 @@ $ListSidebarAccounts.AddHandler([System.Windows.Controls.Primitives.ButtonBase]:
         }
     } catch {}
 })
+
+if ($null -ne $ListSettingsAccounts) {
+    $ListSettingsAccounts.AddHandler([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent, [System.Windows.RoutedEventHandler]{
+        param($s, $e)
+        try {
+            $btn = $e.OriginalSource
+            while ($null -ne $btn -and $btn -isnot [System.Windows.Controls.Button]) {
+                if ($btn -is [System.Windows.Media.Visual] -or $btn -is [System.Windows.Media.Media3D.Visual3D]) { $btn = [System.Windows.Media.VisualTreeHelper]::GetParent($btn) }
+                else { $btn = [System.Windows.LogicalTreeHelper]::GetParent($btn) }
+            }
+            if ($null -eq $btn -or $null -eq $btn.Tag) { return }
+            $rem = $btn.Tag.ToString()
+            switch ($btn.Uid) {
+                "BtnSetDefaultAccount" {
+                    Switch-ActiveAccountRemote -TargetRemote $rem
+                }
+                "BtnOpenWebAccount" {
+                    try { [System.Diagnostics.Process]::Start((New-Object System.Diagnostics.ProcessStartInfo("https://drive.google.com/") -Property @{ UseShellExecute = $true })) } catch {}
+                }
+                "BtnSignOutAccount" {
+                    Invoke-DisconnectAccountRemote -TargetRemote $rem
+                }
+            }
+        } catch {}
+    })
+}
 
 $CmbLanguage.Add_SelectionChanged({
     if ($script:IsRefreshing) { return }
@@ -779,30 +836,7 @@ $TxtComputerLabel.Add_LostFocus({
 $BtnAuthToggle.Add_Click({
     try {
         if ($script:IsSignedIn) {
-            $disp = Get-AccountDisplayLabel -TargetRemote $script:ActiveRemote
-            $ans = Show-AlphaMessageBox -Message (LF "msgConfirmSignOutBody" @($disp)) -Title (L "msgConfirmSignOutTitle") -Buttons "YesNo" -Icon "Question"
-            if ($ans -eq [System.Windows.MessageBoxResult]::Yes) {
-                $signedOutRem = $script:ActiveRemote
-                if ($script:IsSyncRunning -and $script:SyncingRemote -eq $signedOutRem) {
-                    Invoke-PauseOrStopSync
-                }
-                $uInfo = Get-UnifiedMountInfo
-                $wasInUni = ($null -ne $uInfo -and ($uInfo.Remotes.Count -eq 0 -or ($uInfo.Remotes -contains $signedOutRem)))
-                Invoke-ToggleMount -TargetRemote $signedOutRem -ForceUnmount
-                $null = Invoke-RcloneCapture -Arguments "config delete $(Format-WinArg $signedOutRem) --quiet"
-                Clear-RcloneConfigDumpCache
-                if ($script:IdentityCache.ContainsKey($signedOutRem))  { $script:IdentityCache.Remove($signedOutRem) }
-                if ($script:LastAboutCache.ContainsKey($signedOutRem)) { $script:LastAboutCache.Remove($signedOutRem) }
-                Save-UiAccountCache
-                $pMap = Get-AccountPrefsMap
-                if ($pMap.ContainsKey($signedOutRem)) { $pMap.Remove($signedOutRem); Save-AccountPrefsMap -Map $pMap }
-                if ($wasInUni) { Invoke-RefreshActiveUnifiedPool -QuietExplorer }
-                $remLeft = @(Get-ConfiguredDriveRemotes)
-                $script:ActiveRemote = if ($remLeft.Count -gt 0) { $remLeft[0] } else { "gdrive" }
-                $cfg = Get-Settings; $cfg.ActiveRemote = $script:ActiveRemote; Save-Settings -Obj $cfg
-                Refresh-StudioHeader
-                Sync-RealTimeWatchers
-            }
+            Invoke-DisconnectAccountRemote -TargetRemote $script:ActiveRemote
         } else {
             Invoke-UiPump; Invoke-GDriveAuth -TargetRemote $script:ActiveRemote; Refresh-StudioHeader
         }

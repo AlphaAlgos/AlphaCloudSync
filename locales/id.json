@@ -386,5 +386,12 @@
   "c2cServerSideHint": "Menggunakan streaming langsung Cloud-ke-Cloud tanpa memakai ruang hard disk lokal Anda.",
   "c2cStartBtn": "Mulai Transfer Cloud Sekarang",
   "c2cNeedTwoAccountsBody": "Hubungkan setidaknya dua akun cloud (Pengaturan -> + Tambah Akun) untuk mentransfer file langsung antar-akun.",
-  "c2cSameSourceDestMsg": "Akun dan folder sumber serta tujuan tidak boleh sama persis."
+  "c2cSameSourceDestMsg": "Akun dan folder sumber serta tujuan tidak boleh sama persis.",
+  "lblConnectedAccounts": "Akun Cloud Terhubung",
+  "badgeDefaultAccount": "Default Aktif",
+  "btnSetDefaultAccount": "Jadikan Default",
+  "btnCurrentDefault": "✓ Default Saat Ini",
+  "btnDisconnectAccount": "Keluar",
+  "tipSetDefault": "Jadikan akun ini sebagai default aktif untuk sinkronisasi cepat dan penjelajahan folder",
+  "accountsListDesc": "Semua akun cloud yang terhubung. Kartu yang disorot dengan batas biru adalah akun default aktif Anda."
 }

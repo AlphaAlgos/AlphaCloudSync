@@ -386,5 +386,12 @@
   "c2cServerSideHint": "Utilise le transfert direct de cloud à cloud sans utiliser d'espace disque local.",
   "c2cStartBtn": "Démarrer le transfert cloud",
   "c2cNeedTwoAccountsBody": "Veuillez connecter au moins deux comptes cloud (Paramètres -> + Ajouter un compte) pour transférer des fichiers directement entre eux.",
-  "c2cSameSourceDestMsg": "Le compte et le dossier source et destination ne peuvent pas être identiques."
+  "c2cSameSourceDestMsg": "Le compte et le dossier source et destination ne peuvent pas être identiques.",
+  "lblConnectedAccounts": "Comptes cloud connectés",
+  "badgeDefaultAccount": "Par défaut actif",
+  "btnSetDefaultAccount": "Définir par défaut",
+  "btnCurrentDefault": "✓ Par défaut actuel",
+  "btnDisconnectAccount": "Se déconnecter",
+  "tipSetDefault": "Définir ce compte comme compte par défaut actif pour la synchronisation rapide et la navigation dans les dossiers",
+  "accountsListDesc": "Tous les comptes cloud connectés. La carte en surbrillance avec bordure bleue est votre compte par défaut actif."
 }

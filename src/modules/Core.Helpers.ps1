@@ -274,7 +274,7 @@ function Show-AlphaMessageBox {
         WindowStartupLocation="CenterScreen" FlowDirection="LeftToRight"
         Background="#080D17" Foreground="#F8FAFC" FontFamily="Segoe UI">
     <WindowChrome.WindowChrome>
-        <WindowChrome CaptionHeight="36" CornerRadius="0" GlassFrameThickness="0" ResizeBorderThickness="0" UseAeroCaptionButtons="False"/>
+        <WindowChrome CaptionHeight="0" CornerRadius="0" GlassFrameThickness="0" ResizeBorderThickness="0" UseAeroCaptionButtons="False"/>
     </WindowChrome.WindowChrome>
     <Window.Resources>
         <Style TargetType="Button">
@@ -313,7 +313,7 @@ function Show-AlphaMessageBox {
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
-            <Border Grid.Row="0" Background="#070C15" BorderBrush="#192438" BorderThickness="0,0,0,1">
+            <Border x:Name="MbTitleBar" Grid.Row="0" Background="#070C15" BorderBrush="#192438" BorderThickness="0,0,0,1">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -323,7 +323,7 @@ function Show-AlphaMessageBox {
                         <Image x:Name="ImgMbIcon" DockPanel.Dock="Left" FlowDirection="LeftToRight" Width="16" Height="16" Margin="0,0,8,0" RenderOptions.BitmapScalingMode="HighQuality"/>
                         <TextBlock Text="$safeTitle" FontSize="12" FontWeight="SemiBold" Foreground="#E2E8F0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                     </DockPanel>
-                    <Button x:Name="BtnMbCloseX" Grid.Column="1" Width="40" Height="36" Background="Transparent" Foreground="#94A3B8" BorderThickness="0" Padding="0" Focusable="False" WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="$closeTip">
+                    <Button x:Name="BtnMbCloseX" Grid.Column="1" Width="40" Height="36" Background="Transparent" Foreground="#94A3B8" BorderThickness="0" Padding="0" Focusable="False" ToolTip="$closeTip">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border x:Name="Bd" Background="{TemplateBinding Background}">
@@ -379,7 +379,24 @@ function Show-AlphaMessageBox {
         }
 
         $resBox = [PSCustomObject]@{ Val = if ($Buttons -eq "YesNo") { [System.Windows.MessageBoxResult]::No } elseif ($Buttons -eq "OK") { [System.Windows.MessageBoxResult]::OK } else { [System.Windows.MessageBoxResult]::Cancel } }
-        $dlg.FindName("BtnMbCloseX").Add_Click({ $dlg.Close() })
+        $bClose = $dlg.FindName("BtnMbCloseX")
+        if ($null -ne $bClose) {
+            $bClose.Add_Click({ $dlg.Close() })
+            $bClose.Add_PreviewMouseLeftButtonUp({ param($s,$e) $dlg.Close() })
+        }
+        $mbTitleBar = $dlg.FindName("MbTitleBar")
+        if ($null -ne $mbTitleBar) {
+            $mbTitleBar.Add_MouseLeftButtonDown({
+                param($s, $e)
+                try {
+                    if ($e.ButtonState -eq [System.Windows.Input.MouseButtonState]::Pressed) {
+                        $orig = $e.OriginalSource
+                        $isClose = ($null -ne $bClose -and ($orig -eq $bClose -or $bClose.IsMouseOver))
+                        if (-not $isClose) { $dlg.DragMove() }
+                    }
+                } catch {}
+            })
+        }
         $bYes = $dlg.FindName("BtnDlgYes"); if ($null -ne $bYes) { $bYes.Add_Click({ $resBox.Val = [System.Windows.MessageBoxResult]::Yes; $dlg.Close() }) }
         $bNo  = $dlg.FindName("BtnDlgNo");  if ($null -ne $bNo)  { $bNo.Add_Click({  $resBox.Val = [System.Windows.MessageBoxResult]::No;  $dlg.Close() }) }
         $bOk  = $dlg.FindName("BtnDlgOk");  if ($null -ne $bOk)  { $bOk.Add_Click({  $resBox.Val = [System.Windows.MessageBoxResult]::OK;  $dlg.Close() }) }

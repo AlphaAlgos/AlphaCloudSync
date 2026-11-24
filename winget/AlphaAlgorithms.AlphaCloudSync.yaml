@@ -27,7 +27,7 @@ Installers:
   - Architecture: x64
     InstallerType: portable
     InstallerUrl: https://github.com/AlphaAlgos/AlphaCloudSync/releases/download/v1.1.0/AlphaCloudSync.exe
-    InstallerSha256: C73D94EB9904BFE8C43267EEFFA75D6DD8CE84A0B7570F9AC6A42089DE3A1471
+    InstallerSha256: 6BC3CD6BDE56CE02DFCD5615A1CCE34C14010C4641664C2763097818094E5C74
     Commands:
       - AlphaCloudSync
 ManifestType: singleton

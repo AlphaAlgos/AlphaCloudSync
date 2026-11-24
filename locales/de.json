@@ -386,5 +386,12 @@
   "c2cServerSideHint": "Verwendet direktes Cloud-zu-Cloud-Streaming ohne lokalen Festplattenspeicher zu belegen.",
   "c2cStartBtn": "Cloud-Transfer jetzt starten",
   "c2cNeedTwoAccountsBody": "Bitte verbinden Sie mindestens zwei Cloud-Konten (Einstellungen -> + Konto hinzufügen), um Dateien direkt zwischen Konten zu übertragen.",
-  "c2cSameSourceDestMsg": "Quell- und Zielkonto/-ordner dürfen nicht identisch sein."
+  "c2cSameSourceDestMsg": "Quell- und Zielkonto/-ordner dürfen nicht identisch sein.",
+  "lblConnectedAccounts": "Verbundene Cloud-Konten",
+  "badgeDefaultAccount": "Aktiver Standard",
+  "btnSetDefaultAccount": "Als Standard festlegen",
+  "btnCurrentDefault": "✓ Aktueller Standard",
+  "btnDisconnectAccount": "Abmelden",
+  "tipSetDefault": "Dieses Konto als Standard für schnelle Synchronisierung und Ordneranzeige festlegen",
+  "accountsListDesc": "Alle verbundenen Cloud-Konten. Die hervorgehobene Karte mit blauem Rahmen ist Ihr aktives Standardkonto."
 }

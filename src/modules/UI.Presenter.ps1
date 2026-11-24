@@ -35,7 +35,8 @@ function Apply-UiLanguage {
     $TxtNavSettings.Text          = $loc.navSettings
     $TxtSidebarAccountsTitle.Text = $loc.sidebarAccountsTitle
     $TxtSettingsPageTitle.Text    = $loc.navSettings
-    $TxtSettingsSecAccounts.Text      = $loc.settingsSecAccounts
+    $TxtSettingsSecAccounts.Text      = if ($loc.lblConnectedAccounts) { $loc.lblConnectedAccounts } else { $loc.settingsSecAccounts }
+    if ($null -ne $TxtAccountsListHint -and $loc.accountsListDesc) { $TxtAccountsListHint.Text = $loc.accountsListDesc }
     $TxtSettingsSecGeneral.Text       = $loc.settingsSecGeneral
     $TxtSettingsSecNotifications.Text = $loc.settingsSecNotifications
     $BtnSetTabAccounts.Content        = $loc.settingsSecAccounts
@@ -194,6 +195,7 @@ function Apply-UiLanguage {
     }
     Update-DeletePolicyHint -Policy (Get-Settings).DeletePolicy
     Update-CloudIslandDisplay
+    if (Get-Command Refresh-SettingsAccountsList -ErrorAction SilentlyContinue) { Refresh-SettingsAccountsList }
 }
 
 function Set-SyncControlsRunningState {

@@ -116,6 +116,7 @@ $script:AccountRuntimeMap    = @{}
 $script:FolderItems          = New-Object System.Collections.ObjectModel.ObservableCollection[object]
 $script:MultiDriveItems      = New-Object System.Collections.ObjectModel.ObservableCollection[object]
 $script:SidebarAccountCards  = New-Object System.Collections.ObjectModel.ObservableCollection[object]
+$script:SettingsAccountCards = New-Object System.Collections.ObjectModel.ObservableCollection[object]
 $script:SeenLogLines         = @{}
 $script:UploadedCount        = 0
 $script:IsRefreshing         = $false
@@ -163,6 +164,7 @@ $GridActivity.ItemsSource        = (Get-AccountRuntime -TargetRemote $script:Act
 $GridFolders.ItemsSource         = $script:FolderItems
 $GridMultiDrives.ItemsSource     = $script:MultiDriveItems
 $ListSidebarAccounts.ItemsSource = $script:SidebarAccountCards
+if ($null -ne $ListSettingsAccounts) { $ListSettingsAccounts.ItemsSource = $script:SettingsAccountCards }
 
 # ==============================================================================
 # WINDOWCHROME SYMMETRIC MAXIMIZE PADDING & MULTI-DPI CLAMPING
@@ -318,7 +320,7 @@ function New-AlphaModalWindow {
         WindowStartupLocation="Manual" FlowDirection="LeftToRight"
         Background="#080D17" Foreground="#F8FAFC" FontFamily="Segoe UI">
     <WindowChrome.WindowChrome>
-        <WindowChrome CaptionHeight="36" CornerRadius="0" GlassFrameThickness="0"
+        <WindowChrome CaptionHeight="0" CornerRadius="0" GlassFrameThickness="0"
                       ResizeBorderThickness="$resizeBorder" UseAeroCaptionButtons="False"/>
     </WindowChrome.WindowChrome>
     <Window.Resources>
@@ -330,7 +332,7 @@ function New-AlphaModalWindow {
                 <RowDefinition Height="36"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
-            <Border Grid.Row="0" Background="#070C15" BorderBrush="#192438" BorderThickness="0,0,0,1">
+            <Border x:Name="ModalTitleBar" Grid.Row="0" Background="#070C15" BorderBrush="#192438" BorderThickness="0,0,0,1">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -340,7 +342,7 @@ function New-AlphaModalWindow {
                         <Image x:Name="ImgModalIcon" DockPanel.Dock="Left" FlowDirection="LeftToRight" Width="16" Height="16" Margin="0,0,8,0" RenderOptions.BitmapScalingMode="HighQuality"/>
                         <TextBlock Text="$safeTitle" FontSize="12" FontWeight="SemiBold" Foreground="#E2E8F0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                     </DockPanel>
-                    <Button x:Name="BtnModalCloseX" Grid.Column="1" Width="40" Height="36" Background="Transparent" Foreground="#94A3B8" BorderThickness="0" Cursor="Hand" Focusable="False" WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="$closeTip">
+                    <Button x:Name="BtnModalCloseX" Grid.Column="1" Width="42" Height="36" Background="Transparent" Foreground="#94A3B8" BorderThickness="0" Cursor="Hand" Focusable="False" ToolTip="$closeTip">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border x:Name="Bd" Background="{TemplateBinding Background}">
@@ -379,7 +381,42 @@ function New-AlphaModalWindow {
     }
     $mw.Left = [math]::Max($wa.Left, [math]::Min($cx, $wa.Right  - $w))
     $mw.Top  = [math]::Max($wa.Top,  [math]::Min($cy, $wa.Bottom - $h))
-    $mw.FindName("BtnModalCloseX").Add_Click({ $mw.Close() })
+
+    $closeBtn = $mw.FindName("BtnModalCloseX")
+    if ($null -ne $closeBtn) {
+        $closeBtn.Add_Click({ try { $mw.Close() } catch {} })
+        $closeBtn.Add_PreviewMouseLeftButtonUp({ param($s,$e) try { $mw.Close() } catch {} })
+    }
+    $titleBar = $mw.FindName("ModalTitleBar")
+    if ($null -ne $titleBar) {
+        $titleBar.Add_MouseLeftButtonDown({
+            param($s, $e)
+            try {
+                if ($e.ButtonState -eq [System.Windows.Input.MouseButtonState]::Pressed) {
+                    $orig = $e.OriginalSource
+                    $isClose = $false
+                    $cur = $orig
+                    while ($null -ne $cur) {
+                        if ($cur -eq $closeBtn) { $isClose = $true; break }
+                        if ($cur -is [System.Windows.Media.Visual] -or $cur -is [System.Windows.Media.Media3D.Visual3D]) {
+                            $cur = [System.Windows.Media.VisualTreeHelper]::GetParent($cur)
+                        } else {
+                            $cur = [System.Windows.LogicalTreeHelper]::GetParent($cur)
+                        }
+                    }
+                    if (-not $isClose) {
+                        $mw.DragMove()
+                    }
+                }
+            } catch {}
+        })
+    }
+    $mw.Add_KeyDown({
+        param($s, $e)
+        if ($e.Key -eq [System.Windows.Input.Key]::Escape) {
+            try { $mw.Close() } catch {}
+        }
+    })
     return $mw
 }
 
@@ -1240,6 +1277,7 @@ function Refresh-SidebarAccountsOverview {
         foreach ($r in $remotes) {
             $script:SidebarAccountCards.Add((Build-SidebarAccountCardObject -TargetRemote $r -Mounts $mounts -UniInfo $uniSnap -UniInfoProvided))
         }
+        Refresh-SettingsAccountsList
     } catch {}
 }
 
@@ -1252,8 +1290,102 @@ function Update-SidebarSingleAccountCard {
         for ($i = 0; $i -lt $script:SidebarAccountCards.Count; $i++) {
             if ($script:SidebarAccountCards[$i].Remote -eq $TargetRemote) {
                 $script:SidebarAccountCards[$i] = Build-SidebarAccountCardObject -TargetRemote $TargetRemote -Mounts $mounts -UniInfo $uniSnap -UniInfoProvided
-                return
+                break
             }
+        }
+        Refresh-SettingsAccountsList
+    } catch {}
+}
+
+function Build-SettingsAccountCardObject {
+    param([string]$TargetRemote, [array]$Mounts, $UniInfo = $null, [switch]$UniInfoProvided)
+    $disp = Get-AccountDisplayLabel -TargetRemote $TargetRemote
+    $m = $Mounts | Where-Object { $_.Remote -eq $TargetRemote } | Select-Object -First 1
+    $ltr = if ($null -ne $m) { $m.Letter } else { Get-MountedLetterForRemote -TargetRemote $TargetRemote }
+    $isUniMember = $false
+    $isMounted   = ($null -ne $ltr)
+    $uniInfo = if ($UniInfoProvided) { $UniInfo } else { Get-UnifiedMountInfo }
+    if (-not $isMounted -and $null -ne $uniInfo -and -not [string]::IsNullOrWhiteSpace($uniInfo.Letter)) {
+        if ($uniInfo.Remotes.Count -eq 0 -or ($uniInfo.Remotes -contains $TargetRemote)) {
+            $ltr = $uniInfo.Letter
+            $isUniMember = $true
+            $isMounted   = $true
+        }
+    }
+    $assign = Get-AccountDriveAssignment -TargetRemote $TargetRemote
+    if (-not $isMounted) {
+        if ($assign -eq "Unified") {
+            $ltr = Get-AutoUnifiedDriveLetter
+            $isUniMember = $true
+        } else {
+            $ltr = Get-AccountPreferredDrive -TargetRemote $TargetRemote -DefaultLetter ""
+        }
+    }
+
+    $isActive = ($TargetRemote -eq $script:ActiveRemote)
+
+    $qSummary = "-- / --"
+    if ($script:LastAboutCache.ContainsKey($TargetRemote) -and -not [string]::IsNullOrWhiteSpace($script:LastAboutCache[$TargetRemote])) {
+        try {
+            $ab = $script:LastAboutCache[$TargetRemote] | ConvertFrom-Json
+            $tot = [double]$ab.total; $usd = [double]$ab.used
+            if ($tot -gt 0) {
+                $rawPct = [math]::Round(($usd / $tot) * 100, 2)
+                $qSummary = "$(Format-ByteSize $usd) / $(Format-ByteSize $tot) ($rawPct%)"
+            }
+        } catch {}
+    }
+
+    $starCh = [string][char]0x2605
+    $badgeTxt = if (-not [string]::IsNullOrWhiteSpace($ltr)) { if ($isUniMember) { "$starCh $ltr" } else { $ltr } } else { "" }
+    $badgeBg     = if ($isMounted) { if ($isUniMember) { "#261D0B" } else { "#10243C" } } else { "#111A2B" }
+    $badgeBorder = if ($isMounted) { if ($isUniMember) { "#D97706" } else { "#1E3B5C" } } else { if ($isUniMember) { "#5C4514" } else { "#25344D" } }
+    $badgeFg     = if ($isMounted) { if ($isUniMember) { "#FBBF24" } else { "#38BDF8" } } else { if ($isUniMember) { "#B8933A" } else { "#64748B" } }
+    $dotHex      = if ($isMounted) { if ($isUniMember) { "#FBBF24" } else { "#10B981" } } else { "#38BDF8" }
+
+    $cardBg     = if ($isActive) { "#112240" } else { "#0A1322" }
+    $cardBorder = if ($isActive) { "#38BDF8" } else { "#1C2A40" }
+    $cardThick  = if ($isActive) { "2" } else { "1" }
+
+    return [PSCustomObject]@{
+        Remote              = $TargetRemote
+        DisplayName         = $disp
+        RemoteLabel         = "($TargetRemote)"
+        DotBrush            = $dotHex
+        DriveLetter         = $badgeTxt
+        DriveBadgeVis       = if (-not [string]::IsNullOrWhiteSpace($badgeTxt)) { "Visible" } else { "Collapsed" }
+        DriveBadgeBg        = $badgeBg
+        DriveBadgeBorder    = $badgeBorder
+        DriveBadgeFg        = $badgeFg
+        QuotaSummary        = $qSummary
+        CardBg              = $cardBg
+        CardBorder          = $cardBorder
+        CardBorderThickness = $cardThick
+        DefaultBadgeVis     = if ($isActive) { "Visible" } else { "Collapsed" }
+        DefaultBadgeText    = (L "badgeDefaultAccount" "✓ الحساب الافتراضي")
+        SetDefaultBtnVis    = if ($isActive) { "Collapsed" } else { "Visible" }
+        SetDefaultBtnText   = (L "btnSetDefaultAccount" "تعيين كافتراضي")
+        SetDefaultToolTip   = (L "tipSetDefault" "تعيين هذا الحساب كحساب افتراضي للمزامنة")
+        ActiveBtnVis        = if ($isActive) { "Visible" } else { "Collapsed" }
+        ActiveStatusText    = (L "btnCurrentDefault" "الافتراضي الحالي")
+        OpenWebBtnText      = (L "openDriveWeb" "فتح Drive بالمتصفح")
+        SignOutBtnText      = (L "signOut" "تسجيل الخروج")
+    }
+}
+
+function Refresh-SettingsAccountsList {
+    try {
+        if ($null -eq $ListSettingsAccounts) { return }
+        $remotes = if ($script:CachedDriveRemotes.Count -gt 0) { @($script:CachedDriveRemotes) } else { @(Get-ConfiguredDriveRemotes) }
+        if ($remotes.Count -eq 0) { $remotes = @($script:ActiveRemote) }
+        $mounts  = @(Get-MountsState)
+        $uniSnap = Get-UnifiedMountInfo
+        if ($null -ne $TxtSettingsAccountsCount) {
+            $TxtSettingsAccountsCount.Text = "$($remotes.Count)"
+        }
+        $script:SettingsAccountCards.Clear()
+        foreach ($r in $remotes) {
+            $script:SettingsAccountCards.Add((Build-SettingsAccountCardObject -TargetRemote $r -Mounts $mounts -UniInfo $uniSnap -UniInfoProvided))
         }
     } catch {}
 }

@@ -386,5 +386,12 @@
   "c2cServerSideHint": "Usa transferencia directa de nube a nube sin ocupar espacio en tu disco duro local.",
   "c2cStartBtn": "Iniciar transferencia ahora",
   "c2cNeedTwoAccountsBody": "Conecta al menos dos cuentas en la nube (Configuración -> + Agregar cuenta) para transferir archivos directamente entre ellas.",
-  "c2cSameSourceDestMsg": "La cuenta y carpeta de origen y destino no pueden ser idénticas."
+  "c2cSameSourceDestMsg": "La cuenta y carpeta de origen y destino no pueden ser idénticas.",
+  "lblConnectedAccounts": "Cuentas en la nube conectadas",
+  "badgeDefaultAccount": "Predeterminado activo",
+  "btnSetDefaultAccount": "Establecer como predeterminado",
+  "btnCurrentDefault": "✓ Predeterminado actual",
+  "btnDisconnectAccount": "Cerrar sesión",
+  "tipSetDefault": "Hacer de esta cuenta la predeterminada activa para sincronización rápida y navegación de carpetas",
+  "accountsListDesc": "Todas las cuentas en la nube conectadas. La tarjeta resaltada con borde azul es su cuenta predeterminada activa."
 }
