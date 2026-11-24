@@ -1808,17 +1808,283 @@ function Invoke-AppSelfUpdate {
 
         $newV = "v$($script:LatestAvailableVersion)"
         $curV = "v$AppVersion"
-        $ans = Show-AlphaMessageBox -Message (LF "msgConfirmUpdateBody" @($newV, $curV)) -Title (L "msgConfirmUpdateTitle" "Update AlphaCloudSync") -Buttons "YesNo" -Icon "Question"
-        if ($ans -eq [System.Windows.MessageBoxResult]::Yes) {
-            Write-StudioLog -Msg "[UPDATE] Downloading and installing AlphaCloudSync $newV (SHA-256 verified)..." -TargetRemote $script:ActiveRemote
-            $psExe = Join-Path $env:WINDIR "System32\WindowsPowerShell\v1.0\powershell.exe"
-            if (-not (Test-Path -LiteralPath $psExe)) { $psExe = "powershell.exe" }
-            $psiUp = New-Object System.Diagnostics.ProcessStartInfo
-            $psiUp.FileName = $psExe
-            $psiUp.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command `"irm https://raw.githubusercontent.com/AlphaAlgos/AlphaCloudSync/main/install.ps1 | iex`""
-            $psiUp.UseShellExecute = $false
-            $psiUp.CreateNoWindow = $true
-            [void][System.Diagnostics.Process]::Start($psiUp)
+        $descT    = [System.Security.SecurityElement]::Escape((LF "msgConfirmUpdateBody" @($newV, $curV)))
+        $updNowT  = [System.Security.SecurityElement]::Escape((L "btnUpdateNow" "Update Now"))
+        $canT     = [System.Security.SecurityElement]::Escape((L "btnCancel" "Cancel"))
+        $closeT   = [System.Security.SecurityElement]::Escape((L "btnClose" "Close"))
+        $fetchT   = [System.Security.SecurityElement]::Escape((L "updStageFetch" "Connecting to GitHub and fetching release package..."))
+
+        $body = @"
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <StackPanel Grid.Row="0" Orientation="Horizontal" FlowDirection="LeftToRight" HorizontalAlignment="Center" Margin="0,0,0,12">
+                    <Border Background="#111C30" BorderBrush="#263A59" BorderThickness="1" CornerRadius="6" Padding="10,4">
+                        <TextBlock Text="$curV" Foreground="#94A3B8" FontWeight="SemiBold" FontSize="12.5"/>
+                    </Border>
+                    <TextBlock Text="  &#x2192;  " Foreground="#38BDF8" FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
+                    <Border Background="#0B2E22" BorderBrush="#10B981" BorderThickness="1" CornerRadius="6" Padding="10,4">
+                        <TextBlock Text="$newV" Foreground="#34D399" FontWeight="Bold" FontSize="12.5"/>
+                    </Border>
+                </StackPanel>
+                <TextBlock x:Name="TxtUpdDesc" Grid.Row="1" Text="$descT" TextWrapping="Wrap" Foreground="#CBD5E1" FontSize="12.5" LineHeight="20" Margin="0,0,0,14"/>
+                <Border x:Name="PnlUpdProgress" Grid.Row="2" Visibility="Collapsed" Background="#0B1526" BorderBrush="#1E3A5F" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,0,0,14">
+                    <StackPanel Orientation="Vertical">
+                        <DockPanel LastChildFill="True" Margin="0,0,0,8">
+                            <TextBlock x:Name="TxtUpdPct" DockPanel.Dock="Right" FlowDirection="LeftToRight" Text="0%" Foreground="#38BDF8" FontWeight="Bold" FontSize="12" Margin="8,0,0,0"/>
+                            <TextBlock x:Name="TxtUpdStage" Text="$fetchT" TextWrapping="Wrap" Foreground="#E2E8F0" FontSize="12" FontWeight="SemiBold"/>
+                        </DockPanel>
+                        <ProgressBar x:Name="BarUpdProgress" FlowDirection="LeftToRight" Height="9" Minimum="0" Maximum="100" Value="0" Background="#070C15" Foreground="#38BDF8" BorderBrush="#1E3454"/>
+                    </StackPanel>
+                </Border>
+                <StackPanel x:Name="PnlUpdActions" Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="BtnStartUpdate" Content="$updNowT" Background="#10B981" BorderBrush="#34D399" Foreground="#FFFFFF" FontWeight="Bold" MinWidth="112" Margin="0,0,8,0"/>
+                    <Button x:Name="BtnCancelUpdate" Content="$canT" MinWidth="86"/>
+                    <Button x:Name="BtnCloseUpdErr" Content="$closeT" Visibility="Collapsed" MinWidth="86"/>
+                </StackPanel>
+            </Grid>
+"@
+        $updWin = New-AlphaModalWindow -Title (L "msgConfirmUpdateTitle" "Update AlphaCloudSync") -ReqWidth 500 -ReqHeight 290 -Resizable $false -BodyXaml $body
+        $pnlProg  = $updWin.FindName("PnlUpdProgress")
+        $txtStage = $updWin.FindName("TxtUpdStage")
+        $txtPct   = $updWin.FindName("TxtUpdPct")
+        $barProg  = $updWin.FindName("BarUpdProgress")
+        $btnStart = $updWin.FindName("BtnStartUpdate")
+        $btnCan   = $updWin.FindName("BtnCancelUpdate")
+        $btnErrCl = $updWin.FindName("BtnCloseUpdErr")
+        $bcUpd    = New-Object System.Windows.Media.BrushConverter
+
+        $updState = [PSCustomObject]@{
+            Phase         = "Idle"
+            WebClient     = $null
+            Task          = $null
+            ExeTmp        = (Join-Path $env:TEMP "AlphaCloudSync_upd_$PID.exe")
+            SumsTmp       = (Join-Path $env:TEMP "AlphaCloudSync_sums_$PID.txt")
+            ExeUrl        = ""
+            SumsUrl       = ""
+            ExpectedBytes = [int64]0
+            FinishAtUtc   = [datetime]::MinValue
+            ShouldQuitApp = $false
+        }
+
+        $updTimer = New-Object System.Windows.Threading.DispatcherTimer
+        $updTimer.Interval = [TimeSpan]::FromMilliseconds(120)
+
+        $showUpdFail = {
+            param([string]$ErrMsg)
+            try { $updTimer.Stop() } catch {}
+            try { if ($null -ne $updState.WebClient) { $updState.WebClient.Dispose(); $updState.WebClient = $null } } catch {}
+            Remove-Item -LiteralPath $updState.ExeTmp, $updState.SumsTmp -Force -ErrorAction SilentlyContinue
+            $txtStage.Text = LF "updStageFailed" @($ErrMsg)
+            $txtStage.Foreground = $bcUpd.ConvertFromString("#F87171")
+            $barProg.Foreground  = $bcUpd.ConvertFromString("#EF4444")
+            $btnErrCl.Visibility = "Visible"
+            $updState.Phase = "Failed"
+        }
+
+        $updTimer.Add_Tick({
+            try {
+                switch ($updState.Phase) {
+                    "WaitMeta" {
+                        if ($updState.Task.IsCompleted) {
+                            if ($updState.Task.IsFaulted -or $updState.Task.IsCanceled) {
+                                $em = if ($updState.Task.Exception) { $updState.Task.Exception.InnerException.Message } else { "Network error" }
+                                & $showUpdFail $em; return
+                            }
+                            $relObj = $updState.Task.Result | ConvertFrom-Json
+                            $exeAsset  = $relObj.assets | Where-Object { $_.name -eq "AlphaCloudSync.exe" } | Select-Object -First 1
+                            $sumsAsset = $relObj.assets | Where-Object { $_.name -eq "SHA256SUMS.txt" }     | Select-Object -First 1
+                            if ($null -eq $exeAsset -or $null -eq $sumsAsset) {
+                                & $showUpdFail "Release assets missing on GitHub."; return
+                            }
+                            if (($exeAsset.browser_download_url -notmatch '^https://') -or ($sumsAsset.browser_download_url -notmatch '^https://')) {
+                                & $showUpdFail "Asset URL must use HTTPS."; return
+                            }
+                            $updState.ExeUrl        = [string]$exeAsset.browser_download_url
+                            $updState.SumsUrl       = [string]$sumsAsset.browser_download_url
+                            $updState.ExpectedBytes = [int64]$exeAsset.size
+                            try { $updState.WebClient.Dispose() } catch {}
+
+                            $barProg.Value = 12; $txtPct.Text = "12%"
+                            $wcSums = New-Object System.Net.WebClient
+                            $wcSums.Headers.Add("User-Agent", "AlphaCloudSync/$AppVersion")
+                            $updState.WebClient = $wcSums
+                            $updState.Task      = $wcSums.DownloadFileTaskAsync([Uri]$updState.SumsUrl, $updState.SumsTmp)
+                            $updState.Phase     = "WaitSums"
+                        }
+                    }
+                    "WaitSums" {
+                        if ($updState.Task.IsCompleted) {
+                            if ($updState.Task.IsFaulted -or $updState.Task.IsCanceled) {
+                                $em = if ($updState.Task.Exception) { $updState.Task.Exception.InnerException.Message } else { "Checksum download failed" }
+                                & $showUpdFail $em; return
+                            }
+                            try { $updState.WebClient.Dispose() } catch {}
+
+                            $barProg.Value = 16; $txtPct.Text = "16%"
+                            $txtStage.Text = LF "updStageDownload" @($newV, 0, "0 KB / $(Format-ByteSize $updState.ExpectedBytes)")
+                            $wcExe = New-Object System.Net.WebClient
+                            $wcExe.Headers.Add("User-Agent", "AlphaCloudSync/$AppVersion")
+                            $updState.WebClient = $wcExe
+                            $updState.Task      = $wcExe.DownloadFileTaskAsync([Uri]$updState.ExeUrl, $updState.ExeTmp)
+                            $updState.Phase     = "WaitExe"
+                        }
+                    }
+                    "WaitExe" {
+                        $curBytes = [int64]0
+                        if (Test-Path -LiteralPath $updState.ExeTmp) {
+                            try { $curBytes = (Get-Item -LiteralPath $updState.ExeTmp).Length } catch {}
+                        }
+                        if ($updState.ExpectedBytes -gt 0 -and $curBytes -gt 0) {
+                            $dlPct = [int][math]::Min(99, [math]::Floor(([double]$curBytes / [double]$updState.ExpectedBytes) * 100.0))
+                            $barVal = [int][math]::Min(86, 16 + [math]::Round($dlPct * 0.70))
+                            $barProg.Value = $barVal
+                            $txtPct.Text   = "$barVal%"
+                            $txtStage.Text = LF "updStageDownload" @($newV, $dlPct, "$(Format-ByteSize $curBytes) / $(Format-ByteSize $updState.ExpectedBytes)")
+                        }
+                        if ($updState.Task.IsCompleted) {
+                            if ($updState.Task.IsFaulted -or $updState.Task.IsCanceled) {
+                                $em = if ($updState.Task.Exception) { $updState.Task.Exception.InnerException.Message } else { "Binary download failed" }
+                                & $showUpdFail $em; return
+                            }
+                            try { $updState.WebClient.Dispose(); $updState.WebClient = $null } catch {}
+                            $barProg.Value = 90; $txtPct.Text = "90%"
+                            $txtStage.Text = L "updStageVerify" "Verifying SHA-256 security checksum..."
+                            $updState.Phase = "VerifyAndSwap"
+                        }
+                    }
+                    "VerifyAndSwap" {
+                        $updState.Phase = "Verifying"
+                        # Fail-Closed SHA-256 Verification
+                        $expectedHash = $null
+                        foreach ($ln in @(Get-Content -LiteralPath $updState.SumsTmp -ErrorAction Stop)) {
+                            if ($ln.Trim() -match '^([a-fA-F0-9]{64})\s+\*?(.+)$') {
+                                if ($Matches[2].Trim() -ieq "AlphaCloudSync.exe") {
+                                    $expectedHash = $Matches[1].ToLowerInvariant(); break
+                                }
+                            }
+                        }
+                        if ([string]::IsNullOrWhiteSpace($expectedHash)) {
+                            & $showUpdFail "SHA-256 entry missing in SHA256SUMS.txt (Fail-Closed)."; return
+                        }
+                        $actualHash = (Get-FileHash -LiteralPath $updState.ExeTmp -Algorithm SHA256).Hash.ToLowerInvariant()
+                        if ($actualHash -ne $expectedHash) {
+                            & $showUpdFail "SHA-256 checksum mismatch (Fail-Closed)."; return
+                        }
+
+                        # Verified! Prepare atomic swap + clean relaunch with visible Splash Screen
+                        $barProg.Value      = 100
+                        $txtPct.Text        = "100%"
+                        $barProg.Foreground = $bcUpd.ConvertFromString("#10B981")
+                        $txtPct.Foreground  = $bcUpd.ConvertFromString("#34D399")
+                        $txtStage.Text      = L "updStageRestart" "Verified! Installing update and restarting..."
+                        $txtStage.Foreground= $bcUpd.ConvertFromString("#4ADE80")
+                        Write-StudioLog -Msg "[UPDATE] AlphaCloudSync $newV verified (SHA-256: $actualHash). Restarting cleanly..." -TargetRemote $script:ActiveRemote
+
+                        $destExe = if (-not [string]::IsNullOrWhiteSpace($AppLaunchExe) -and (Test-Path -LiteralPath $AppLaunchExe)) {
+                            $AppLaunchExe
+                        } else {
+                            Join-Path $env:LOCALAPPDATA "AlphaCloudSync\app\AlphaCloudSync.exe"
+                        }
+                        $destDir = Split-Path -Parent $destExe
+                        $swapScript = Join-Path $env:TEMP "AlphaCloudSync_swap_$PID.ps1"
+                        $qTmp  = $updState.ExeTmp.Replace("'", "''")
+                        $qSums = $updState.SumsTmp.Replace("'", "''")
+                        $qDest = $destExe.Replace("'", "''")
+                        $qDir  = $destDir.Replace("'", "''")
+                        $swapBody = @"
+`$ErrorActionPreference = 'SilentlyContinue'
+for (`$i = 0; `$i -lt 40; `$i++) {
+    `$alivePs = Get-Process -Id $PID -ErrorAction SilentlyContinue
+    `$aliveEx = @(Get-Process -Name 'AlphaCloudSync' -ErrorAction SilentlyContinue)
+    if (`$null -eq `$alivePs -and `$aliveEx.Count -eq 0) { break }
+    Start-Sleep -Milliseconds 150
+}
+foreach (`$p in @(Get-Process -Name 'AlphaCloudSync' -ErrorAction SilentlyContinue)) {
+    try { Stop-Process -Id `$p.Id -Force -ErrorAction SilentlyContinue } catch {}
+}
+Start-Sleep -Milliseconds 350
+New-Item -ItemType Directory -Path '$qDir' -Force | Out-Null
+for (`$t = 0; `$t -lt 15; `$t++) {
+    try {
+        Move-Item -LiteralPath '$qTmp' -Destination '$qDest' -Force -ErrorAction Stop
+        break
+    } catch { Start-Sleep -Milliseconds 250 }
+}
+Remove-Item -LiteralPath '$qSums' -Force -ErrorAction SilentlyContinue
+`$psiLaunch = New-Object System.Diagnostics.ProcessStartInfo
+`$psiLaunch.FileName = '$qDest'
+`$psiLaunch.WorkingDirectory = '$qDir'
+`$psiLaunch.UseShellExecute = `$true
+[void][System.Diagnostics.Process]::Start(`$psiLaunch)
+Remove-Item -LiteralPath `$PSCommandPath -Force -ErrorAction SilentlyContinue
+"@
+                        [System.IO.File]::WriteAllText($swapScript, $swapBody, (New-Object System.Text.UTF8Encoding($false)))
+                        $psExe = Join-Path $env:WINDIR "System32\WindowsPowerShell\v1.0\powershell.exe"
+                        if (-not (Test-Path -LiteralPath $psExe)) { $psExe = "powershell.exe" }
+                        $psiSwap = New-Object System.Diagnostics.ProcessStartInfo
+                        $psiSwap.FileName = $psExe
+                        $psiSwap.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$swapScript`""
+                        $psiSwap.UseShellExecute = $false
+                        $psiSwap.CreateNoWindow = $true
+                        [void][System.Diagnostics.Process]::Start($psiSwap)
+
+                        $updState.ShouldQuitApp = $true
+                        $updState.FinishAtUtc   = [datetime]::UtcNow.AddMilliseconds(600)
+                        $updState.Phase         = "ClosingToRestart"
+                    }
+                    "ClosingToRestart" {
+                        if ([datetime]::UtcNow -ge $updState.FinishAtUtc) {
+                            $updTimer.Stop()
+                            try { $updWin.Close() } catch {}
+                        }
+                    }
+                }
+            } catch {
+                & $showUpdFail $_.Exception.Message
+            }
+        })
+
+        $btnStart.Add_Click({
+            try {
+                [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+                $btnStart.Visibility = "Collapsed"
+                $btnCan.Visibility   = "Collapsed"
+                $pnlProg.Visibility  = "Visible"
+                $barProg.Value       = 6
+                $txtPct.Text         = "6%"
+                $txtStage.Text       = L "updStageFetch" "Connecting to GitHub and fetching release package..."
+                $wcMeta = New-Object System.Net.WebClient
+                $wcMeta.Encoding = [System.Text.Encoding]::UTF8
+                $wcMeta.Headers.Add("User-Agent", "AlphaCloudSync/$AppVersion")
+                $wcMeta.Headers.Add("Accept", "application/vnd.github.v3+json")
+                $updState.WebClient = $wcMeta
+                $updState.Task      = $wcMeta.DownloadStringTaskAsync("https://api.github.com/repos/AlphaAlgos/AlphaCloudSync/releases/latest")
+                $updState.Phase     = "WaitMeta"
+                $updTimer.Start()
+            } catch {
+                & $showUpdFail $_.Exception.Message
+            }
+        })
+
+        $btnCan.Add_Click({ param($s,$e) try { $wObj = [System.Windows.Window]::GetWindow($s); if ($null -ne $wObj) { $wObj.Close() } } catch {} })
+        $btnErrCl.Add_Click({ param($s,$e) try { $wObj = [System.Windows.Window]::GetWindow($s); if ($null -ne $wObj) { $wObj.Close() } } catch {} })
+        $updWin.Add_Closed({
+            try { $updTimer.Stop() } catch {}
+            if (-not $updState.ShouldQuitApp) {
+                try { if ($null -ne $updState.WebClient) { $updState.WebClient.CancelAsync(); $updState.WebClient.Dispose() } } catch {}
+                Remove-Item -LiteralPath $updState.ExeTmp, $updState.SumsTmp -Force -ErrorAction SilentlyContinue
+            }
+        })
+
+        [void]$updWin.ShowDialog()
+
+        if ($updState.ShouldQuitApp) {
+            Stop-AlphaCloudSyncApp
         }
     } catch {
         Write-StudioLog "[ERR] Update check failed: $($_.Exception.Message)"

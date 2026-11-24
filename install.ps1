@@ -156,4 +156,8 @@ if (-not $alreadyInPath) {
 
 Write-Host ""
 Write-Host "[OK] AlphaCloudSync installed and SHA-256 verified! Launching now..." -ForegroundColor Green
-Start-Process -FilePath $ExeDest -WorkingDirectory $InstallDir
+$psiLaunch = New-Object System.Diagnostics.ProcessStartInfo
+$psiLaunch.FileName = $ExeDest
+$psiLaunch.WorkingDirectory = $InstallDir
+$psiLaunch.UseShellExecute = $true
+[void][System.Diagnostics.Process]::Start($psiLaunch)

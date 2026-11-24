@@ -406,5 +406,11 @@
   "lblExclusionTypeFolder": "Dossier",
   "lblExclusionTypeFile": "Fichier",
   "msgExclusionsSaved": "Règles d'exclusion enregistrées et activées avec succès !",
-  "apiKeyStepsGuide": "Étapes rapides (1-2-3) :\n1. Ouvrez Google Cloud Console, activez Google Drive API (Bibliothèque) et ajoutez votre e-mail dans Utilisateurs test (Écran d'autorisation OAuth).\n2. Dans Identifiants, cliquez sur [+ Créer des identifiants] -> [ID client OAuth] -> Type : [Application de bureau] -> Créer.\n3. Copiez le Client ID et le Client Secret, collez-les ci-dessous puis cliquez sur Enregistrer et reconnecter."
+  "apiKeyStepsGuide": "Étapes rapides (1-2-3) :\n1. Ouvrez Google Cloud Console, activez Google Drive API (Bibliothèque) et ajoutez votre e-mail dans Utilisateurs test (Écran d'autorisation OAuth).\n2. Dans Identifiants, cliquez sur [+ Créer des identifiants] -> [ID client OAuth] -> Type : [Application de bureau] -> Créer.\n3. Copiez le Client ID et le Client Secret, collez-les ci-dessous puis cliquez sur Enregistrer et reconnecter.",
+  "btnUpdateNow": "Mettre à jour",
+  "updStageFetch": "Connexion à GitHub et récupération du paquet...",
+  "updStageDownload": "Téléchargement de {0}... ({1}% — {2})",
+  "updStageVerify": "Vérification de l'empreinte de sécurité SHA-256...",
+  "updStageRestart": "Vérifié ! Installation de la mise à jour et redémarrage...",
+  "updStageFailed": "Échec de la mise à jour : {0}"
 }

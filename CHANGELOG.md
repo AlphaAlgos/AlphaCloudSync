@@ -2,6 +2,12 @@
 
 All notable changes to **AlphaCloudSync** are documented in this file.
 
+## [1.2.2] - 2026-11-24
+### Added
+- **Live In-App Self-Updater Progress Modal (`Invoke-AppSelfUpdate`, 7 Languages x 414 Keys):**
+  - Replaced the silent background update flow with a live Obsidian-dark modal displaying the version transition (`vCur → vNew`), real-time async download progress bar (`0% → 100%` + downloaded KB/MB), Fail-Closed SHA-256 checksum verification status, and zero UI freeze.
+  - Performs a clean graceful app shutdown (keeping all mounted virtual drives untouched), atomic verified EXE swap, and visible `-WindowStyle Normal` relaunch so the 5-stage startup splash screen (`AlphaSplashForm`) appears front-and-center immediately.
+
 ## [1.2.1] - 2026-11-24
 ### Fixed
 - **Root-Cause Fix for Sidebar Accounts Overview & Mount Status Display (`Refresh-StudioHeader`):**

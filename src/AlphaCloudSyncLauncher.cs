@@ -17,8 +17,8 @@ using System.Windows.Forms;
 [assembly: AssemblyCompany("Alpha Algorithms Company")]
 [assembly: AssemblyProduct("AlphaCloudSync")]
 [assembly: AssemblyCopyright("Copyright (c) 2026 Alpha Algorithms Company (MIT License)")]
-[assembly: AssemblyVersion("1.2.1.0")]
-[assembly: AssemblyFileVersion("1.2.1.0")]
+[assembly: AssemblyVersion("1.2.2.0")]
+[assembly: AssemblyFileVersion("1.2.2.0")]
 
 namespace AlphaCloudSync
 {
@@ -58,7 +58,8 @@ namespace AlphaCloudSync
             this.Size = new Size(416, 294);
             this.BackColor = Color.FromArgb(8, 13, 23);
             this.DoubleBuffered = true;
-            this.Opacity = 0.0;
+            this.Opacity = 0.25;
+            this.Shown += (s, e) => { try { this.TopMost = true; this.Activate(); this.BringToFront(); } catch { } };
 
             try
             {
@@ -223,7 +224,7 @@ namespace AlphaCloudSync
                 g.FillPath(pillBg, pillPath);
                 g.DrawPath(pillBorder, pillPath);
                 StringFormat sfC = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
-                g.DrawString("v1.2.1", pillFont, pillText, pillRect, sfC);
+                g.DrawString("v1.2.2", pillFont, pillText, pillRect, sfC);
             }
 
             // Divider line
@@ -359,7 +360,7 @@ namespace AlphaCloudSync
 
     internal static class Program
     {
-        private const string AppVersion = "1.2.1";
+        private const string AppVersion = "1.2.2";
         private const string AppUserModelId = "AlphaAlgorithms.AlphaCloudSync";
         private const string RestoreSignalName = "Local\\AlphaCloudSync_RestoreSignal";
 

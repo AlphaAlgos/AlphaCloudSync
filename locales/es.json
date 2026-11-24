@@ -406,5 +406,11 @@
   "lblExclusionTypeFolder": "Carpeta",
   "lblExclusionTypeFile": "Archivo",
   "msgExclusionsSaved": "¡Reglas de exclusión guardadas y activadas con éxito!",
-  "apiKeyStepsGuide": "Pasos rápidos (1-2-3):\n1. Abre Google Cloud Console, habilita Google Drive API (Biblioteca) y agrega tu correo en Usuarios de prueba (Pantalla de consentimiento OAuth).\n2. En Credenciales haz clic en [+ Crear credenciales] -> [ID de cliente de OAuth] -> Tipo: [App de escritorio] -> Crear.\n3. Copia el Client ID y Client Secret, pégalos abajo y haz clic en Guardar y reconectar."
+  "apiKeyStepsGuide": "Pasos rápidos (1-2-3):\n1. Abre Google Cloud Console, habilita Google Drive API (Biblioteca) y agrega tu correo en Usuarios de prueba (Pantalla de consentimiento OAuth).\n2. En Credenciales haz clic en [+ Crear credenciales] -> [ID de cliente de OAuth] -> Tipo: [App de escritorio] -> Crear.\n3. Copia el Client ID y Client Secret, pégalos abajo y haz clic en Guardar y reconectar.",
+  "btnUpdateNow": "Actualizar ahora",
+  "updStageFetch": "Conectando con GitHub y obteniendo el paquete...",
+  "updStageDownload": "Descargando {0}... ({1}% — {2})",
+  "updStageVerify": "Verificando suma de comprobación SHA-256...",
+  "updStageRestart": "¡Verificado! Instalando actualización y reiniciando...",
+  "updStageFailed": "Error al actualizar: {0}"
 }
