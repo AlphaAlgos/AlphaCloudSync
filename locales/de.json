@@ -430,5 +430,8 @@
   "ctxDriveUnified": "Im kombinierten Laufwerk anzeigen (★)",
   "ctxDriveSeparate": "Als eigenes Laufwerk anzeigen",
   "ctxDriveHide": "In Windows ausblenden / ausschließen",
-  "ctxDriveRename": "Konto umbenennen"
+  "ctxDriveRename": "Konto umbenennen",
+  "statusLastPreview": "Letzte Vorschau ({0}) — {1} Datei(en) warten auf Upload",
+  "statusLastPreviewZero": "Letzte Vorschau ({0}) — Alle Dateien aktuell (0 ausstehend)",
+  "statusLastSync": "Letzte Synchronisierung ({0}) — Erfolgreich ({1} Datei(en))"
 }

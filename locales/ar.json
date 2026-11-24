@@ -430,5 +430,8 @@
   "ctxDriveUnified": "إظهار في القرص الموحّد (★)",
   "ctxDriveSeparate": "إظهار كقرص منفصل",
   "ctxDriveHide": "إخفاء / منع الظهور في ويندوز",
-  "ctxDriveRename": "تغيير اسم الحساب"
+  "ctxDriveRename": "تغيير اسم الحساب",
+  "statusLastPreview": "آخر معاينة ({0}) — يوجد {1} ملف بانتظار الرفع",
+  "statusLastPreviewZero": "آخر معاينة ({0}) — كل الملفات متطابقة (0 ملف بانتظار الرفع)",
+  "statusLastSync": "آخر مزامنة ({0}) — اكتملت بنجاح ({1} ملف)"
 }

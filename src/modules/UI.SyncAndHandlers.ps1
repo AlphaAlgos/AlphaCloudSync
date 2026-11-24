@@ -56,11 +56,30 @@ function Start-NextStudioJob {
         $isPreviewMode = ($script:LastBatchMode -in @("DryRun", "RestorePreview"))
         $isRestoreMode = ($script:LastBatchMode -eq "Restore")
         $totalSynced   = $rt.UploadedCount + $rt.ArchivedCount
+        $doneStamp     = "$((Get-Date).ToString('dd/MM')) $(Format-Time12h -DateTime (Get-Date))"
 
         if ($isPreviewMode) {
-            $rt.CountersText = LF "countersPreviewDone" @($rt.PreviewCount)
+            $previewRowsSnap = @($rt.ActivityItems | Where-Object { $null -ne $_ -and $_.PSObject.Properties["Priority"] -and [int]$_.Priority -eq 2 })
+            $savedSum = Save-AccountLastSummary -TargetRemote $syncRem -Mode $script:LastBatchMode -PendingCount $rt.PreviewCount -UploadedCount 0 -ArchivedCount 0 -ProgressPct 100.0 -CompletedAt $doneStamp -PreviewItems $previewRowsSnap -RecentLogText ($rt.LogBuilder.ToString())
+            if ($null -ne $savedSum) {
+                $rt.LastSummary = $savedSum
+                Format-AccountLastSummaryIntoRuntime -Runtime $rt
+            } else {
+                $rt.CountersText = LF "countersPreviewDone" @($rt.PreviewCount)
+            }
         } else {
-            $rt.CountersText = LF "countersCompleted" @($totalSynced)
+            # Persist sync summary on manual sync/restore, or when real-time auto-sync actually transferred files
+            if (-not $script:LastBatchIsAuto -or $totalSynced -gt 0) {
+                $savedSum = Save-AccountLastSummary -TargetRemote $syncRem -Mode $script:LastBatchMode -PendingCount 0 -UploadedCount $rt.UploadedCount -ArchivedCount $rt.ArchivedCount -ProgressPct 100.0 -CompletedAt $doneStamp -PreviewItems @() -RecentLogText ($rt.LogBuilder.ToString())
+                if ($null -ne $savedSum) {
+                    $rt.LastSummary = $savedSum
+                    Format-AccountLastSummaryIntoRuntime -Runtime $rt
+                } else {
+                    $rt.CountersText = LF "countersCompleted" @($totalSynced)
+                }
+            } else {
+                $rt.CountersText = LF "countersCompleted" @($totalSynced)
+            }
         }
         if (-not $script:IsGloballyPaused) { $script:TrayIcon.Text = "AlphaCloudSync v$AppVersion" }
         if ($null -ne $script:WatchHub) {

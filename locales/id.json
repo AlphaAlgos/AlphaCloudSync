@@ -430,5 +430,8 @@
   "ctxDriveUnified": "Tampilkan di Drive Terpadu (★)",
   "ctxDriveSeparate": "Tampilkan sebagai Drive Terpisah",
   "ctxDriveHide": "Sembunyikan / Kecualikan dari Windows",
-  "ctxDriveRename": "Ubah Nama Akun"
+  "ctxDriveRename": "Ubah Nama Akun",
+  "statusLastPreview": "Pratinjau terakhir ({0}) — {1} file menunggu diunggah",
+  "statusLastPreviewZero": "Pratinjau terakhir ({0}) — Semua file sudah terbaru (0 tertunda)",
+  "statusLastSync": "Sinkronisasi terakhir ({0}) — Selesai ({1} file)"
 }

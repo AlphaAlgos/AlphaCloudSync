@@ -430,5 +430,8 @@
   "ctxDriveUnified": "Afficher dans le lecteur unifié (★)",
   "ctxDriveSeparate": "Afficher comme lecteur séparé",
   "ctxDriveHide": "Masquer / exclure de Windows",
-  "ctxDriveRename": "Renommer le compte"
+  "ctxDriveRename": "Renommer le compte",
+  "statusLastPreview": "Dernier aperçu ({0}) — {1} fichier(s) en attente d'envoi",
+  "statusLastPreviewZero": "Dernier aperçu ({0}) — Tout est à jour (0 en attente)",
+  "statusLastSync": "Dernière synchro ({0}) — Terminée ({1} fichier(s))"
 }

@@ -17,8 +17,8 @@ using System.Windows.Forms;
 [assembly: AssemblyCompany("Alpha Algorithms Company")]
 [assembly: AssemblyProduct("AlphaCloudSync")]
 [assembly: AssemblyCopyright("Copyright (c) 2026 Alpha Algorithms Company (MIT License)")]
-[assembly: AssemblyVersion("1.2.5.0")]
-[assembly: AssemblyFileVersion("1.2.5.0")]
+[assembly: AssemblyVersion("1.2.6.0")]
+[assembly: AssemblyFileVersion("1.2.6.0")]
 
 namespace AlphaCloudSync
 {

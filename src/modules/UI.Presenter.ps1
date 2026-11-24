@@ -199,8 +199,17 @@ function Apply-UiLanguage {
 
     $TxtSyncToggle.Text = if ($script:IsSyncRunning) { $loc.stopSync } else { $loc.syncAll }
     if (-not $script:IsSyncRunning) {
-        $TxtUploadCounters.Text = $loc.countersInitial
-        $TxtLiveTransfer.Text   = $loc.statusIdle
+        foreach ($rtRef in $script:AccountRuntimeMap.Values) {
+            if ($null -ne $rtRef -and $null -ne $rtRef.LastSummary) {
+                Format-AccountLastSummaryIntoRuntime -Runtime $rtRef
+            }
+        }
+        if (Get-Command Switch-AccountActivityView -ErrorAction SilentlyContinue) {
+            Switch-AccountActivityView
+        } else {
+            $TxtUploadCounters.Text = $loc.countersInitial
+            $TxtLiveTransfer.Text   = $loc.statusIdle
+        }
     }
     Update-DeletePolicyHint -Policy (Get-Settings).DeletePolicy
     Update-CloudIslandDisplay

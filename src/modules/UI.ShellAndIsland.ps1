@@ -133,11 +133,59 @@ $script:WatchHub             = $null
 $script:PendingAutoSyncFolders = @()
 try { if ("AlphaFolderWatchHub" -as [type]) { $script:WatchHub = New-Object AlphaFolderWatchHub } } catch {}
 
+function Format-AccountLastSummaryIntoRuntime {
+    param($Runtime, [switch]$RestoreActivityItems)
+    if ($null -eq $Runtime -or $null -eq $Runtime.LastSummary) { return }
+    $sum = $Runtime.LastSummary
+    $mode = [string]$sum.Mode
+    $pct  = if ($sum.PSObject.Properties["ProgressPct"] -and $null -ne $sum.ProgressPct) { [double]$sum.ProgressPct } else { 100.0 }
+    $atStr = if ($sum.PSObject.Properties["CompletedAt"] -and -not [string]::IsNullOrWhiteSpace([string]$sum.CompletedAt)) { Wrap-Ltr ([string]$sum.CompletedAt) } else { "" }
+    $Runtime.LastOverallPct  = $pct
+    $Runtime.ProgressPctText = ("{0:N1}%" -f $pct)
+    if ($mode -in @("DryRun", "RestorePreview")) {
+        $pCnt = if ($sum.PSObject.Properties["PendingCount"]) { [int]$sum.PendingCount } else { 0 }
+        $Runtime.PreviewCount = $pCnt
+        $Runtime.CountersText = LF "countersPreviewDone" @($pCnt)
+        if ($pCnt -gt 0) {
+            $Runtime.LiveTransferText = LF "statusLastPreview" @($atStr, $pCnt)
+        } else {
+            $Runtime.LiveTransferText = LF "statusLastPreviewZero" @($atStr)
+        }
+        if ($RestoreActivityItems -and $Runtime.ActivityItems.Count -eq 0 -and $sum.PSObject.Properties["PreviewItems"] -and $null -ne $sum.PreviewItems) {
+            $pArr = if ($sum.PreviewItems -is [System.Array]) { $sum.PreviewItems } else { @($sum.PreviewItems) }
+            foreach ($pi in $pArr) {
+                if ($null -ne $pi -and -not [string]::IsNullOrWhiteSpace([string]$pi.FileName)) {
+                    $Runtime.ActivityItems.Add([PSCustomObject]@{
+                        State        = if (-not [string]::IsNullOrWhiteSpace([string]$pi.State)) { [string]$pi.State } else { L "feedStatePreview" }
+                        FileName     = [string]$pi.FileName
+                        Details      = [string]$pi.Details
+                        Time         = [string]$pi.Time
+                        StateBrush   = if ($pi.PSObject.Properties["StateBrush"] -and -not [string]::IsNullOrWhiteSpace([string]$pi.StateBrush)) { [string]$pi.StateBrush } else { "#38BDF8" }
+                        Priority     = 2
+                        CompletedUtc = $null
+                    })
+                }
+            }
+        }
+    } else {
+        $uCnt = if ($sum.PSObject.Properties["UploadedCount"]) { [int]$sum.UploadedCount } else { 0 }
+        $aCnt = if ($sum.PSObject.Properties["ArchivedCount"]) { [int]$sum.ArchivedCount } else { 0 }
+        $tot  = $uCnt + $aCnt
+        $Runtime.UploadedCount = $uCnt
+        $Runtime.ArchivedCount = $aCnt
+        $Runtime.CountersText  = LF "countersCompleted" @($tot)
+        $Runtime.LiveTransferText = LF "statusLastSync" @($atStr, $tot)
+    }
+    if ($RestoreActivityItems -and $Runtime.LogBuilder.Length -eq 0 -and $sum.PSObject.Properties["RecentLogTail"] -and -not [string]::IsNullOrWhiteSpace([string]$sum.RecentLogTail)) {
+        [void]$Runtime.LogBuilder.Append([string]$sum.RecentLogTail)
+    }
+}
+
 function Get-AccountRuntime {
     param([string]$TargetRemote = $script:ActiveRemote)
     if ([string]::IsNullOrWhiteSpace($TargetRemote)) { $TargetRemote = "gdrive" }
     if (-not $script:AccountRuntimeMap.ContainsKey($TargetRemote)) {
-        $script:AccountRuntimeMap[$TargetRemote] = [PSCustomObject]@{
+        $rtObj = [PSCustomObject]@{
             Remote            = $TargetRemote
             LogBuilder        = (New-Object System.Text.StringBuilder)
             ActivityItems     = (New-Object System.Collections.ObjectModel.ObservableCollection[object])
@@ -156,7 +204,14 @@ function Get-AccountRuntime {
             BatchTotalFolders = 0
             BatchCurrentIndex = 0
             CurrentFolder     = ""
+            LastSummary       = $null
         }
+        $savedSum = Get-AccountLastSummary -TargetRemote $TargetRemote
+        if ($null -ne $savedSum) {
+            $rtObj.LastSummary = $savedSum
+            Format-AccountLastSummaryIntoRuntime -Runtime $rtObj -RestoreActivityItems
+        }
+        $script:AccountRuntimeMap[$TargetRemote] = $rtObj
     }
     return $script:AccountRuntimeMap[$TargetRemote]
 }

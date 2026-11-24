@@ -430,5 +430,8 @@
   "ctxDriveUnified": "在统一驱动器中显示 (★)",
   "ctxDriveSeparate": "作为独立驱动器显示",
   "ctxDriveHide": "从 Windows 隐藏 / 排除",
-  "ctxDriveRename": "重命名账号"
+  "ctxDriveRename": "重命名账号",
+  "statusLastPreview": "上次预览 ({0}) — 有 {1} 个文件等待上传",
+  "statusLastPreviewZero": "上次预览 ({0}) — 所有文件均已同步（0 个待上传）",
+  "statusLastSync": "上次同步 ({0}) — 已成功完成（{1} 个文件）"
 }

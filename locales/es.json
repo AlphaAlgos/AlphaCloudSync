@@ -430,5 +430,8 @@
   "ctxDriveUnified": "Mostrar en unidad unificada (★)",
   "ctxDriveSeparate": "Mostrar como unidad separada",
   "ctxDriveHide": "Ocultar / excluir de Windows",
-  "ctxDriveRename": "Renombrar cuenta"
+  "ctxDriveRename": "Renombrar cuenta",
+  "statusLastPreview": "Última vista previa ({0}) — {1} archivo(s) pendientes de subir",
+  "statusLastPreviewZero": "Última vista previa ({0}) — Todo actualizado (0 pendientes)",
+  "statusLastSync": "Última sincronización ({0}) — Completada ({1} archivo(s))"
 }

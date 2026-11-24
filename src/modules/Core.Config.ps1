@@ -144,6 +144,83 @@ function Get-ProfileFilePath {
     return (Join-Path $ProfilesDir "folders-$(Get-SanitizedName $TargetRemote).json")
 }
 
+function Get-AccountLastSummaryPath {
+    param([string]$TargetRemote = $RemoteName)
+    return (Join-Path $ProfilesDir "last-summary-$(Get-SanitizedName $TargetRemote).json")
+}
+
+function Get-AccountLastSummary {
+    param([string]$TargetRemote = $RemoteName)
+    try {
+        if ([string]::IsNullOrWhiteSpace($TargetRemote)) { $TargetRemote = "gdrive" }
+        $sFile = Get-AccountLastSummaryPath -TargetRemote $TargetRemote
+        if (-not (Test-Path -LiteralPath $sFile -PathType Leaf)) { return $null }
+        $raw = [System.IO.File]::ReadAllText($sFile, [System.Text.Encoding]::UTF8)
+        if ([string]::IsNullOrWhiteSpace($raw)) { return $null }
+        $obj = $raw | ConvertFrom-Json
+        if ($null -eq $obj -or -not $obj.PSObject.Properties["Mode"] -or [string]::IsNullOrWhiteSpace([string]$obj.Mode)) { return $null }
+        return $obj
+    } catch { return $null }
+}
+
+function Save-AccountLastSummary {
+    param(
+        [string]$TargetRemote = $RemoteName,
+        [string]$Mode = "DryRun",
+        [int]$PendingCount = 0,
+        [int]$UploadedCount = 0,
+        [int]$ArchivedCount = 0,
+        [double]$ProgressPct = 100.0,
+        [string]$CompletedAt = "",
+        [array]$PreviewItems = @(),
+        [string]$RecentLogText = ""
+    )
+    try {
+        if ([string]::IsNullOrWhiteSpace($TargetRemote)) { $TargetRemote = "gdrive" }
+        if ([string]::IsNullOrWhiteSpace($CompletedAt)) {
+            $CompletedAt = "$((Get-Date).ToString('dd/MM')) $(Format-Time12h -DateTime (Get-Date))"
+        }
+        $safeItems = @()
+        if ($null -ne $PreviewItems -and $PreviewItems.Count -gt 0) {
+            $lim = [math]::Min(200, $PreviewItems.Count)
+            for ($i = 0; $i -lt $lim; $i++) {
+                $it = $PreviewItems[$i]
+                if ($null -ne $it -and $it.PSObject.Properties["FileName"]) {
+                    $safeItems += [PSCustomObject]@{
+                        State      = [string]$it.State
+                        FileName   = [string]$it.FileName
+                        Details    = [string]$it.Details
+                        Time       = [string]$it.Time
+                        StateBrush = if ($it.PSObject.Properties["StateBrush"] -and -not [string]::IsNullOrWhiteSpace([string]$it.StateBrush)) { [string]$it.StateBrush } else { "#38BDF8" }
+                    }
+                }
+            }
+        }
+        $logTail = ""
+        if (-not [string]::IsNullOrWhiteSpace($RecentLogText)) {
+            $allLines = @($RecentLogText -split "`r?`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+            if ($allLines.Count -gt 120) { $allLines = $allLines[($allLines.Count - 120)..($allLines.Count - 1)] }
+            $logTail = ($allLines -join "`r`n") + "`r`n"
+        }
+        $sumObj = [ordered]@{
+            Mode          = $Mode
+            PendingCount  = $PendingCount
+            UploadedCount = $UploadedCount
+            ArchivedCount = $ArchivedCount
+            ProgressPct   = [math]::Round($ProgressPct, 1)
+            CompletedAt   = $CompletedAt
+            PreviewItems  = @($safeItems)
+            RecentLogTail = $logTail
+        }
+        $sFile = Get-AccountLastSummaryPath -TargetRemote $TargetRemote
+        [System.IO.File]::WriteAllText($sFile, ($sumObj | ConvertTo-Json -Depth 5), (New-Object System.Text.UTF8Encoding($false)))
+        if ($script:IdentityCache -and $script:IdentityCache.ContainsKey($TargetRemote) -and -not [string]::IsNullOrWhiteSpace($script:IdentityCache[$TargetRemote].Email)) {
+            Save-AccountEmailSnapshot -TargetRemote $TargetRemote -Email ([string]$script:IdentityCache[$TargetRemote].Email)
+        }
+        return [PSCustomObject]$sumObj
+    } catch { return $null }
+}
+
 function Get-EmailSnapshotFilePath {
     param([string]$Email)
     if ([string]::IsNullOrWhiteSpace($Email) -or -not $Email.Contains("@")) { return $null }
@@ -185,6 +262,7 @@ function Save-AccountEmailSnapshot {
             MountScope      = if ($null -ne $pref -and -not [string]::IsNullOrWhiteSpace($pref.MountScope)) { [string]$pref.MountScope } else { "MyDrive" }
             PreferredDrive  = if ($null -ne $pref -and -not [string]::IsNullOrWhiteSpace($pref.PreferredDrive)) { [string]$pref.PreferredDrive } else { "" }
             CustomName      = if ($null -ne $pref -and -not [string]::IsNullOrWhiteSpace($pref.CustomName)) { [string]$pref.CustomName } else { "" }
+            LastSummary     = (Get-AccountLastSummary -TargetRemote $TargetRemote)
         }
         [System.IO.File]::WriteAllText($snapFile, ($snapObj | ConvertTo-Json -Depth 6), (New-Object System.Text.UTF8Encoding($false)))
     } catch {}
@@ -224,6 +302,11 @@ function Restore-AccountEmailSnapshot {
         if ($snap.PSObject.Properties["PreferredDrive"]  -and -not [string]::IsNullOrWhiteSpace([string]$snap.PreferredDrive))  { $spArgs["PreferredDrive"]  = [string]$snap.PreferredDrive }
         if ($snap.PSObject.Properties["CustomName"]      -and -not [string]::IsNullOrWhiteSpace([string]$snap.CustomName))      { $spArgs["CustomName"]      = [string]$snap.CustomName }
         Set-AccountPref @spArgs
+        if ($snap.PSObject.Properties["LastSummary"] -and $null -ne $snap.LastSummary -and -not [string]::IsNullOrWhiteSpace([string]$snap.LastSummary.Mode)) {
+            $ls = $snap.LastSummary
+            $sFileRest = Get-AccountLastSummaryPath -TargetRemote $TargetRemote
+            [System.IO.File]::WriteAllText($sFileRest, ($ls | ConvertTo-Json -Depth 5), (New-Object System.Text.UTF8Encoding($false)))
+        }
         return $true
     } catch { return $false }
 }

@@ -2,6 +2,13 @@
 
 All notable changes to **AlphaCloudSync** are documented in this file.
 
+## [1.2.6] - 2026-11-25
+### Added
+- **Per-Account Persistent Local Cloud Profile History (Last Preview, Sync Stats & Activity Log — 7 Languages x 435 Keys):**
+  - Every connected Google Drive account now saves its own last **Preview (Dry-Run)** and **Sync** summary locally (`profiles\last-summary-<remote>.json`) and inside its email-bound profile snapshot (`profiles\email-archive\`).
+  - Closing and reopening AlphaCloudSync — or switching between accounts or UI languages — preserves each account's exact last progress bar (`100.0%`), pending upload file count (`Pending Sync: N file(s)`), date/time reference (`Last preview (dd/MM hh:mm AM)` / `Last sync (...)`), pending preview file queue, and recent activity console log.
+  - Saved statistics stay pinned as a clear reminder and update **only** when a new Preview or a Sync runs for that account.
+
 ## [1.2.5] - 2026-11-25
 ### Added & Improved
 - **Per-Account Hide / Exclude, Unified, or Separate Windows Drive Control (7 Languages x 432 Keys):**

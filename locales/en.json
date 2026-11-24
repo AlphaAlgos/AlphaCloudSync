@@ -430,5 +430,8 @@
   "ctxDriveUnified": "Show in Unified Drive (★)",
   "ctxDriveSeparate": "Show as Separate Drive",
   "ctxDriveHide": "Hide / Exclude from Windows",
-  "ctxDriveRename": "Rename Account"
+  "ctxDriveRename": "Rename Account",
+  "statusLastPreview": "Last preview ({0}) — {1} file(s) waiting to upload",
+  "statusLastPreviewZero": "Last preview ({0}) — All files up to date (0 pending)",
+  "statusLastSync": "Last sync ({0}) — Completed successfully ({1} file(s))"
 }
