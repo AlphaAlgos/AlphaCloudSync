@@ -8,15 +8,24 @@ All notable changes to **AlphaCloudSync** are documented in this file.
   - All 5 startup stages are visible from the instant the launcher opens, providing users with a clear roadmap of the initialization sequence.
   - Features 3 distinct visual states: **Completed** (emerald ring with crisp checkmark `✓`), **Active In-Progress** (glowing pulsing cyan wave & bold text), and **Pending** (subtle muted dark ring with dimmed slate text indicating queued status).
   - Added early stage-2 dispatch in PowerShell runtime (`Set-SplashStage "2"`) for smooth, real-time stage transitions.
-- **Stacked Accounts List with Active Default Highlighting (`ListSettingsAccounts`):**
+- **Manual Multi-Selection Exclusion for Files & Folders (`BtnPickExclusions`):**
+  - Added a dedicated, user-friendly second method to exclude files and folders directly from Windows Explorer dialogs with multi-select support (`+ استثناء يدوي (ملفات ومجلدات)...`).
+  - Supports selecting multiple files simultaneously (`OpenFileDialog.Multiselect = $true`), picking entire directories, or adding custom patterns.
+  - Automatically updates the account's active JSON exclusion rules file (`excludeFiles` / `excludeDirectories`), sets `UseJsonRules = $true`, updates the counter, and activates immediately.
+- **Faster Mode Direct GCP Credentials Link (`BtnOpenGcpConsole`):**
+  - Added direct helper link inside Faster Mode dialog `[🔗 فتح Google Cloud Console لإنشاء أو إيجاد المفتاح]` to quickly open Google Cloud Console credentials page.
+- **Stacked Accounts List & Real-Time Dynamic Sync:**
   - Redesigned the Accounts & Connections tab to display all connected accounts in a clean vertical stack.
+  - Disconnecting ("تسجيل الخروج") or adding accounts immediately reflects in real-time across Settings Accounts, Sidebar Accounts, and Profile Switcher without stale cache.
   - The active default account features an exclusive glowing cyan border (`#38BDF8`), deep navy background (`#112240`), and `[✓ Default Account]` badge.
-  - Non-default accounts feature a one-click `[Set as Default]` button to switch active accounts seamlessly, alongside web folder opening and disconnect options.
+  - Non-default accounts feature a one-click `[Set as Default]` button to switch active accounts seamlessly.
+- **Persistent OAuth Google Sign-In Success Page:**
+  - Removed premature browser auto-close timeout in Google Drive OAuth flow so the branded confirmation page remains visible to reassure the user.
 - **Bulletproof Modal Dialog Close Architecture (`New-AlphaModalWindow` & `Show-AlphaMessageBox`):**
-  - Resolved non-client hit-test collision in RTL layouts by setting `WindowChrome CaptionHeight="0"`, ensuring 100% WPF client area hit-testing for close buttons.
-  - Added redundant `Click` and `PreviewMouseLeftButtonUp` handlers, smart title-bar drag-move exclusion, and `Escape` key dismissal across all modal dialogs.
-- **Full 7-Language Parity (395 Keys Across All Locales):**
-  - Localized account card badges and controls across Arabic, English, German, Spanish, French, Indonesian, and Chinese.
+  - Resolved non-client hit-test collision in RTL layouts by setting `WindowChrome CaptionHeight="0"` and `WindowChrome.IsHitTestVisibleInChrome="True"`, ensuring 100% WPF client area hit-testing for close buttons.
+  - Added redundant `Click`, `PreviewMouseLeftButtonDown`, and `PreviewMouseLeftButtonUp` handlers, and `Escape` key dismissal across all modal dialogs.
+- **Full 7-Language Parity (407 Keys Across All Locales):**
+  - Localized all new exclusion, modal, and account controls across Arabic, English, German, Spanish, French, Indonesian, and Chinese with 100% key and placeholder parity.
 
 ## [1.1.0] - 2026-11-24
 ### Added
