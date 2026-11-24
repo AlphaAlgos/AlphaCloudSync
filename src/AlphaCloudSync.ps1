@@ -196,6 +196,12 @@ $null = Get-MountsState
 Set-SplashStage "5"
 Write-StudioLog -Msg "AlphaCloudSync v$AppVersion Studio ready (Instant Launch, Sequential Account Hydration, Modular Core, 7 Languages)." -TargetRemote $script:ActiveRemote
 
+if ($null -eq $window) {
+    Set-SplashStage "DONE"
+    [Console]::Error.WriteLine("FATAL: Failed to initialize MainWindow WPF XAML.")
+    exit 1
+}
+
 $script:WpfApp = [System.Windows.Application]::Current
 if ($null -eq $script:WpfApp) { $script:WpfApp = New-Object System.Windows.Application }
 $script:WpfApp.ShutdownMode = [System.Windows.ShutdownMode]::OnExplicitShutdown
@@ -204,14 +210,17 @@ $script:WpfApp.MainWindow   = $window
 if (-not $Minimized) {
     $window.Add_ContentRendered({
         try {
-            Bring-MainWindowToForeground -InitialLaunch
             Set-SplashStage "DONE"
+            Bring-MainWindowToForeground -InitialLaunch
             $window.Dispatcher.BeginInvoke([Action]{ Invoke-PostStartupHousekeep }, [System.Windows.Threading.DispatcherPriority]::Background) | Out-Null
-        } catch {}
+        } catch {
+            Set-SplashStage "DONE"
+        }
     })
     $window.Topmost = $true
     $window.Show()
 } else {
+    Set-SplashStage "DONE"
     $window.Dispatcher.BeginInvoke([Action]{ Invoke-PostStartupHousekeep }, [System.Windows.Threading.DispatcherPriority]::ApplicationIdle) | Out-Null
 }
 [void]$script:WpfApp.Run()

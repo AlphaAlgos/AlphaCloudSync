@@ -342,7 +342,7 @@ $script:DarkControlStylesXaml = @"
 [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="AlphaCloudSync v1.0"
+        Title="AlphaCloudSync v1.1.0"
         WindowStyle="SingleBorderWindow"
         ResizeMode="CanResize"
         WindowStartupLocation="Manual"
@@ -1042,14 +1042,10 @@ $script:DarkControlStylesXaml = @"
                                     </DataGrid.Columns>
                                 </DataGrid>
                                 <WrapPanel Grid.Row="4" Orientation="Horizontal">
-                                    <Button x:Name="BtnMountAll" Content="Mount All Accounts" Background="#0E7490" BorderBrush="#06B6D4" Foreground="#FFFFFF" Margin="0,2,8,2"/>
+                                    <Button x:Name="BtnMountAll" Content="Mount All Accounts" Background="#0284C7" BorderBrush="#38BDF8" Foreground="#FFFFFF" Margin="0,2,8,2"/>
                                     <Button x:Name="BtnUnmountAll" Content="Hide All Drives" Margin="0,2,8,2"/>
                                     <Button x:Name="BtnToggleDriveRow" Content="Show / Hide Selected" Margin="0,2,8,2"/>
-                                <WrapPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Button x:Name="BtnMountAll" Content="Mount All Accounts" Background="#0284C7" BorderBrush="#38BDF8" Foreground="#FFFFFF" Margin="0,2,6,2"/>
-                                    <Button x:Name="BtnUnmountAll" Content="Hide All Drives" Margin="0,2,6,2"/>
-                                    <Button x:Name="BtnToggleDriveRow" Content="Show / Hide Selected" Margin="0,2,6,2"/>
-                                    <Button x:Name="BtnRenameAccount" Content="Rename Account" Margin="0,2,6,2"/>
+                                    <Button x:Name="BtnRenameAccount" Content="Rename Account" Margin="0,2,8,2"/>
                                     <Button x:Name="BtnCloudTransfer" Content="Cloud-to-Cloud Transfer" Background="#065F46" BorderBrush="#10B981" Foreground="#FFFFFF" Margin="0,2,0,2"/>
                                 </WrapPanel>
                             </Grid>

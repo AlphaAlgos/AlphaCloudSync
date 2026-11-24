@@ -890,7 +890,7 @@ $ChkAutoWatchSync.Add_Click({
 # ==============================================================================
 $script:IsGloballyPaused = $false
 $script:TrayIcon = New-Object System.Windows.Forms.NotifyIcon
-if (Test-Path -LiteralPath $AppIconPath) {
+if (-not [string]::IsNullOrEmpty($AppIconPath) -and (Test-Path -LiteralPath $AppIconPath)) {
     try { $script:TrayIcon.Icon = New-Object System.Drawing.Icon($AppIconPath, 32, 32) }
     catch { $script:TrayIcon.Icon = New-Object System.Drawing.Icon($AppIconPath) }
 } else { $script:TrayIcon.Icon = [System.Drawing.SystemIcons]::Application }

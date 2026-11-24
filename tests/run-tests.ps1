@@ -828,6 +828,36 @@ try {
     Add-TestResult "T26" "v1.1.0 Uncapped Archive, Error Translator, Tabs, Updater & C2C" $t26 "MaxDel=$maxDelOk FriendlyErr=$errOk SemVer=$verNewer SettingsTabs=$tabsOk InAppUpdater=$updOk CloudToCloud=$c2cOk"
 } catch { Add-TestResult "T26" "v1.1.0 Uncapped Archive, Error Translator, Tabs, Updater & C2C" $false $_.Exception.Message }
 
+# T27: WPF XAML Syntax, XML Well-Formedness & Visual Tree Load Integrity
+try {
+    $null = [System.Reflection.Assembly]::LoadWithPartialName('PresentationFramework')
+    $null = [System.Reflection.Assembly]::LoadWithPartialName('PresentationCore')
+    $null = [System.Reflection.Assembly]::LoadWithPartialName('WindowsBase')
+
+    $themeFile = Join-Path $ProjectRoot "src\modules\UI.ThemeAndLayout.ps1"
+    $themeContent = [System.IO.File]::ReadAllText($themeFile, [System.Text.Encoding]::UTF8)
+
+    $xamlMatch = [regex]::Match($themeContent, '\[xml\]\$xaml\s*=\s*@"(.*?)"@', [System.Text.RegularExpressions.RegexOptions]::Singleline)
+    $stylesMatch = [regex]::Match($themeContent, '\$script:DarkControlStylesXaml\s*=\s*@"(.*?)"@', [System.Text.RegularExpressions.RegexOptions]::Singleline)
+
+    if (-not $xamlMatch.Success) { throw "Could not locate [xml]`$xaml heredoc in UI.ThemeAndLayout.ps1" }
+    if (-not $stylesMatch.Success) { throw "Could not locate `$script:DarkControlStylesXaml heredoc in UI.ThemeAndLayout.ps1" }
+
+    $fullXaml = $xamlMatch.Groups[1].Value.Replace('$($script:DarkControlStylesXaml)', $stylesMatch.Groups[1].Value)
+
+    [xml]$parsedXml = $fullXaml
+
+    $stringReader = New-Object System.IO.StringReader $fullXaml
+    $xmlReader = [System.Xml.XmlReader]::Create($stringReader)
+    $testWindow = [System.Windows.Markup.XamlReader]::Load($xmlReader)
+
+    $hasTitle = (-not [string]::IsNullOrWhiteSpace($testWindow.Title))
+    $hasCards = ($null -ne $testWindow.FindName("CardSetAccounts")) -and ($null -ne $testWindow.FindName("CardSetSync")) -and ($null -ne $testWindow.FindName("BtnCloudTransfer"))
+
+    $t27 = ($null -ne $testWindow) -and $hasTitle -and $hasCards
+    Add-TestResult "T27" "WPF XAML Parser & Visual Tree Integrity" $t27 "Title='$($testWindow.Title)' SubTabs=OK CloudTransfer=OK"
+} catch { Add-TestResult "T27" "WPF XAML Parser & Visual Tree Integrity" $false $_.Exception.Message }
+
 $passedCount  = @($results | Where-Object { $_.Status -eq "PASS" }).Count
 $skippedCount = @($results | Where-Object { $_.Status -eq "SKIP" }).Count
 $failedCount  = @($results | Where-Object { $_.Status -eq "FAIL" }).Count
