@@ -1,5 +1,5 @@
 PackageIdentifier: AlphaAlgorithms.AlphaCloudSync
-PackageVersion: 1.0.0
+PackageVersion: 1.1.0
 PackageLocale: en-US
 Publisher: Alpha Algorithms Company
 PublisherUrl: https://github.com/AlphaAlgos
@@ -14,7 +14,7 @@ Description: >-
   per-account JSON skip rules, zero My Computer (1) duplication, Hybrid Unified (AlphaCloudSync) +
   Standalone persistent Explorer drives, zero-RAM folder badges & Explorer right-click menu,
   fast Real-Time Auto-Sync, 1-click Tray Global Pause, overwrite-protected Safe Restore,
-  Drive Trash management, Dynamic Cloud Island, and 7 UI languages (345 keys + Arabic RTL).
+  Drive Trash management, Dynamic Cloud Island, Direct Cloud-to-Cloud Transfer, 5-Tab Settings, In-App Auto-Updater, and 7 UI languages (388 keys + Arabic RTL).
 Tags:
   - google-drive
   - backup
@@ -26,8 +26,8 @@ Tags:
 Installers:
   - Architecture: x64
     InstallerType: portable
-    InstallerUrl: https://github.com/AlphaAlgos/AlphaCloudSync/releases/download/v1.0.0/AlphaCloudSync.exe
-    InstallerSha256: D914CAD077B48413D65C8597F09F604FBF3AEF42C796021DB79232BE1514A535
+    InstallerUrl: https://github.com/AlphaAlgos/AlphaCloudSync/releases/download/v1.1.0/AlphaCloudSync.exe
+    InstallerSha256: 96852EA9B6CDCBFB1D817B19687D402AEDE8D77B4E7284857122954E79296C96
     Commands:
       - AlphaCloudSync
 ManifestType: singleton

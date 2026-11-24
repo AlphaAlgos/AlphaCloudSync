@@ -297,12 +297,13 @@ $timer.Add_Tick({
                 if ($code -eq 0 -and $script:LastBatchMode -notin @("DryRun", "RestorePreview")) {
                     Complete-StuckUploadingRowsForFolder -FolderPrefix $script:CurrentFolder -TargetRemote $syncRem -ClearPendingPreview:(-not $wasTargetedFilesSync) -TargetFiles $doneTargetFiles
                 }
+                $friendlyErr = if ($code -ne 0) { Resolve-FriendlySyncError -FolderName $script:CurrentFolder -ExitCode $code -RawError $errDetail } else { $null }
                 $folders = @(Get-SyncFolders -TargetRemote $syncRem)
                 foreach ($f in $folders) {
                     $sameFolder = if (-not [string]::IsNullOrWhiteSpace($script:CurrentFolderPath)) { $f.LocalPath -ieq $script:CurrentFolderPath } else { $f.Name -eq $script:CurrentFolder }
                     if ($sameFolder) {
                         if ($script:LastBatchMode -notin @("DryRun", "RestorePreview")) {
-                            $f.LastStatus = if ($code -eq 0) { "Synced " + (Format-Time12h -DateTime (Get-Date)) } else { "Exit $code" }
+                            $f.LastStatus = if ($code -eq 0) { "Synced " + (Format-Time12h -DateTime (Get-Date)) } else { $friendlyErr.StatusToken }
                         }
                     }
                 }
@@ -311,10 +312,10 @@ $timer.Add_Tick({
                 if ($code -eq 0) { Write-StudioLog -Msg "[OK] Completed '$($script:CurrentFolder)' cleanly." -TargetRemote $syncRem }
                 else {
                     $script:BatchHadError = $true
-                    $errMsgLine = if (-not [string]::IsNullOrWhiteSpace($errDetail)) { "[WARN] '$($script:CurrentFolder)' exited with code $code -- $errDetail" } else { "[WARN] '$($script:CurrentFolder)' exited with code $code." }
+                    $errMsgLine = if (-not [string]::IsNullOrWhiteSpace($errDetail)) { "[WARN] $($friendlyErr.UserMessage) ($errDetail)" } else { "[WARN] $($friendlyErr.UserMessage)" }
                     Write-StudioLog -Msg $errMsgLine -TargetRemote $syncRem
-                    Save-BackupHealth -Mode "GUI-$($script:LastBatchMode)" -Status "FAIL" -ExitCode $code -FoldersProcessed $script:BatchCurrentIndex -Summary "Folder '$($script:CurrentFolder)' exited with code $code." -TargetRemote $syncRem
-                    Show-TrayToast -Title (L "toastSyncErrTitle" "AlphaCloudSync Sync Warning") -Body (LF "toastSyncErrBody" @($script:CurrentFolder, $code)) -Category "Error" -Icon ([System.Windows.Forms.ToolTipIcon]::Warning)
+                    Save-BackupHealth -Mode "GUI-$($script:LastBatchMode)" -Status "FAIL" -ExitCode $code -FoldersProcessed $script:BatchCurrentIndex -Summary $friendlyErr.UserMessage -TargetRemote $syncRem
+                    Show-TrayToast -Title (L "toastSyncErrTitle" "AlphaCloudSync Sync Warning") -Body $friendlyErr.UserMessage -Category "Error" -Icon ([System.Windows.Forms.ToolTipIcon]::Warning)
                 }
                 Start-NextStudioJob
             }
@@ -457,13 +458,14 @@ function Start-StudioBatch {
             if (-not $sourceCheck.Safe) { Write-StudioLog -Msg "[ERR] Source safety check failed for '$($f.Name)': $($sourceCheck.Error)" -TargetRemote $targetRem; continue }
             if (-not $sourceCheck.HasFiles) { Write-StudioLog -Msg "[GUARD] No files remain after exclusion rules for '$($f.Name)'; remote data was left untouched." -TargetRemote $targetRem; continue }
 
+            $maxDelFlag = Get-MaxDeleteFlagString -Policy $cfg.DeletePolicy -Limit ([int]$cfg.MaxDeleteLimit)
             if ($cfg.DeletePolicy -eq "Copy-Only") {
                 $args = "copy $locArg $remArg $spdFlags $resilient $dryFlag --stats 1s -v --log-file $logArg $exFlag"
             } elseif ($cfg.DeletePolicy -eq "Strict Mirror") {
-                $args = "sync $locArg $remArg --drive-use-trash=true --max-delete 200 $spdFlags $resilient $dryFlag --stats 1s -v --log-file $logArg $exFlag"
+                $args = "sync $locArg $remArg --drive-use-trash=true $maxDelFlag $spdFlags $resilient $dryFlag --stats 1s -v --log-file $logArg $exFlag"
             } else {
                 $trash = "${targetRem}:_CloudSync_Trash_Archive/$dateStamp/$effRemote"
-                $args = "sync $locArg $remArg --backup-dir $(Format-WinArg $trash) --drive-use-trash=true --max-delete 200 $spdFlags $resilient $dryFlag --stats 1s -v --log-file $logArg $exFlag"
+                $args = "sync $locArg $remArg --backup-dir $(Format-WinArg $trash) --drive-use-trash=true $spdFlags $resilient $dryFlag --stats 1s -v --log-file $logArg $exFlag"
             }
             $queuedJobs += [PSCustomObject]@{ Remote = $targetRem; Title = $titleTag; FolderName = $f.Name; LocalPath = $f.LocalPath; TargetMode = $f.TargetMode; RemotePath = $effRemote; Arguments = $args; LogFile = $jobLog; FilesFromFile = $null; Weight = $weight }
         }
@@ -751,6 +753,17 @@ $CmbSpeedPreset.Add_SelectionChanged({
     try {
         if ($null -ne $CmbSpeedPreset.SelectedItem -and $CmbSpeedPreset.SelectedItem.Tag) {
             $cfg = Get-Settings; $cfg.SpeedPreset = $CmbSpeedPreset.SelectedItem.Tag.ToString(); Save-Settings -Obj $cfg
+        }
+    } catch {}
+})
+
+$CmbMaxDelete.Add_SelectionChanged({
+    if ($script:IsRefreshing) { return }
+    try {
+        if ($null -ne $CmbMaxDelete.SelectedItem -and $null -ne $CmbMaxDelete.SelectedItem.Tag) {
+            $limVal = 0
+            [void][int]::TryParse($CmbMaxDelete.SelectedItem.Tag.ToString(), [ref]$limVal)
+            $cfg = Get-Settings; $cfg.MaxDeleteLimit = [math]::Max(0, $limVal); Save-Settings -Obj $cfg
         }
     } catch {}
 })
@@ -1290,7 +1303,9 @@ $BtnCleanArchive.Add_Click({
             if ($delRes.ExitCode -eq 0 -and $rmdRes.ExitCode -eq 0) { Update-DriveQuotaDisplay }
             else {
                 $errCode = if ($delRes.ExitCode -ne 0) { $delRes.ExitCode } else { $rmdRes.ExitCode }
-                Show-AlphaMessageBox -Message (LF "msgArchiveErrBody" @($errCode)) -Title (L "msgArchiveErrTitle") -Buttons "OK" -Icon "Error" | Out-Null
+                $rawCleanErr = if (-not [string]::IsNullOrWhiteSpace($delRes.StdErr)) { $delRes.StdErr } else { $rmdRes.StdErr }
+                $friendlyClean = Resolve-FriendlySyncError -FolderName "_CloudSync_Trash_Archive" -ExitCode $errCode -RawError $rawCleanErr
+                Show-AlphaMessageBox -Message (LF "msgArchiveErrBody" @($friendlyClean.ShortStatus)) -Title (L "msgArchiveErrTitle") -Buttons "OK" -Icon "Error" | Out-Null
             }
         }
     } catch { Write-StudioLog "[ERR] $($_.Exception.Message)" }
@@ -1805,6 +1820,227 @@ function Invoke-SafeRestoreDialog {
 
 $BtnDryRun.Add_Click({ try { Start-StudioBatch -Mode "DryRun" } catch {} })
 $BtnRestore.Add_Click({ try { Invoke-SafeRestoreDialog } catch {} })
+
+function Start-CloudToCloudBatch {
+    param(
+        [string]$SourceRemote,
+        [string]$SourcePath = "",
+        [string]$DestRemote,
+        [string]$DestPath = "",
+        [ValidateSet("Copy", "Sync", "Move")][string]$TransferMode = "Copy",
+        [switch]$DryRun
+    )
+    if ($script:IsSyncRunning) {
+        Write-StudioLog -Msg "[INFO] A sync or transfer job is already running. Wait for it to finish or pause it first." -TargetRemote $script:ActiveRemote
+        return
+    }
+    $cleanSrcPath = (($SourcePath -replace '["\\:*?<>|]', '/').Trim().Trim('/'))
+    $cleanDstPath = (($DestPath   -replace '["\\:*?<>|]', '/').Trim().Trim('/'))
+    if ($SourceRemote -ieq $DestRemote -and $cleanSrcPath -ieq $cleanDstPath) {
+        Show-AlphaMessageBox -Message (L "c2cSameSourceDestMsg" "Source and destination cannot be identical.") -Title (L "c2cModalTitle" "Cloud-to-Cloud Transfer") -Buttons "OK" -Icon "Warning" | Out-Null
+        return
+    }
+
+    $cfg = Get-Settings
+    $spdFlags  = Get-SpeedFlagString -Preset $cfg.SpeedPreset
+    $resilient = Get-ResilientRcloneFlags
+    $dryFlag   = if ($DryRun) { "--dry-run" } else { "" }
+    $dateStamp = (Get-Date).ToString("yyyy-MM-dd_HH-mm-ss")
+
+    $srcSpec = if ([string]::IsNullOrWhiteSpace($cleanSrcPath)) { "${SourceRemote}:" } else { "${SourceRemote}:$cleanSrcPath" }
+    $dstSpec = if ([string]::IsNullOrWhiteSpace($cleanDstPath)) { "${DestRemote}:" }   else { "${DestRemote}:$cleanDstPath" }
+    $srcArg  = Format-WinArg $srcSpec
+    $dstArg  = Format-WinArg $dstSpec
+
+    $script:JobSeq++
+    $jobLog = Join-Path $env:TEMP "alphacloudsync_c2c_${PID}_$($script:JobSeq).log"
+    $logArg = Format-WinArg $jobLog
+    $c2cFlags = "--drive-server-side-across-configs=true --drive-use-trash=true"
+
+    if ($TransferMode -eq "Move") {
+        $args = "move $srcArg $dstArg $c2cFlags --delete-empty-src-dirs $spdFlags $resilient $dryFlag --stats 1s -v --log-file $logArg"
+    } elseif ($TransferMode -eq "Sync") {
+        $trashPath = if ([string]::IsNullOrWhiteSpace($cleanDstPath)) { "_CloudSync_Trash_Archive/$dateStamp/Root" } else { "_CloudSync_Trash_Archive/$dateStamp/$cleanDstPath" }
+        $trashArg  = Format-WinArg "${DestRemote}:$trashPath"
+        $args = "sync $srcArg $dstArg --backup-dir $trashArg $c2cFlags $spdFlags $resilient $dryFlag --stats 1s -v --log-file $logArg"
+    } else {
+        $args = "copy $srcArg $dstArg $c2cFlags $spdFlags $resilient $dryFlag --stats 1s -v --log-file $logArg"
+    }
+
+    $srcLabel = Get-AccountDisplayLabel -TargetRemote $SourceRemote
+    $dstLabel = Get-AccountDisplayLabel -TargetRemote $DestRemote
+    $folderLabel = if (-not [string]::IsNullOrWhiteSpace($cleanSrcPath)) { "$srcLabel/$cleanSrcPath -> $dstLabel" } else { "$srcLabel -> $dstLabel" }
+    $titleTag    = if ($DryRun) { L "jobTitleDryRun" } else { LF "jobTitleSync" @("CLOUD->CLOUD $TransferMode") }
+
+    if ($DestRemote -ne $script:ActiveRemote) { Switch-ActiveAccountRemote -TargetRemote $DestRemote }
+    $rt = Get-AccountRuntime -TargetRemote $DestRemote
+    if ($rt.PSObject.Properties["RecentlyCompleted"] -and $null -ne $rt.RecentlyCompleted) { $rt.RecentlyCompleted.Clear() }
+    $script:LastBatchMode = if ($DryRun) { "DryRun" } else { "Sync" }
+    $script:LastBatchOnlyFolder = ""; $script:LastBatchIsAuto = $false; $script:BatchHadError = $false; $script:WasPausedByUser = $false
+    $script:UploadedCount = 0; $rt.UploadedCount = 0; $rt.ArchivedCount = 0; $rt.PreviewCount = 0; $rt.WasPausedByUser = $false; $rt.LastOverallPct = 0.0
+    $script:JobQueue.Clear()
+
+    $qJob = [PSCustomObject]@{
+        Remote        = $DestRemote
+        Title         = $titleTag
+        FolderName    = $folderLabel
+        LocalPath     = $srcSpec
+        TargetMode    = "My Drive"
+        RemotePath    = $(if ([string]::IsNullOrWhiteSpace($cleanDstPath)) { "$dstLabel (Root)" } else { "$dstLabel/$cleanDstPath" })
+        Arguments     = $args
+        LogFile       = $jobLog
+        FilesFromFile = $null
+        Weight        = 1.0
+    }
+    $script:SyncingRemote = $DestRemote
+    $script:BatchTotalFolders = 1; $script:BatchCurrentIndex = 0; $script:BatchCompletedWeight = 0.0; $script:BatchTotalWeight = 1.0
+    $script:JobQueue.Enqueue($qJob)
+    Select-StudioTab "Activity"
+    Start-NextStudioJob
+}
+
+function Invoke-CloudToCloudTransferDialog {
+    try {
+        $remotes = @(Get-ConfiguredDriveRemotes)
+        if ($remotes.Count -lt 2) {
+            Show-AlphaMessageBox -Message (L "c2cNeedTwoAccountsBody" "Please connect at least two cloud accounts in Settings -> Accounts & Connections to transfer or copy files directly between accounts.") -Title (L "c2cModalTitle" "Cloud-to-Cloud Transfer") -Buttons "OK" -Icon "Information" | Out-Null
+            return
+        }
+        $e = { param($k, $fb) [System.Security.SecurityElement]::Escape((L $k $fb)) }
+        $body = @"
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Text="$(& $e 'c2cModalHeader' 'Direct Cloud-to-Cloud Transfer (Google Drive to Google Drive)')" TextWrapping="Wrap" FontSize="13.5" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,10"/>
+
+                <Grid Grid.Row="1" Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Orientation="Vertical">
+                        <TextBlock Text="$(& $e 'c2cSourceAccount' 'From Source Account:')" FontWeight="SemiBold" Foreground="#CBD5E1" Margin="0,0,0,4"/>
+                        <ComboBox x:Name="CmbC2CSrcAcc" Height="32"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Orientation="Vertical">
+                        <TextBlock Text="$(& $e 'c2cDestAccount' 'To Destination Account:')" FontWeight="SemiBold" Foreground="#CBD5E1" Margin="0,0,0,4"/>
+                        <ComboBox x:Name="CmbC2CDstAcc" Height="32"/>
+                    </StackPanel>
+                </Grid>
+
+                <StackPanel Grid.Row="2" Orientation="Vertical" Margin="0,0,0,10">
+                    <DockPanel LastChildFill="False" Margin="0,0,0,4">
+                        <TextBlock DockPanel.Dock="Left" Text="$(& $e 'c2cSourcePathLabel' 'Source Cloud Folder (leave empty for entire account):')" FontWeight="SemiBold" Foreground="#CBD5E1" VerticalAlignment="Center"/>
+                        <Button x:Name="BtnC2CFetchDirs" DockPanel.Dock="Right" Content="$(& $e 'c2cBrowseCloudDirs' 'Load Cloud Folders')" FontSize="11" Padding="9,3"/>
+                    </DockPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="8"/><ColumnDefinition Width="180"/></Grid.ColumnDefinitions>
+                        <TextBox x:Name="TxtC2CSrcPath" Grid.Column="0" FlowDirection="LeftToRight" Height="30" Text=""/>
+                        <ComboBox x:Name="CmbC2CCloudDirs" Grid.Column="2" FlowDirection="LeftToRight" Height="30" Visibility="Collapsed"/>
+                    </Grid>
+                </StackPanel>
+
+                <StackPanel Grid.Row="3" Orientation="Vertical" Margin="0,0,0,10">
+                    <TextBlock Text="$(& $e 'c2cDestPathLabel' 'Destination Cloud Folder (leave empty for root):')" FontWeight="SemiBold" Foreground="#CBD5E1" Margin="0,0,0,4"/>
+                    <TextBox x:Name="TxtC2CDstPath" FlowDirection="LeftToRight" Height="30" Text=""/>
+                </StackPanel>
+
+                <StackPanel Grid.Row="4" Orientation="Vertical" Margin="0,0,0,12">
+                    <TextBlock Text="$(& $e 'c2cModeLabel' 'Transfer Mode:')" FontWeight="SemiBold" Foreground="#CBD5E1" Margin="0,0,0,4"/>
+                    <ComboBox x:Name="CmbC2CMode" Height="32" SelectedIndex="0">
+                        <ComboBoxItem Content="$(& $e 'c2cModeCopy' 'Copy to Destination (Keep Source Files Safe)')" Tag="Copy"/>
+                        <ComboBoxItem Content="$(& $e 'c2cModeSync' 'Sync to Destination (Safe Archive on Destination)')" Tag="Sync"/>
+                        <ComboBoxItem Content="$(& $e 'c2cModeMove' 'Move to Destination (Delete from Source After Transfer)')" Tag="Move"/>
+                    </ComboBox>
+                </StackPanel>
+
+                <Border Grid.Row="5" Background="#0F291E" BorderBrush="#10B981" BorderThickness="1" CornerRadius="6" Padding="10,7" Margin="0,0,0,14">
+                    <TextBlock Text="$(& $e 'c2cServerSideHint' 'Uses direct Cloud-to-Cloud streaming &amp; server-side copy whenever supported — zero local disk space used.')" TextWrapping="Wrap" Foreground="#4ADE80" FontSize="11.5"/>
+                </Border>
+
+                <WrapPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="BtnC2CPreview" Content="$(& $e 'restoreModalPreviewBtn' 'Preview Only')" Margin="0,2,8,2"/>
+                    <Button x:Name="BtnC2CStart" Content="$(& $e 'c2cStartBtn' 'Start Cloud Transfer Now')" Background="#10B981" BorderBrush="#34D399" Foreground="#FFFFFF" FontWeight="Bold" Margin="0,2,8,2"/>
+                    <Button x:Name="BtnC2CCancel" Content="$(& $e 'btnCancel' 'Cancel')" Margin="0,2,0,2"/>
+                </WrapPanel>
+            </Grid>
+"@
+        $cw = New-AlphaModalWindow -Title (L "c2cModalTitle" "Cloud-to-Cloud Transfer") -ReqWidth 610 -ReqHeight 465 -Resizable $true -BodyXaml $body
+        $cbSrc = $cw.FindName("CmbC2CSrcAcc")
+        $cbDst = $cw.FindName("CmbC2CDstAcc")
+        $txtSrc = $cw.FindName("TxtC2CSrcPath")
+        $txtDst = $cw.FindName("TxtC2CDstPath")
+        $cbDirs = $cw.FindName("CmbC2CCloudDirs")
+        $btnDirs = $cw.FindName("BtnC2CFetchDirs")
+        $cbMode = $cw.FindName("CmbC2CMode")
+
+        $idxAct = 0; $i = 0
+        foreach ($r in $remotes) {
+            $lbl = "$(Get-AccountDisplayLabel -TargetRemote $r) ($r)"
+            $ci1 = New-Object System.Windows.Controls.ComboBoxItem; $ci1.Content = $lbl; $ci1.Tag = $r; $ci1.FlowDirection = "LeftToRight"; [void]$cbSrc.Items.Add($ci1)
+            $ci2 = New-Object System.Windows.Controls.ComboBoxItem; $ci2.Content = $lbl; $ci2.Tag = $r; $ci2.FlowDirection = "LeftToRight"; [void]$cbDst.Items.Add($ci2)
+            if ($r -eq $script:ActiveRemote) { $idxAct = $i }
+            $i++
+        }
+        $cbSrc.SelectedIndex = $idxAct
+        $cbDst.SelectedIndex = if ($idxAct -eq 0 -and $remotes.Count -gt 1) { 1 } else { 0 }
+
+        $btnDirs.Add_Click({
+            try {
+                $srcRem = if ($cbSrc.SelectedItem -and $cbSrc.SelectedItem.Tag) { $cbSrc.SelectedItem.Tag.ToString() } else { $script:ActiveRemote }
+                Invoke-UiPump
+                $res = Invoke-RcloneCapture -Arguments "lsf $(Format-WinArg "${srcRem}:") --dirs-only --quiet" -TimeoutMs 15000
+                $cbDirs.Items.Clear()
+                $rootItem = New-Object System.Windows.Controls.ComboBoxItem; $rootItem.Content = "/ (Entire Account)"; $rootItem.Tag = ""; [void]$cbDirs.Items.Add($rootItem)
+                if ($res.ExitCode -eq 0 -and -not [string]::IsNullOrWhiteSpace($res.StdOut)) {
+                    foreach ($line in ($res.StdOut -split "`r?`n")) {
+                        $dName = $line.Trim().TrimEnd('/')
+                        if (-not [string]::IsNullOrWhiteSpace($dName) -and $dName -ne "_CloudSync_Trash_Archive") {
+                            $di = New-Object System.Windows.Controls.ComboBoxItem; $di.Content = $dName; $di.Tag = $dName; [void]$cbDirs.Items.Add($di)
+                        }
+                    }
+                }
+                $cbDirs.Visibility = "Visible"
+                $cbDirs.SelectedIndex = 0
+            } catch {}
+        })
+
+        $cbDirs.Add_SelectionChanged({
+            if ($null -ne $cbDirs.SelectedItem -and $null -ne $cbDirs.SelectedItem.Tag) {
+                $picked = $cbDirs.SelectedItem.Tag.ToString()
+                $txtSrc.Text = $picked
+                if ([string]::IsNullOrWhiteSpace($txtDst.Text.Trim())) { $txtDst.Text = $picked }
+            }
+        })
+
+        $runC2C = {
+            param([bool]$IsPreview)
+            $sRem = if ($cbSrc.SelectedItem -and $cbSrc.SelectedItem.Tag) { $cbSrc.SelectedItem.Tag.ToString() } else { $remotes[0] }
+            $dRem = if ($cbDst.SelectedItem -and $cbDst.SelectedItem.Tag) { $cbDst.SelectedItem.Tag.ToString() } else { $remotes[1] }
+            $sPth = $txtSrc.Text.Trim()
+            $dPth = $txtDst.Text.Trim()
+            $tMod = if ($cbMode.SelectedItem -and $cbMode.SelectedItem.Tag) { $cbMode.SelectedItem.Tag.ToString() } else { "Copy" }
+            if ($sRem -ieq $dRem -and ($sPth.Trim('/') -ieq $dPth.Trim('/'))) {
+                Show-AlphaMessageBox -Message (L "c2cSameSourceDestMsg" "Source and destination cannot be identical.") -Title (L "c2cModalTitle" "Cloud-to-Cloud Transfer") -Buttons "OK" -Icon "Warning" | Out-Null
+                return
+            }
+            $cw.Close()
+            if ($IsPreview) {
+                Start-CloudToCloudBatch -SourceRemote $sRem -SourcePath $sPth -DestRemote $dRem -DestPath $dPth -TransferMode $tMod -DryRun
+            } else {
+                Start-CloudToCloudBatch -SourceRemote $sRem -SourcePath $sPth -DestRemote $dRem -DestPath $dPth -TransferMode $tMod
+            }
+        }
+
+        $cw.FindName("BtnC2CCancel").Add_Click({ $cw.Close() })
+        $cw.FindName("BtnC2CPreview").Add_Click({ & $runC2C $true })
+        $cw.FindName("BtnC2CStart").Add_Click({ & $runC2C $false })
+        [void]$cw.ShowDialog()
+    } catch { Write-StudioLog "[ERR] Cloud transfer dialog error: $($_.Exception.Message)" }
+}
+
+$BtnCloudTransfer.Add_Click({ Invoke-CloudToCloudTransferDialog })
+$BtnCloudTransferSet.Add_Click({ Invoke-CloudToCloudTransferDialog })
 $BtnClearLog.Add_Click({
     $rt = Get-AccountRuntime -TargetRemote $script:ActiveRemote
     $null = $rt.LogBuilder.Clear()

@@ -2,6 +2,31 @@
 
 All notable changes to **AlphaCloudSync** are documented in this file.
 
+## [1.1.0] - 2026-11-24
+### Added
+- **5-Tab Organized Settings Control Center (`Select-SettingsSubTab`):**
+  - Redesigned the Settings view into 5 clean horizontal sub-tabs (**Accounts & Connections**, **Sync Safety & Performance**, **Schedule & Skip Rules**, **General & Interface**, and **Windows Notifications**) so each category opens in its own uncluttered workspace, ready for multi-provider expansion (`OneDrive`, `Dropbox`, `S3`).
+- **In-App Automatic Update Detector & One-Click Self-Updater (`Start-BackgroundUpdateCheck` & `Invoke-AppSelfUpdate`):**
+  - Asynchronously checks GitHub Releases (`AlphaAlgos/AlphaCloudSync/releases/latest`) after launch with `0 ms` startup impact.
+  - When a newer version is available, displays a glowing **Top-Bar Update Pill (`BtnUpdateBanner`)** + Windows System Tray notification, plus a manual **Check for Updates (`BtnCheckUpdates`)** button in Settings.
+  - One-click self-update downloads the latest release, verifies the Fail-Closed SHA-256 checksum, closes the old instance without interrupting mounted virtual drives, installs the update, and relaunches automatically.
+- **Direct Account-to-Account Cloud Transfer (`Cloud-to-Cloud Transfer` — `Start-CloudToCloudBatch` & `Invoke-CloudToCloudTransferDialog`):**
+  - Added **Cloud-to-Cloud Transfer (`⇄`)** in both **Drive & Storage** and **Settings -> Accounts & Connections** to transfer or copy files directly between any two connected Google Drive accounts (`--drive-server-side-across-configs=true`) with zero local hard drive usage.
+  - Includes live remote cloud folder browsing (`Load Cloud Folders`), 3 transfer modes (**Copy**, **Sync with Safe Archive**, **Move**), **Preview Only**, and live file-by-file progress in the **Live Activity & Log** queue.
+- **Configurable Delete Safety Limit (`MaxDeleteLimit`) in Settings (`Sync Safety & Performance`):**
+  - Added a dedicated dropdown control (`CmbMaxDelete`) in **Settings -> Sync Safety & Performance** allowing users to choose the deletion protection threshold for **Exact Match (`Strict Mirror`)** mode: `No Limit (Unlimited)`, `Up to 200 files`, `Up to 500 files`, `Up to 1,000 files`, or `Up to 5,000 files`.
+- **Human-Friendly Localized Sync Error Translator (`Resolve-FriendlySyncError`, 7 Languages x 388 Keys):**
+  - Eliminated cryptic raw rclone exit code alerts (such as `"exited with code 7"` / `"Exit 7"`) across Windows toast notifications, folder status cells, and archive cleanup dialogs.
+  - Translates rclone diagnostics into clear, actionable user messages and status badges in all 7 languages (`en`, `ar`, `de`, `es`, `fr`, `id`, `zh`) covering: Delete safety limit paused, Google Drive storage full, Google sign-in session expired, File open in another app / path unavailable, Temporary network interruption, and General transfer retry.
+- **Seamless One-Line Shell Auto-Updater (`install.ps1` & `alphacloudsync-update`):**
+  - Running `irm https://raw.githubusercontent.com/AlphaAlgos/AlphaCloudSync/main/install.ps1 | iex` (or typing `alphacloudsync-update` from any terminal) now verifies the new release via Fail-Closed SHA-256 first, gracefully closes any running `AlphaCloudSync` GUI/tray instance without interrupting mounted virtual drives, installs the new binary, and relaunches automatically.
+
+### Fixed
+- **Uncapped Safe Archive Mode (`Get-MaxDeleteFlagString`):**
+  - Removed the `--max-delete 200` restriction from **Safe Archive** (`وضع الأرشفة الآمنة`) mode so refactoring, moving, or cleaning hundreds of files never aborts sync with rclone Exit Code 7 (since Safe Archive moves deleted/relocated files safely into `_CloudSync_Trash_Archive/<timestamp>` without deleting data).
+- **Automatic Stale Preset Path Healing:**
+  - Automatically refreshes stale default `JsonRulesPath` references in `settings.json` when custom rules are disabled.
+
 ## [1.0.0] - 2026-11-23
 ### Added
 - **Lightweight Windows Cloud Storage Core (Google Drive First, Extensible Provider Architecture):** Built on an open-source `rclone` + `WinFsp` core (`~1.13 MB` self-contained portable executable, `0.0 MB` closed idle RAM) starting with Google Drive in v1.0 and architected for multi-provider expansion in v1.1+.

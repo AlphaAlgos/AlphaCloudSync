@@ -38,6 +38,15 @@ function Apply-UiLanguage {
     $TxtSettingsSecAccounts.Text      = $loc.settingsSecAccounts
     $TxtSettingsSecGeneral.Text       = $loc.settingsSecGeneral
     $TxtSettingsSecNotifications.Text = $loc.settingsSecNotifications
+    $BtnSetTabAccounts.Content        = $loc.settingsSecAccounts
+    $BtnSetTabSync.Content            = $loc.settingsSecSync
+    $BtnSetTabBackup.Content          = $loc.settingsSecBackup
+    $BtnSetTabGeneral.Content         = $loc.settingsSecGeneral
+    $BtnSetTabNotif.Content           = $loc.settingsSecNotifications
+    $BtnCheckUpdates.Content          = $loc.btnCheckUpdates
+    $BtnCloudTransfer.Content         = $loc.btnCloudTransfer
+    $BtnCloudTransferSet.Content      = $loc.btnCloudTransfer
+    Update-AppVersionBannerUi
     $ChkNotifMaster.Content           = $loc.chkNotifMaster
     $ChkNotifManual.Content           = $loc.chkNotifManual
     $ChkNotifAutoSync.Content         = $loc.chkNotifAutoSync
@@ -136,6 +145,13 @@ function Apply-UiLanguage {
     $CbiSpeedTurbo.Content     = $loc.speedTurbo
     $CbiSpeedBalanced.Content  = $loc.speedBalanced
     $CbiSpeedEco.Content       = $loc.speedEco
+    $LblMaxDelete.Text         = $loc.lblMaxDelete
+    $CmbMaxDelete.ToolTip      = $loc.tipMaxDelete
+    $CbiMaxDelUnlimited.Content= $loc.maxDelUnlimited
+    $CbiMaxDel200.Content      = (LF "maxDelFilesFmt" @(200))
+    $CbiMaxDel500.Content      = (LF "maxDelFilesFmt" @(500))
+    $CbiMaxDel1000.Content     = (LF "maxDelFilesFmt" @(1000))
+    $CbiMaxDel5000.Content     = (LF "maxDelFilesFmt" @(5000))
     $LblFeedHeader.Text        = $loc.feedHeader
     $LblLogHeader.Text         = $loc.logHeader
     $BtnClearLog.Content       = $loc.clearLog
@@ -212,9 +228,18 @@ function Format-GridDisplayValue {
         "Missing locally"    { return (L "gridMissingLocally") }
         "0 MB (Not uploaded)"{ return (L "gridNotUploaded") }
         "Sign in to view"    { return (L "gridSignInToView") }
+        "Err:MaxDelete"      { return (L "gridErrMaxDelete" "Delete limit paused") }
+        "Err:QuotaFull"      { return (L "gridErrQuotaFull" "Drive storage full") }
+        "Err:AuthExpired"    { return (L "gridErrAuthExpired" "Sign-in required") }
+        "Err:PathOrAccess"   { return (L "gridErrPathOrAccess" "File in use or missing") }
+        "Err:Network"        { return (L "gridErrNetwork" "Network interrupted") }
+        "Err:General"        { return (L "gridErrGeneral" "Needs attention") }
         default {
             if ($RawVal -match '^Synced\s+(.+)$') { return (LF "gridSyncedAt" @((Wrap-Ltr $Matches[1]))) }
-            if ($RawVal -match '^Exit\s+(\d+)$')  { return (LF "gridExitError" @($Matches[1])) }
+            if ($RawVal -match '^Exit\s+(\d+)$')  {
+                if ($Matches[1] -eq "7") { return (L "gridErrMaxDelete" "Delete limit paused") }
+                return (L "gridErrGeneral" "Needs attention")
+            }
             if ($RawVal -match '^(.+?)\s*\((\d+)\s*files\)$') {
                 $szTok = if ($null -ne $script:CurrentLocale -and $script:CurrentLocale.rtl) { "$(Wrap-Ltr $Matches[1].Trim())$($script:RLM)" } else { Wrap-Ltr $Matches[1].Trim() }
                 return (LF "gridSizeWithFiles" @($szTok, $Matches[2]))

@@ -49,20 +49,44 @@ function Assert-ReleaseChecksum {
     return $actual
 }
 
+function Stop-RunningAlphaCloudSync {
+    $runningLauncher = @(Get-Process -Name "AlphaCloudSync" -ErrorAction SilentlyContinue)
+    $runningPs = @()
+    try {
+        $runningPs = @(Get-CimInstance Win32_Process -Filter "Name = 'powershell.exe'" -ErrorAction SilentlyContinue | Where-Object {
+            $_.ProcessId -ne $PID -and $_.CommandLine -match 'AlphaCloudSync[\\/]runtime[\\/].*AlphaCloudSync\.ps1'
+        })
+    } catch {}
+
+    if ($runningLauncher.Count -eq 0 -and $runningPs.Count -eq 0) { return $false }
+
+    Write-Host "Closing running AlphaCloudSync instance for seamless update (mounted drives remain untouched)..." -ForegroundColor Yellow
+    foreach ($p in $runningPs) {
+        try { Stop-Process -Id ([int]$p.ProcessId) -Force -ErrorAction SilentlyContinue } catch {}
+    }
+    foreach ($l in $runningLauncher) {
+        try { Stop-Process -Id $l.Id -Force -ErrorAction SilentlyContinue } catch {}
+    }
+
+    for ($w = 0; $w -lt 20; $w++) {
+        if (@(Get-Process -Name "AlphaCloudSync" -ErrorAction SilentlyContinue).Count -eq 0) { break }
+        Start-Sleep -Milliseconds 250
+    }
+    Start-Sleep -Milliseconds 300
+    return $true
+}
+
 if ($LoadFunctionsOnly) { return }
 
 $Repo       = "AlphaAlgos/AlphaCloudSync"
 $InstallDir = Join-Path $env:LOCALAPPDATA "AlphaCloudSync\app"
 $ExeDest    = Join-Path $InstallDir "AlphaCloudSync.exe"
+$UpdateCmd  = Join-Path $InstallDir "alphacloudsync-update.cmd"
 $ExeTmp     = Join-Path $env:TEMP "AlphaCloudSync_download_$PID.exe"
 $SumsTmp    = Join-Path $env:TEMP "AlphaCloudSync_SHA256SUMS_$PID.txt"
+$isUpgrade  = Test-Path -LiteralPath $ExeDest
 
-$running = @(Get-Process -Name "AlphaCloudSync" -ErrorAction SilentlyContinue)
-if ($running.Count -gt 0) {
-    throw "AlphaCloudSync is currently running (PID: $(($running | Select-Object -ExpandProperty Id) -join ', ')). Please close it cleanly before installing or updating."
-}
-
-Write-Host "Installing AlphaCloudSync by Alpha Algorithms Company..." -ForegroundColor Cyan
+Write-Host ($(if ($isUpgrade) { "Updating AlphaCloudSync to the latest release..." } else { "Installing AlphaCloudSync by Alpha Algorithms Company..." })) -ForegroundColor Cyan
 New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
@@ -88,10 +112,17 @@ try {
     $verifiedHash = Assert-ReleaseChecksum -FilePath $ExeTmp -SumsPath $SumsTmp -AssetName "AlphaCloudSync.exe"
     Write-Host "SHA-256 checksum verified (Fail-Closed): $verifiedHash" -ForegroundColor Green
 
+    $null = Stop-RunningAlphaCloudSync
     Move-Item -LiteralPath $ExeTmp -Destination $ExeDest -Force
 } finally {
     Remove-Item -LiteralPath $ExeTmp, $SumsTmp -Force -ErrorAction SilentlyContinue
 }
+
+# Create quick CLI updater command (alphacloudsync-update) in install folder
+try {
+    $cmdBody = "@echo off`r`npowershell.exe -NoProfile -ExecutionPolicy Bypass -Command `"irm https://raw.githubusercontent.com/AlphaAlgos/AlphaCloudSync/main/install.ps1 | iex`"`r`n"
+    [System.IO.File]::WriteAllText($UpdateCmd, $cmdBody, (New-Object System.Text.UTF8Encoding($false)))
+} catch {}
 
 # Create Desktop & Start Menu shortcuts (icon automatically comes from AlphaCloudSync.exe Win32 icon)
 try {

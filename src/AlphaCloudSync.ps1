@@ -28,7 +28,7 @@ if (-not [string]::IsNullOrWhiteSpace($DriveLetter)) {
 $script:LastAboutCache = @{}
 $script:IdentityCache  = @{}
 $AppName      = "AlphaCloudSync"
-$AppVersion   = "1.0.0"
+$AppVersion   = "1.1.0"
 $ScriptSelf   = $MyInvocation.MyCommand.Path
 $ScriptDir    = Split-Path -Parent $ScriptSelf
 $ProjectRoot  = if (-not [string]::IsNullOrWhiteSpace($env:ALPHACLOUDSYNC_RUNTIME_ROOT) -and (Test-Path -LiteralPath $env:ALPHACLOUDSYNC_RUNTIME_ROOT)) {
@@ -177,6 +177,7 @@ $ChkNotifDriveEvents.IsChecked = [bool]$Settings.NotifyDriveEvents
 Update-NotificationSubState
 $CmbDeletePolicy.SelectedIndex = switch ($Settings.DeletePolicy) { "Copy-Only" { 1 } "Strict Mirror" { 2 } default { 0 } }
 $CmbSpeedPreset.SelectedIndex  = switch ($Settings.SpeedPreset)  { "Balanced"  { 1 } "Eco"           { 2 } default { 0 } }
+$CmbMaxDelete.SelectedIndex    = switch ([int]$Settings.MaxDeleteLimit) { 200 { 1 } 500 { 2 } 1000 { 3 } 5000 { 4 } default { 0 } }
 $CmbMountMode.SelectedIndex    = if ($Settings.DriveLayout -eq "Unified") { 2 } elseif ($Settings.MountMode -eq "Mirror") { 1 } else { 0 }
 $langCodeInit = if ([string]::IsNullOrWhiteSpace($Settings.Language)) { "en" } else { $Settings.Language.ToLowerInvariant() }
 $langIdxMap = @{ "en" = 0; "ar" = 1; "es" = 2; "fr" = 3; "de" = 4; "zh" = 5; "id" = 6 }

@@ -28,6 +28,7 @@ function Get-Settings {
             DriveLayout      = "Separate"
             ComputerLabel    = "My Computer"
             DeletePolicy     = "Safe Archive"
+            MaxDeleteLimit   = 0
             SpeedPreset      = "Turbo"
             UseJsonRules     = $true
             JsonRulesPath    = $defPreset
@@ -54,6 +55,12 @@ function Get-Settings {
         if (-not $s.PSObject.Properties["DriveLayout"])     { $s | Add-Member -NotePropertyName "DriveLayout"     -NotePropertyValue "Separate"     -Force }
         if (-not $s.PSObject.Properties["ComputerLabel"])   { $s | Add-Member -NotePropertyName "ComputerLabel"   -NotePropertyValue "My Computer"  -Force }
         if (-not $s.PSObject.Properties["DeletePolicy"])    { $s | Add-Member -NotePropertyName "DeletePolicy"    -NotePropertyValue "Safe Archive" -Force }
+        if (-not $s.PSObject.Properties["MaxDeleteLimit"])  { $s | Add-Member -NotePropertyName "MaxDeleteLimit"  -NotePropertyValue 0              -Force }
+        else {
+            $parsedLimit = 0
+            if ([int]::TryParse("$($s.MaxDeleteLimit)", [ref]$parsedLimit) -and $parsedLimit -ge 0) { $s.MaxDeleteLimit = $parsedLimit }
+            else { $s.MaxDeleteLimit = 0 }
+        }
         if (-not $s.PSObject.Properties["SpeedPreset"])     { $s | Add-Member -NotePropertyName "SpeedPreset"     -NotePropertyValue "Turbo"        -Force }
         if (-not $s.PSObject.Properties["UseJsonRules"])    { $s | Add-Member -NotePropertyName "UseJsonRules"    -NotePropertyValue $true          -Force }
         if (-not $s.PSObject.Properties["Language"] -or [string]::IsNullOrWhiteSpace([string]$s.Language)) { $s | Add-Member -NotePropertyName "Language" -NotePropertyValue "en" -Force }
@@ -71,6 +78,8 @@ function Get-Settings {
         if (-not $s.PSObject.Properties["IslandPos"])       { $s | Add-Member -NotePropertyName "IslandPos"       -NotePropertyValue $defIsland     -Force }
         if (-not $s.PSObject.Properties["JsonRulesPath"]) {
             $s | Add-Member -NotePropertyName "JsonRulesPath" -NotePropertyValue $defPreset -Force
+        } elseif ((-not [bool]$s.UseJsonRules) -and (-not [string]::IsNullOrWhiteSpace([string]$s.JsonRulesPath)) -and (-not (Test-Path -LiteralPath ([string]$s.JsonRulesPath) -PathType Leaf))) {
+            $s.JsonRulesPath = $defPreset
         }
         return $s
     } catch {
@@ -82,6 +91,7 @@ function Get-Settings {
             DriveLayout          = "Separate"
             ComputerLabel        = "My Computer"
             DeletePolicy         = "Safe Archive"
+            MaxDeleteLimit       = 0
             SpeedPreset          = "Turbo"
             UseJsonRules         = $true
             JsonRulesPath        = ""
@@ -483,4 +493,65 @@ function Save-BackupHealth {
         }
         [System.IO.File]::WriteAllText($HealthPath, (ConvertTo-Json -InputObject $obj -Depth 4), (New-Object System.Text.UTF8Encoding($false)))
     } catch {}
+}
+
+function Get-MaxDeleteFlagString {
+    param(
+        [string]$Policy = "Safe Archive",
+        [int]$Limit = 0
+    )
+    # Safe Archive moves deleted/moved files safely to _CloudSync_Trash_Archive without deleting anything.
+    # Copy-Only never deletes or moves remote files. Neither mode should ever be blocked by --max-delete.
+    if ($Policy -ne "Strict Mirror") { return "" }
+    if ($Limit -gt 0) { return "--max-delete $Limit" }
+    return ""
+}
+
+function Resolve-FriendlySyncError {
+    param(
+        [string]$FolderName = "",
+        [int]$ExitCode = 1,
+        [string]$RawError = ""
+    )
+    $errText = if ($null -ne $RawError) { $RawError.Trim() } else { "" }
+    if ($errText -match '(?i)max[- ]delete|Deleting more than') {
+        return [PSCustomObject]@{
+            StatusToken = "Err:MaxDelete"
+            ShortStatus = (L "gridErrMaxDelete" "Delete limit paused")
+            UserMessage = (LF "errMaxDeleteBody" @($FolderName))
+        }
+    }
+    if ($errText -match '(?i)storageQuotaExceeded|quota.*exceeded|insufficient.*storage|storage.*full|not enough space') {
+        return [PSCustomObject]@{
+            StatusToken = "Err:QuotaFull"
+            ShortStatus = (L "gridErrQuotaFull" "Drive storage full")
+            UserMessage = (LF "errQuotaFullBody" @($FolderName))
+        }
+    }
+    if ($errText -match '(?i)invalid_grant|token.*expired|oauth2|unauthorized|401\b|didn''t find section in config') {
+        return [PSCustomObject]@{
+            StatusToken = "Err:AuthExpired"
+            ShortStatus = (L "gridErrAuthExpired" "Sign-in required")
+            UserMessage = (LF "errAuthExpiredBody" @($FolderName))
+        }
+    }
+    if ($ExitCode -in @(3, 4) -or $errText -match '(?i)directory not found|path not found|does not exist|being used by another process|access is denied|The process cannot access the file') {
+        return [PSCustomObject]@{
+            StatusToken = "Err:PathOrAccess"
+            ShortStatus = (L "gridErrPathOrAccess" "File in use or missing")
+            UserMessage = (LF "errPathOrAccessBody" @($FolderName))
+        }
+    }
+    if ($errText -match '(?i)dial tcp|no such host|connection reset|context deadline exceeded|i/o timeout|TLS handshake|EOF\b|network is unreachable|temporary failure') {
+        return [PSCustomObject]@{
+            StatusToken = "Err:Network"
+            ShortStatus = (L "gridErrNetwork" "Network interrupted")
+            UserMessage = (LF "errNetworkBody" @($FolderName))
+        }
+    }
+    return [PSCustomObject]@{
+        StatusToken = "Err:General"
+        ShortStatus = (L "gridErrGeneral" "Needs attention")
+        UserMessage = (LF "errGeneralBody" @($FolderName))
+    }
 }

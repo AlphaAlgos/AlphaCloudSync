@@ -182,11 +182,11 @@
 1. حمّل **[`AlphaCloudSync-Setup-x64.exe`](https://github.com/AlphaAlgos/AlphaCloudSync/releases/latest/download/AlphaCloudSync-Setup-x64.exe)** (`~2.46 MB`، معالج Inno Setup 6 يدعم العربية RTL والإنجليزية واللغات العالمية) من صفحة [الإصدارات (Releases)](https://github.com/AlphaAlgos/AlphaCloudSync/releases).
 2. اضغط مرتين للتثبيت النظيف في `%LOCALAPPDATA%\AlphaCloudSync\app\` (بدون الحاجة لصلاحيات مسؤول UAC) مع إنشاء اختصارات سطح المكتب وقائمة ابدأ وإضافة `PATH` وإزالة نظيفة من قائمة تطبيقات ويندوز.
 
-### الطريقة 2 — التثبيت بسطر واحد عبر PowerShell (تحقق SHA-256 إلزامي Fail-Closed)
+### الطريقة 2 — التثبيت والتحديث التلقائي بسطر واحد عبر PowerShell (تحقق SHA-256 إلزامي Fail-Closed)
 ```powershell
 irm https://raw.githubusercontent.com/AlphaAlgos/AlphaCloudSync/main/install.ps1 | iex
 ```
-يقوم بتحميل أحدث إصدار إلى `%LOCALAPPDATA%\AlphaCloudSync\app\`، **ويفرض التحقق الإلزامي ببصمة SHA-256** (يرفض التثبيت ويحذف الملف فوراً إن غابت `SHA256SUMS.txt` أو اختلفت البصمة)، ثم ينشئ اختصارات سطح المكتب وقائمة ابدأ ويضيف `AlphaCloudSync` إلى `PATH`.
+يقوم بتحميل أحدث إصدار إلى `%LOCALAPPDATA%\AlphaCloudSync\app\`، **ويفرض التحقق الإلزامي ببصمة SHA-256** (يرفض التثبيت ويحذف الملف فوراً إن غابت `SHA256SUMS.txt` أو اختلفت البصمة)، ويغلق النسخة القديمة قيد التشغيل تلقائياً دون فصل الأقراص السحابية الموصّلة، ثم يثبّت أو يحدّث البرنامج ويعيد تشغيله فوراً، مع إضافة أمر التحديث المختصر **`alphacloudsync-update`** إلى `PATH`.
 
 ### الطريقة 3 — ملف محمول `.exe` (بدون تثبيت)
 1. حمّل **[`AlphaCloudSync.exe`](https://github.com/AlphaAlgos/AlphaCloudSync/releases/latest/download/AlphaCloudSync.exe)** (`~1.16 MB`) و **`SHA256SUMS.txt`** من صفحة [الإصدارات (Releases)](https://github.com/AlphaAlgos/AlphaCloudSync/releases).

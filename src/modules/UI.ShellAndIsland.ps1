@@ -40,6 +40,44 @@ $BtnNavActivity.Add_Click({ Select-StudioTab "Activity" })
 $BtnNavStorage.Add_Click({  Select-StudioTab "Storage"  })
 $BtnNavSettings.Add_Click({ Select-StudioTab "Settings" })
 
+$script:ActiveSettingsSubTab = "Accounts"
+function Select-SettingsSubTab {
+    param([string]$SubTab = "Accounts")
+    $script:ActiveSettingsSubTab = $SubTab
+    $bc = New-Object System.Windows.Media.BrushConverter
+    $CardSetAccounts.Visibility = if ($SubTab -eq "Accounts") { "Visible" } else { "Collapsed" }
+    $CardSetSync.Visibility     = if ($SubTab -eq "Sync")     { "Visible" } else { "Collapsed" }
+    $CardSetBackup.Visibility   = if ($SubTab -eq "Backup")   { "Visible" } else { "Collapsed" }
+    $CardSetGeneral.Visibility  = if ($SubTab -eq "General")  { "Visible" } else { "Collapsed" }
+    $CardSetNotif.Visibility    = if ($SubTab -eq "Notif")    { "Visible" } else { "Collapsed" }
+
+    $subMap = @(
+        @{ Key = "Accounts"; Btn = $BtnSetTabAccounts },
+        @{ Key = "Sync";     Btn = $BtnSetTabSync     },
+        @{ Key = "Backup";   Btn = $BtnSetTabBackup   },
+        @{ Key = "General";  Btn = $BtnSetTabGeneral  },
+        @{ Key = "Notif";    Btn = $BtnSetTabNotif    }
+    )
+    foreach ($st in $subMap) {
+        if ($null -eq $st.Btn) { continue }
+        if ($st.Key -eq $SubTab) {
+            $st.Btn.Background  = $bc.ConvertFromString("#13233A")
+            $st.Btn.BorderBrush = $bc.ConvertFromString("#38BDF8")
+            $st.Btn.Foreground  = $bc.ConvertFromString("#F8FAFC")
+        } else {
+            $st.Btn.Background  = $bc.ConvertFromString("#0B1322")
+            $st.Btn.BorderBrush = $bc.ConvertFromString("#1E2C42")
+            $st.Btn.Foreground  = $bc.ConvertFromString("#94A3B8")
+        }
+    }
+}
+
+$BtnSetTabAccounts.Add_Click({ Select-SettingsSubTab "Accounts" })
+$BtnSetTabSync.Add_Click({     Select-SettingsSubTab "Sync"     })
+$BtnSetTabBackup.Add_Click({   Select-SettingsSubTab "Backup"   })
+$BtnSetTabGeneral.Add_Click({  Select-SettingsSubTab "General"  })
+$BtnSetTabNotif.Add_Click({    Select-SettingsSubTab "Notif"    })
+
 # ==============================================================================
 # STATE, BATCH TRACKING & PER-JOB UNIQUE LOGS
 # ==============================================================================
@@ -1502,6 +1540,140 @@ function Set-SplashStage {
     } catch {}
 }
 
+$script:LatestAvailableVersion = ""
+$script:UpdateCheckWebClient   = $null
+$script:UpdateCheckTask        = $null
+$script:UpdateCheckTimer       = $null
+$script:UpdateToastShown       = $false
+
+function Test-IsNewerReleaseVersion {
+    param([string]$CurrentVer = $AppVersion, [string]$RemoteTag = "")
+    if ([string]::IsNullOrWhiteSpace($RemoteTag)) { return $false }
+    try {
+        $cClean = ($CurrentVer.Trim() -replace '^[vV]', '' -replace '-.*$', '')
+        $rClean = ($RemoteTag.Trim()  -replace '^[vV]', '' -replace '-.*$', '')
+        $vCur = [version]$cClean
+        $vRem = [version]$rClean
+        return ($vRem -gt $vCur)
+    } catch { return $false }
+}
+
+function Update-AppVersionBannerUi {
+    try {
+        if (-not [string]::IsNullOrWhiteSpace($script:LatestAvailableVersion)) {
+            $verDisp = Wrap-Ltr "v$($script:LatestAvailableVersion)"
+            if ($null -ne $TxtUpdateBanner) { $TxtUpdateBanner.Text = (LF "updateBannerBtn" @($verDisp)) }
+            if ($null -ne $BtnUpdateBanner) { $BtnUpdateBanner.Visibility = "Visible" }
+            if ($null -ne $TxtUpdateStatus) {
+                $TxtUpdateStatus.Text = (LF "updateStatusAvail" @($verDisp))
+                $TxtUpdateStatus.Foreground = (New-Object System.Windows.Media.BrushConverter).ConvertFromString("#4ADE80")
+            }
+        } else {
+            if ($null -ne $BtnUpdateBanner) { $BtnUpdateBanner.Visibility = "Collapsed" }
+            if ($null -ne $TxtUpdateStatus) {
+                $curDisp = Wrap-Ltr "v$AppVersion"
+                $TxtUpdateStatus.Text = (LF "updateStatusCurrent" @($curDisp))
+                $TxtUpdateStatus.Foreground = (New-Object System.Windows.Media.BrushConverter).ConvertFromString("#94A3B8")
+            }
+        }
+    } catch {}
+}
+
+function Start-BackgroundUpdateCheck {
+    try {
+        if ($null -ne $script:UpdateCheckTask -and -not $script:UpdateCheckTask.IsCompleted) { return }
+        $wc = New-Object System.Net.WebClient
+        $wc.Encoding = [System.Text.Encoding]::UTF8
+        $wc.Headers.Add("User-Agent", "AlphaCloudSync/$AppVersion")
+        $wc.Headers.Add("Accept", "application/vnd.github.v3+json")
+        $script:UpdateCheckWebClient = $wc
+        $script:UpdateCheckTask = $wc.DownloadStringTaskAsync("https://api.github.com/repos/AlphaAlgos/AlphaCloudSync/releases/latest")
+        $script:UpdateCheckStartUtc = [datetime]::UtcNow
+        if ($null -eq $script:UpdateCheckTimer) {
+            $script:UpdateCheckTimer = New-Object System.Windows.Threading.DispatcherTimer
+            $script:UpdateCheckTimer.Interval = [TimeSpan]::FromMilliseconds(400)
+            $script:UpdateCheckTimer.Add_Tick({
+                try {
+                    if ($null -eq $script:UpdateCheckTask) { $script:UpdateCheckTimer.Stop(); return }
+                    $elapsed = ([datetime]::UtcNow - $script:UpdateCheckStartUtc).TotalSeconds
+                    if ($script:UpdateCheckTask.IsCompleted -or $elapsed -ge 12.0) {
+                        $script:UpdateCheckTimer.Stop()
+                        if ($script:UpdateCheckTask.IsCompleted -and -not $script:UpdateCheckTask.IsFaulted -and -not $script:UpdateCheckTask.IsCanceled) {
+                            $rawJson = $script:UpdateCheckTask.Result
+                            if (-not [string]::IsNullOrWhiteSpace($rawJson)) {
+                                $relObj = $rawJson | ConvertFrom-Json
+                                $tag = [string]$relObj.tag_name
+                                if (Test-IsNewerReleaseVersion -CurrentVer $AppVersion -RemoteTag $tag) {
+                                    $cleanV = ($tag.Trim() -replace '^[vV]', '')
+                                    $script:LatestAvailableVersion = $cleanV
+                                    Update-AppVersionBannerUi
+                                    if (-not $script:UpdateToastShown) {
+                                        $script:UpdateToastShown = $true
+                                        Show-TrayToast -Title (L "toastUpdateAvailTitle" "AlphaCloudSync Update Available") -Body (LF "toastUpdateAvailBody" @("v$cleanV"))
+                                    }
+                                }
+                            }
+                        }
+                        try { if ($null -ne $script:UpdateCheckWebClient) { $script:UpdateCheckWebClient.Dispose() } } catch {}
+                        $script:UpdateCheckWebClient = $null
+                        $script:UpdateCheckTask = $null
+                    }
+                } catch {
+                    $script:UpdateCheckTimer.Stop()
+                    $script:UpdateCheckWebClient = $null
+                    $script:UpdateCheckTask = $null
+                }
+            })
+        }
+        $script:UpdateCheckTimer.Start()
+    } catch {}
+}
+
+function Invoke-AppSelfUpdate {
+    param([switch]$ManualCheck)
+    try {
+        if ($ManualCheck -and [string]::IsNullOrWhiteSpace($script:LatestAvailableVersion)) {
+            Invoke-UiPump
+            try {
+                [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+                $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/AlphaAlgos/AlphaCloudSync/releases/latest" -Headers @{ "User-Agent" = "AlphaCloudSync/$AppVersion" } -TimeoutSec 12
+                if ($null -ne $rel -and -not [string]::IsNullOrWhiteSpace([string]$rel.tag_name)) {
+                    $tag = [string]$rel.tag_name
+                    if (Test-IsNewerReleaseVersion -CurrentVer $AppVersion -RemoteTag $tag) {
+                        $script:LatestAvailableVersion = ($tag.Trim() -replace '^[vV]', '')
+                    }
+                }
+            } catch {}
+            Update-AppVersionBannerUi
+        }
+
+        if ([string]::IsNullOrWhiteSpace($script:LatestAvailableVersion)) {
+            Show-AlphaMessageBox -Message (LF "msgUpToDateBody" @("v$AppVersion")) -Title (L "msgUpToDateTitle" "Up to Date") -Buttons "OK" -Icon "Information" | Out-Null
+            return
+        }
+
+        $newV = "v$($script:LatestAvailableVersion)"
+        $curV = "v$AppVersion"
+        $ans = Show-AlphaMessageBox -Message (LF "msgConfirmUpdateBody" @($newV, $curV)) -Title (L "msgConfirmUpdateTitle" "Update AlphaCloudSync") -Buttons "YesNo" -Icon "Question"
+        if ($ans -eq [System.Windows.MessageBoxResult]::Yes) {
+            Write-StudioLog -Msg "[UPDATE] Downloading and installing AlphaCloudSync $newV (SHA-256 verified)..." -TargetRemote $script:ActiveRemote
+            $psExe = Join-Path $env:WINDIR "System32\WindowsPowerShell\v1.0\powershell.exe"
+            if (-not (Test-Path -LiteralPath $psExe)) { $psExe = "powershell.exe" }
+            $psiUp = New-Object System.Diagnostics.ProcessStartInfo
+            $psiUp.FileName = $psExe
+            $psiUp.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command `"irm https://raw.githubusercontent.com/AlphaAlgos/AlphaCloudSync/main/install.ps1 | iex`""
+            $psiUp.UseShellExecute = $false
+            $psiUp.CreateNoWindow = $true
+            [void][System.Diagnostics.Process]::Start($psiUp)
+        }
+    } catch {
+        Write-StudioLog "[ERR] Update check failed: $($_.Exception.Message)"
+    }
+}
+
+$BtnUpdateBanner.Add_Click({ Invoke-AppSelfUpdate })
+$BtnCheckUpdates.Add_Click({ Invoke-AppSelfUpdate -ManualCheck })
+
 function Invoke-PostStartupHousekeep {
     try {
         $script:SkipWmiMountProbe = $false
@@ -1512,6 +1684,7 @@ function Invoke-PostStartupHousekeep {
         if ($script:IslandEnabled) { Set-CloudIslandEnabled -Enable $true }
         Refresh-StudioHeader
         Start-SequentialAccountHydration
+        Start-BackgroundUpdateCheck
         if (-not [string]::IsNullOrWhiteSpace($script:PendingContextAction)) {
             $actC = $script:PendingContextAction; $pthC = $script:PendingContextPath
             $script:PendingContextAction = ""; $script:PendingContextPath = ""

@@ -543,9 +543,12 @@ $script:DarkControlStylesXaml = @"
                         <Image x:Name="ImgTitleIcon" FlowDirection="LeftToRight" Width="20" Height="20" Margin="0,0,9,0" RenderOptions.BitmapScalingMode="HighQuality"/>
                         <TextBlock x:Name="TxtWindowTitle" FlowDirection="LeftToRight" Text="AlphaCloudSync" FontSize="13" FontWeight="Bold" Foreground="#F1F5F9" VerticalAlignment="Center"/>
                         <Border Background="#12243D" BorderBrush="#1F3B61" BorderThickness="1" CornerRadius="4" Padding="6,1" Margin="8,0,0,0" VerticalAlignment="Center">
-                            <TextBlock x:Name="TxtBrandBadge" Text="v1.0" FontSize="10" FontWeight="SemiBold" Foreground="#38BDF8"/>
+                            <TextBlock x:Name="TxtBrandBadge" Text="v1.1.0" FontSize="10" FontWeight="SemiBold" Foreground="#38BDF8"/>
                         </Border>
                         <TextBlock x:Name="TxtWindowSubtitle" Text="" FontSize="11.5" Foreground="#64748B" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                        <Button x:Name="BtnUpdateBanner" Visibility="Collapsed" Background="#064E3B" BorderBrush="#10B981" Foreground="#A7F3D0" FontSize="11" FontWeight="Bold" Padding="10,2" Height="24" Margin="12,0,0,0" VerticalAlignment="Center" Cursor="Hand">
+                            <TextBlock x:Name="TxtUpdateBanner" Text="Update Available" VerticalAlignment="Center"/>
+                        </Button>
                     </StackPanel>
 
                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
@@ -1042,19 +1045,41 @@ $script:DarkControlStylesXaml = @"
                                     <Button x:Name="BtnMountAll" Content="Mount All Accounts" Background="#0E7490" BorderBrush="#06B6D4" Foreground="#FFFFFF" Margin="0,2,8,2"/>
                                     <Button x:Name="BtnUnmountAll" Content="Hide All Drives" Margin="0,2,8,2"/>
                                     <Button x:Name="BtnToggleDriveRow" Content="Show / Hide Selected" Margin="0,2,8,2"/>
-                                    <Button x:Name="BtnRenameAccount" Content="Rename Account" Margin="0,2,0,2"/>
+                                <WrapPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button x:Name="BtnMountAll" Content="Mount All Accounts" Background="#0284C7" BorderBrush="#38BDF8" Foreground="#FFFFFF" Margin="0,2,6,2"/>
+                                    <Button x:Name="BtnUnmountAll" Content="Hide All Drives" Margin="0,2,6,2"/>
+                                    <Button x:Name="BtnToggleDriveRow" Content="Show / Hide Selected" Margin="0,2,6,2"/>
+                                    <Button x:Name="BtnRenameAccount" Content="Rename Account" Margin="0,2,6,2"/>
+                                    <Button x:Name="BtnCloudTransfer" Content="Cloud-to-Cloud Transfer" Background="#065F46" BorderBrush="#10B981" Foreground="#FFFFFF" Margin="0,2,0,2"/>
                                 </WrapPanel>
                             </Grid>
                         </Border>
                     </Grid>
 
-                    <!-- VIEW 4: ORGANIZED SETTINGS CONTROL CENTER (ACCOUNTS, LANGUAGE, ISLAND, SCHEDULE & SAFETY) -->
+                    <!-- VIEW 4: TABBED SETTINGS CONTROL CENTER (5 ORGANIZED SUB-TABS READY FOR MULTI-PROVIDER EXPANSION) -->
                     <ScrollViewer x:Name="PanelSettings" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <StackPanel Orientation="Vertical" Margin="0,0,6,8">
-                            <TextBlock x:Name="TxtSettingsPageTitle" Text="Settings" FontSize="18" FontWeight="Bold" Foreground="#F8FAFC" Margin="0,0,0,14"/>
+                            <DockPanel LastChildFill="False" Margin="0,0,0,12">
+                                <TextBlock x:Name="TxtSettingsPageTitle" DockPanel.Dock="Left" Text="Settings" FontSize="18" FontWeight="Bold" Foreground="#F8FAFC" VerticalAlignment="Center"/>
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock x:Name="TxtUpdateStatus" Text="" FontSize="11.5" Foreground="#34D399" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                    <Button x:Name="BtnCheckUpdates" Content="Check for Updates" Background="#122138" BorderBrush="#284268" Foreground="#38BDF8" FontSize="11.5" Padding="11,5"/>
+                                </StackPanel>
+                            </DockPanel>
 
-                            <!-- SECTION 1: ACCOUNTS & CONNECTIONS -->
-                            <Border Background="#0F1829" BorderBrush="#1E2C42" BorderThickness="1" CornerRadius="10" Padding="16,14" Margin="0,0,0,12">
+                            <!-- SETTINGS HORIZONTAL SUB-TAB BAR -->
+                            <Border Background="#0A101D" BorderBrush="#19263C" BorderThickness="1" CornerRadius="9" Padding="6,5" Margin="0,0,0,14">
+                                <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button x:Name="BtnSetTabAccounts" Content="Accounts &amp; Connections" Background="#13233A" BorderBrush="#38BDF8" Foreground="#F8FAFC" FontSize="12" FontWeight="SemiBold" Padding="13,6" Margin="0,2,6,2"/>
+                                    <Button x:Name="BtnSetTabSync" Content="Sync Safety &amp; Performance" Background="#0B1322" BorderBrush="#1E2C42" Foreground="#94A3B8" FontSize="12" FontWeight="SemiBold" Padding="13,6" Margin="0,2,6,2"/>
+                                    <Button x:Name="BtnSetTabBackup" Content="Schedule &amp; Skip Rules" Background="#0B1322" BorderBrush="#1E2C42" Foreground="#94A3B8" FontSize="12" FontWeight="SemiBold" Padding="13,6" Margin="0,2,6,2"/>
+                                    <Button x:Name="BtnSetTabGeneral" Content="General &amp; Interface" Background="#0B1322" BorderBrush="#1E2C42" Foreground="#94A3B8" FontSize="12" FontWeight="SemiBold" Padding="13,6" Margin="0,2,6,2"/>
+                                    <Button x:Name="BtnSetTabNotif" Content="Windows Notifications" Background="#0B1322" BorderBrush="#1E2C42" Foreground="#94A3B8" FontSize="12" FontWeight="SemiBold" Padding="13,6" Margin="0,2,0,2"/>
+                                </WrapPanel>
+                            </Border>
+
+                            <!-- TAB 1: ACCOUNTS & CONNECTIONS -->
+                            <Border x:Name="CardSetAccounts" Visibility="Visible" Background="#0F1829" BorderBrush="#1E2C42" BorderThickness="1" CornerRadius="10" Padding="16,14" Margin="0,0,0,12">
                                 <StackPanel Orientation="Vertical">
                                     <TextBlock x:Name="TxtSettingsSecAccounts" Text="Accounts &amp; Connections" FontSize="13.5" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,10"/>
                                     <DockPanel LastChildFill="False">
@@ -1065,14 +1090,15 @@ $script:DarkControlStylesXaml = @"
                                         <WrapPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                                             <Button x:Name="BtnAddAccount" Content="+ Add Account" Background="#0284C7" BorderBrush="#38BDF8" Foreground="#FFFFFF" Margin="0,2,8,2"/>
                                             <Button x:Name="BtnAuthToggle" Content="Sign In" Margin="0,2,8,2"/>
-                                            <Button x:Name="BtnCustomClientId" Content="Faster Mode" Margin="0,2,0,2"/>
+                                            <Button x:Name="BtnCustomClientId" Content="Faster Mode" Margin="0,2,8,2"/>
+                                            <Button x:Name="BtnCloudTransferSet" Content="Cloud-to-Cloud Transfer" Background="#065F46" BorderBrush="#10B981" Foreground="#FFFFFF" Margin="0,2,0,2"/>
                                         </WrapPanel>
                                     </DockPanel>
                                 </StackPanel>
                             </Border>
 
-                            <!-- SECTION 2: GENERAL & INTERFACE (LANGUAGE, CLOUD ISLAND, WINDOWS STARTUP) -->
-                            <Border Background="#0F1829" BorderBrush="#1E2C42" BorderThickness="1" CornerRadius="10" Padding="16,14" Margin="0,0,0,12">
+                            <!-- TAB 4: GENERAL & INTERFACE (LANGUAGE, CLOUD ISLAND, WINDOWS STARTUP) -->
+                            <Border x:Name="CardSetGeneral" Visibility="Collapsed" Background="#0F1829" BorderBrush="#1E2C42" BorderThickness="1" CornerRadius="10" Padding="16,14" Margin="0,0,0,12">
                                 <StackPanel Orientation="Vertical">
                                     <TextBlock x:Name="TxtSettingsSecGeneral" Text="General &amp; Interface" FontSize="13.5" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,11"/>
                                     <WrapPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,12">
@@ -1103,8 +1129,8 @@ $script:DarkControlStylesXaml = @"
                                 </StackPanel>
                             </Border>
 
-                            <!-- SECTION 2B: WINDOWS NOTIFICATIONS CONTROL -->
-                            <Border Background="#0F1829" BorderBrush="#1E2C42" BorderThickness="1" CornerRadius="10" Padding="16,14" Margin="0,0,0,12">
+                            <!-- TAB 5: WINDOWS NOTIFICATIONS CONTROL -->
+                            <Border x:Name="CardSetNotif" Visibility="Collapsed" Background="#0F1829" BorderBrush="#1E2C42" BorderThickness="1" CornerRadius="10" Padding="16,14" Margin="0,0,0,12">
                                 <StackPanel Orientation="Vertical">
                                     <TextBlock x:Name="TxtSettingsSecNotifications" Text="Windows Notifications" FontSize="13.5" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,10"/>
                                     <CheckBox x:Name="ChkNotifMaster" Content="Enable Windows desktop notifications" FontSize="12.5" FontWeight="SemiBold" Margin="0,0,0,10"/>
@@ -1119,8 +1145,8 @@ $script:DarkControlStylesXaml = @"
                                 </StackPanel>
                             </Border>
 
-                            <!-- SECTION 3: SCHEDULE & SKIP RULES -->
-                            <Border Background="#0F1829" BorderBrush="#1E2C42" BorderThickness="1" CornerRadius="10" Padding="16,14" Margin="0,0,0,12">
+                            <!-- TAB 3: SCHEDULE & SKIP RULES -->
+                            <Border x:Name="CardSetBackup" Visibility="Collapsed" Background="#0F1829" BorderBrush="#1E2C42" BorderThickness="1" CornerRadius="10" Padding="16,14" Margin="0,0,0,12">
                                 <StackPanel Orientation="Vertical">
                                     <TextBlock x:Name="TxtSettingsSecBackup" Text="Schedule &amp; Skip Rules" FontSize="13.5" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,11"/>
                                     <DockPanel LastChildFill="False" Margin="0,0,0,12">
@@ -1165,8 +1191,8 @@ $script:DarkControlStylesXaml = @"
                                 </StackPanel>
                             </Border>
 
-                            <!-- SECTION 4: SYNC SAFETY & PERFORMANCE -->
-                            <Border Background="#0F1829" BorderBrush="#1E2C42" BorderThickness="1" CornerRadius="10" Padding="16,14">
+                            <!-- TAB 2: SYNC SAFETY & PERFORMANCE -->
+                            <Border x:Name="CardSetSync" Visibility="Collapsed" Background="#0F1829" BorderBrush="#1E2C42" BorderThickness="1" CornerRadius="10" Padding="16,14">
                                 <StackPanel Orientation="Vertical">
                                     <TextBlock x:Name="TxtSettingsSecSync" Text="Sync Safety &amp; Performance" FontSize="13.5" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,11"/>
                                     <WrapPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,8">
@@ -1193,12 +1219,24 @@ $script:DarkControlStylesXaml = @"
                                     <TextBlock x:Name="TxtDeletePolicyHint" Text="" FontSize="11.5" Foreground="#94A3B8" TextWrapping="Wrap" Margin="0,0,0,12"/>
                                     <Border BorderBrush="#19263C" BorderThickness="0,1,0,0" Padding="0,11,0,0">
                                         <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                            <TextBlock x:Name="LblSpeedMode" Text="Upload Speed:" Foreground="#CBD5E1" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,4,8,4"/>
-                                            <ComboBox x:Name="CmbSpeedPreset" Width="190" Margin="0,2,0,2">
-                                                <ComboBoxItem x:Name="CbiSpeedTurbo" Content="Fast (Turbo)" Tag="Turbo"/>
-                                                <ComboBoxItem x:Name="CbiSpeedBalanced" Content="Balanced" Tag="Balanced"/>
-                                                <ComboBoxItem x:Name="CbiSpeedEco" Content="Gentle" Tag="Eco"/>
-                                            </ComboBox>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,2,20,4">
+                                                <TextBlock x:Name="LblSpeedMode" Text="Upload Speed:" Foreground="#CBD5E1" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                <ComboBox x:Name="CmbSpeedPreset" Width="190">
+                                                    <ComboBoxItem x:Name="CbiSpeedTurbo" Content="Fast (Turbo)" Tag="Turbo"/>
+                                                    <ComboBoxItem x:Name="CbiSpeedBalanced" Content="Balanced" Tag="Balanced"/>
+                                                    <ComboBoxItem x:Name="CbiSpeedEco" Content="Gentle" Tag="Eco"/>
+                                                </ComboBox>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,2,0,4">
+                                                <TextBlock x:Name="LblMaxDelete" Text="Delete Safety Limit (Exact Match):" Foreground="#CBD5E1" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                <ComboBox x:Name="CmbMaxDelete" Width="210">
+                                                    <ComboBoxItem x:Name="CbiMaxDelUnlimited" Content="No Limit (Unlimited)" Tag="0"/>
+                                                    <ComboBoxItem x:Name="CbiMaxDel200" Content="Up to 200 files" Tag="200"/>
+                                                    <ComboBoxItem x:Name="CbiMaxDel500" Content="Up to 500 files" Tag="500"/>
+                                                    <ComboBoxItem x:Name="CbiMaxDel1000" Content="Up to 1,000 files" Tag="1000"/>
+                                                    <ComboBoxItem x:Name="CbiMaxDel5000" Content="Up to 5,000 files" Tag="5000"/>
+                                                </ComboBox>
+                                            </StackPanel>
                                         </WrapPanel>
                                     </Border>
                                 </StackPanel>
@@ -1389,6 +1427,22 @@ $BtnMountAll        = $window.FindName("BtnMountAll")
 $BtnUnmountAll      = $window.FindName("BtnUnmountAll")
 $BtnToggleDriveRow  = $window.FindName("BtnToggleDriveRow")
 $BtnRenameAccount   = $window.FindName("BtnRenameAccount")
+$BtnCloudTransfer   = $window.FindName("BtnCloudTransfer")
+$BtnCloudTransferSet= $window.FindName("BtnCloudTransferSet")
+$BtnUpdateBanner    = $window.FindName("BtnUpdateBanner")
+$TxtUpdateBanner    = $window.FindName("TxtUpdateBanner")
+$TxtUpdateStatus    = $window.FindName("TxtUpdateStatus")
+$BtnCheckUpdates    = $window.FindName("BtnCheckUpdates")
+$BtnSetTabAccounts  = $window.FindName("BtnSetTabAccounts")
+$BtnSetTabSync      = $window.FindName("BtnSetTabSync")
+$BtnSetTabBackup    = $window.FindName("BtnSetTabBackup")
+$BtnSetTabGeneral   = $window.FindName("BtnSetTabGeneral")
+$BtnSetTabNotif     = $window.FindName("BtnSetTabNotif")
+$CardSetAccounts    = $window.FindName("CardSetAccounts")
+$CardSetSync        = $window.FindName("CardSetSync")
+$CardSetBackup      = $window.FindName("CardSetBackup")
+$CardSetGeneral     = $window.FindName("CardSetGeneral")
+$CardSetNotif       = $window.FindName("CardSetNotif")
 $TxtSettingsPageTitle        = $window.FindName("TxtSettingsPageTitle")
 $TxtSettingsSecNotifications = $window.FindName("TxtSettingsSecNotifications")
 $ChkNotifMaster              = $window.FindName("ChkNotifMaster")
@@ -1429,6 +1483,13 @@ $CmbSpeedPreset     = $window.FindName("CmbSpeedPreset")
 $CbiSpeedTurbo      = $window.FindName("CbiSpeedTurbo")
 $CbiSpeedBalanced   = $window.FindName("CbiSpeedBalanced")
 $CbiSpeedEco        = $window.FindName("CbiSpeedEco")
+$LblMaxDelete       = $window.FindName("LblMaxDelete")
+$CmbMaxDelete       = $window.FindName("CmbMaxDelete")
+$CbiMaxDelUnlimited = $window.FindName("CbiMaxDelUnlimited")
+$CbiMaxDel200       = $window.FindName("CbiMaxDel200")
+$CbiMaxDel500       = $window.FindName("CbiMaxDel500")
+$CbiMaxDel1000      = $window.FindName("CbiMaxDel1000")
+$CbiMaxDel5000      = $window.FindName("CbiMaxDel5000")
 $BtnCustomClientId  = $window.FindName("BtnCustomClientId")
 $BtnSyncToggle      = $window.FindName("BtnSyncToggle")
 $TxtSyncToggle      = $window.FindName("TxtSyncToggle")

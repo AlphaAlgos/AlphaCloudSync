@@ -210,11 +210,11 @@ See full methodology in [`BENCHMARKS.md`](BENCHMARKS.md).
 1. Download **[`AlphaCloudSync-Setup-x64.exe`](https://github.com/AlphaAlgos/AlphaCloudSync/releases/latest/download/AlphaCloudSync-Setup-x64.exe)** (`~2.46 MB`, Inno Setup 6 wizard with English, Arabic RTL, Spanish, French & German) from [GitHub Releases](https://github.com/AlphaAlgos/AlphaCloudSync/releases).
 2. Double-click to install cleanly into `%LOCALAPPDATA%\AlphaCloudSync\app\` (no Admin/UAC required) with Desktop & Start Menu shortcuts, optional `PATH` CLI support, and a standard Windows Apps & Features uninstaller.
 
-### Option 2 — One-Line PowerShell Install (Fail-Closed SHA-256 Verified)
+### Option 2 — One-Line PowerShell Install & Seamless Auto-Update (Fail-Closed SHA-256 Verified)
 ```powershell
 irm https://raw.githubusercontent.com/AlphaAlgos/AlphaCloudSync/main/install.ps1 | iex
 ```
-Downloads the latest release to `%LOCALAPPDATA%\AlphaCloudSync\app\`, **enforces Fail-Closed SHA-256 verification** (immediately aborts & deletes the download if `SHA256SUMS.txt` is missing, malformed, or mismatched), creates Desktop & Start Menu shortcuts, and adds `AlphaCloudSync` to your user `PATH`.
+Downloads the latest release to `%LOCALAPPDATA%\AlphaCloudSync\app\`, **enforces Fail-Closed SHA-256 verification** (immediately aborts & deletes the download if `SHA256SUMS.txt` is missing, malformed, or mismatched), gracefully closes any running `AlphaCloudSync` instance without interrupting mounted drives, installs/updates the executable, creates Desktop & Start Menu shortcuts, adds `AlphaCloudSync` to your user `PATH`, and registers the quick terminal update command **`alphacloudsync-update`**.
 
 ### Option 3 — Portable `.exe` (Zero Installation)
 1. Download **[`AlphaCloudSync.exe`](https://github.com/AlphaAlgos/AlphaCloudSync/releases/latest/download/AlphaCloudSync.exe)** (`~1.16 MB`) and **`SHA256SUMS.txt`** from [GitHub Releases](https://github.com/AlphaAlgos/AlphaCloudSync/releases).

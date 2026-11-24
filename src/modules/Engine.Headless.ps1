@@ -61,13 +61,14 @@ function Invoke-HeadlessBatch {
             if (-not $sourceCheck.Safe) { $overallExit = 5; $failedFolders += "$($f.Name)(SourceCheckFailed)"; [Console]::Error.WriteLine("ERROR: Source safety check failed for '$($f.Name)': $($sourceCheck.Error)"); continue }
             if (-not $sourceCheck.HasFiles) { $overallExit = 4; $failedFolders += "$($f.Name)(NoIncludedFiles)"; [Console]::WriteLine("WARN: No files remain after exclusion rules for '$($f.Name)'; remote data was left untouched."); continue }
             $dryFlag = if ($DryRun) { "--dry-run" } else { "" }
+            $maxDelFlag = Get-MaxDeleteFlagString -Policy $cfg.DeletePolicy -Limit ([int]$cfg.MaxDeleteLimit)
             if ($cfg.DeletePolicy -eq "Copy-Only") {
                 $args = "copy $locArg $remArg $spdFlags $resilient $dryFlag $exFlag --stats 5s --stats-one-line --log-file $(Format-WinArg $runLog)"
             } elseif ($cfg.DeletePolicy -eq "Strict Mirror") {
-                $args = "sync $locArg $remArg --drive-use-trash=true --max-delete 200 $spdFlags $resilient $dryFlag $exFlag --stats 5s --stats-one-line --log-file $(Format-WinArg $runLog)"
+                $args = "sync $locArg $remArg --drive-use-trash=true $maxDelFlag $spdFlags $resilient $dryFlag $exFlag --stats 5s --stats-one-line --log-file $(Format-WinArg $runLog)"
             } else {
                 $trash = "${RemoteName}:_CloudSync_Trash_Archive/$dateStamp/$effRemote"
-                $args = "sync $locArg $remArg --backup-dir $(Format-WinArg $trash) --drive-use-trash=true --max-delete 200 $spdFlags $resilient $dryFlag $exFlag --stats 5s --stats-one-line --log-file $(Format-WinArg $runLog)"
+                $args = "sync $locArg $remArg --backup-dir $(Format-WinArg $trash) --drive-use-trash=true $spdFlags $resilient $dryFlag $exFlag --stats 5s --stats-one-line --log-file $(Format-WinArg $runLog)"
             }
             $pRes = Invoke-SilentProcess -FilePath $RcloneExe -Arguments $args -TimeoutMs 0
             $processedCount++

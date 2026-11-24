@@ -795,6 +795,39 @@ try {
     Add-TestResult "T25" "Instant Launch, Splash Card, Foreground & Seq Accounts" $t25 "Splash=$splashOk Foreground=$fgOk SeqHydration=$seqOk Caches=$cacheOk NoSyncDropdownLoop=$noSyncLoop"
 } catch { Add-TestResult "T25" "Instant Launch, Splash Card, Foreground & Seq Accounts" $false $_.Exception.Message }
 
+# T26: v1.1.0 Feature Gate (Uncapped Safe Archive, Friendly Error Translator, 5-Tab Settings, In-App Updater & Cloud-to-Cloud Transfer)
+try {
+    foreach ($fnName in @('Get-MaxDeleteFlagString', 'Resolve-FriendlySyncError', 'Test-IsNewerReleaseVersion')) {
+        $fNode = $script:CombinedSrcAst.Find({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq $fnName }, $true)
+        if ($null -eq $fNode) { throw "Function '$fnName' not found" }
+        Invoke-Expression $fNode.Extent.Text
+    }
+    function L { param([string]$Key, [string]$Fallback = ""); return $Key }
+    function LF { param([string]$Key, [array]$ArgsList); return "$Key($($ArgsList -join ','))" }
+
+    $safeNoLimit   = ((Get-MaxDeleteFlagString -Policy "Safe Archive"  -Limit 200) -eq "")
+    $copyNoLimit   = ((Get-MaxDeleteFlagString -Policy "Copy-Only"     -Limit 200) -eq "")
+    $mirrorUnlim   = ((Get-MaxDeleteFlagString -Policy "Strict Mirror" -Limit 0)   -eq "")
+    $mirrorCapped  = ((Get-MaxDeleteFlagString -Policy "Strict Mirror" -Limit 500) -eq "--max-delete 500")
+    $maxDelOk      = $safeNoLimit -and $copyNoLimit -and $mirrorUnlim -and $mirrorCapped
+
+    $eMaxDel = Resolve-FriendlySyncError -FolderName "Docs" -ExitCode 7 -RawError "Fatal error: --max-delete threshold reached"
+    $eQuota  = Resolve-FriendlySyncError -FolderName "Docs" -ExitCode 1 -RawError "googleapi: Error 403: storageQuotaExceeded"
+    $eAuth   = Resolve-FriendlySyncError -FolderName "Docs" -ExitCode 1 -RawError "oauth2: token expired and refresh token is invalid_grant"
+    $ePath   = Resolve-FriendlySyncError -FolderName "Docs" -ExitCode 3 -RawError "directory not found"
+    $eNet    = Resolve-FriendlySyncError -FolderName "Docs" -ExitCode 1 -RawError "dial tcp: lookup www.googleapis.com: no such host"
+    $errOk   = ($eMaxDel.StatusToken -eq "Err:MaxDelete") -and ($eQuota.StatusToken -eq "Err:QuotaFull") -and ($eAuth.StatusToken -eq "Err:AuthExpired") -and ($ePath.StatusToken -eq "Err:PathOrAccess") -and ($eNet.StatusToken -eq "Err:Network")
+
+    $verNewer = (Test-IsNewerReleaseVersion -CurrentVer "1.1.0" -RemoteTag "v1.2.0") -and (-not (Test-IsNewerReleaseVersion -CurrentVer "1.1.0" -RemoteTag "v1.1.0")) -and (-not (Test-IsNewerReleaseVersion -CurrentVer "1.1.0" -RemoteTag "v1.0.0"))
+
+    $tabsOk = ($script:CombinedSrcText -match 'function Select-SettingsSubTab') -and ($script:CombinedSrcText -match 'CardSetAccounts') -and ($script:CombinedSrcText -match 'CardSetSync') -and ($script:CombinedSrcText -match 'CardSetBackup') -and ($script:CombinedSrcText -match 'CardSetGeneral') -and ($script:CombinedSrcText -match 'CardSetNotif')
+    $updOk  = ($script:CombinedSrcText -match 'function Start-BackgroundUpdateCheck') -and ($script:CombinedSrcText -match 'function Invoke-AppSelfUpdate') -and ($script:CombinedSrcText -match 'BtnUpdateBanner')
+    $c2cOk  = ($script:CombinedSrcText -match 'function Start-CloudToCloudBatch') -and ($script:CombinedSrcText -match 'function Invoke-CloudToCloudTransferDialog') -and ($script:CombinedSrcText -match 'drive-server-side-across-configs=true')
+
+    $t26 = $maxDelOk -and $errOk -and $verNewer -and $tabsOk -and $updOk -and $c2cOk
+    Add-TestResult "T26" "v1.1.0 Uncapped Archive, Error Translator, Tabs, Updater & C2C" $t26 "MaxDel=$maxDelOk FriendlyErr=$errOk SemVer=$verNewer SettingsTabs=$tabsOk InAppUpdater=$updOk CloudToCloud=$c2cOk"
+} catch { Add-TestResult "T26" "v1.1.0 Uncapped Archive, Error Translator, Tabs, Updater & C2C" $false $_.Exception.Message }
+
 $passedCount  = @($results | Where-Object { $_.Status -eq "PASS" }).Count
 $skippedCount = @($results | Where-Object { $_.Status -eq "SKIP" }).Count
 $failedCount  = @($results | Where-Object { $_.Status -eq "FAIL" }).Count
