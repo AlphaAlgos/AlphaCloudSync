@@ -27,6 +27,15 @@ function Wrap-RtlLead {
     return $Text
 }
 
+function Set-SplashStage {
+    param([string]$Stage)
+    try {
+        if (-not [string]::IsNullOrWhiteSpace($env:ALPHACLOUDSYNC_SPLASH_FILE)) {
+            [System.IO.File]::WriteAllText($env:ALPHACLOUDSYNC_SPLASH_FILE, $Stage, (New-Object System.Text.UTF8Encoding($false)))
+        }
+    } catch {}
+}
+
 function Format-Time12h {
     param([datetime]$DateTime = (Get-Date), [switch]$WithSeconds)
     $fmt = if ($WithSeconds) { "hh:mm:ss tt" } else { "hh:mm tt" }
@@ -323,7 +332,7 @@ function Show-AlphaMessageBox {
                         <Image x:Name="ImgMbIcon" DockPanel.Dock="Left" FlowDirection="LeftToRight" Width="16" Height="16" Margin="0,0,8,0" RenderOptions.BitmapScalingMode="HighQuality"/>
                         <TextBlock Text="$safeTitle" FontSize="12" FontWeight="SemiBold" Foreground="#E2E8F0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                     </DockPanel>
-                    <Button x:Name="BtnMbCloseX" Grid.Column="1" Width="40" Height="36" Background="Transparent" Foreground="#94A3B8" BorderThickness="0" Padding="0" Focusable="False" ToolTip="$closeTip">
+                    <Button x:Name="BtnMbCloseX" WindowChrome.IsHitTestVisibleInChrome="True" Grid.Column="1" Width="40" Height="36" Background="Transparent" Foreground="#94A3B8" BorderThickness="0" Padding="0" Cursor="Hand" Focusable="False" ToolTip="$closeTip">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border x:Name="Bd" Background="{TemplateBinding Background}">
@@ -383,6 +392,7 @@ function Show-AlphaMessageBox {
         if ($null -ne $bClose) {
             $bClose.Add_Click({ $dlg.Close() })
             $bClose.Add_PreviewMouseLeftButtonUp({ param($s,$e) $dlg.Close() })
+            $bClose.Add_PreviewMouseLeftButtonDown({ param($s,$e) $e.Handled = $true; $dlg.Close() })
         }
         $mbTitleBar = $dlg.FindName("MbTitleBar")
         if ($null -ne $mbTitleBar) {

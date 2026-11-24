@@ -342,7 +342,7 @@ $script:DarkControlStylesXaml = @"
 [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="AlphaCloudSync v1.1.0"
+        Title="AlphaCloudSync v1.2.0"
         WindowStyle="SingleBorderWindow"
         ResizeMode="CanResize"
         WindowStartupLocation="Manual"
@@ -543,7 +543,7 @@ $script:DarkControlStylesXaml = @"
                         <Image x:Name="ImgTitleIcon" FlowDirection="LeftToRight" Width="20" Height="20" Margin="0,0,9,0" RenderOptions.BitmapScalingMode="HighQuality"/>
                         <TextBlock x:Name="TxtWindowTitle" FlowDirection="LeftToRight" Text="AlphaCloudSync" FontSize="13" FontWeight="Bold" Foreground="#F1F5F9" VerticalAlignment="Center"/>
                         <Border Background="#12243D" BorderBrush="#1F3B61" BorderThickness="1" CornerRadius="4" Padding="6,1" Margin="8,0,0,0" VerticalAlignment="Center">
-                            <TextBlock x:Name="TxtBrandBadge" Text="v1.1.0" FontSize="10" FontWeight="SemiBold" Foreground="#38BDF8"/>
+                            <TextBlock x:Name="TxtBrandBadge" Text="v1.2.0" FontSize="10" FontWeight="SemiBold" Foreground="#38BDF8"/>
                         </Border>
                         <TextBlock x:Name="TxtWindowSubtitle" Text="" FontSize="11.5" Foreground="#64748B" VerticalAlignment="Center" Margin="10,0,0,0"/>
                         <Button x:Name="BtnUpdateBanner" Visibility="Collapsed" Background="#064E3B" BorderBrush="#10B981" Foreground="#A7F3D0" FontSize="11" FontWeight="Bold" Padding="10,2" Height="24" Margin="12,0,0,0" VerticalAlignment="Center" Cursor="Hand">
@@ -1225,7 +1225,8 @@ $script:DarkControlStylesXaml = @"
                                                     <ComboBoxItem x:Name="CbiPresetCustom" Content="Custom" Tag="custom"/>
                                                 </ComboBox>
                                                 <Button x:Name="BtnEditJsonRules" Content="Edit Rules" Margin="0,2,8,2"/>
-                                                <Button x:Name="BtnLoadJsonRules" Content="Import..." Margin="0,2,0,2"/>
+                                                <Button x:Name="BtnLoadJsonRules" Content="Import..." Margin="0,2,8,2"/>
+                                                <Button x:Name="BtnPickExclusions" Content="+ Manual Exclusions..." Background="#172554" BorderBrush="#3B82F6" Foreground="#93C5FD" FontWeight="SemiBold" Margin="0,2,0,2" Cursor="Hand"/>
                                             </WrapPanel>
                                             <WrapPanel Orientation="Horizontal">
                                                 <Border x:Name="PillSavedSpace" Background="#0F291E" BorderBrush="#10B981" BorderThickness="1" CornerRadius="12" Padding="10,3" Margin="0,2,8,2" Visibility="Collapsed">
@@ -1515,6 +1516,7 @@ $CbiPresetGeneral   = $window.FindName("CbiPresetGeneral")
 $CbiPresetCustom    = $window.FindName("CbiPresetCustom")
 $BtnEditJsonRules   = $window.FindName("BtnEditJsonRules")
 $BtnLoadJsonRules   = $window.FindName("BtnLoadJsonRules")
+$BtnPickExclusions  = $window.FindName("BtnPickExclusions")
 $PillSavedSpace     = $window.FindName("PillSavedSpace")
 $TxtSavedSpace      = $window.FindName("TxtSavedSpace")
 $TxtRulesSummary    = $window.FindName("TxtRulesSummary")

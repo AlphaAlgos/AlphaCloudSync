@@ -28,7 +28,7 @@ if (-not [string]::IsNullOrWhiteSpace($DriveLetter)) {
 $script:LastAboutCache = @{}
 $script:IdentityCache  = @{}
 $AppName      = "AlphaCloudSync"
-$AppVersion   = "1.1.0"
+$AppVersion   = "1.2.0"
 $ScriptSelf   = $MyInvocation.MyCommand.Path
 $ScriptDir    = Split-Path -Parent $ScriptSelf
 $ProjectRoot  = if (-not [string]::IsNullOrWhiteSpace($env:ALPHACLOUDSYNC_RUNTIME_ROOT) -and (Test-Path -LiteralPath $env:ALPHACLOUDSYNC_RUNTIME_ROOT)) {
@@ -93,6 +93,7 @@ $ModulesDir = Join-Path $ScriptDir "modules"
 foreach ($coreMod in @("Core.Helpers.ps1", "Core.Config.ps1", "Core.Rclone.ps1", "Core.Shell.ps1")) {
     . (Join-Path $ModulesDir $coreMod)
 }
+Set-SplashStage "2"
 
 # Load Provider Registry + Auto-Discover All Cloud Provider Modules (Google Drive, future OneDrive/Dropbox/S3...)
 $ProvidersDir = Join-Path $ModulesDir "Providers"

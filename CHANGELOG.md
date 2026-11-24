@@ -2,6 +2,22 @@
 
 All notable changes to **AlphaCloudSync** are documented in this file.
 
+## [1.2.0] - 2026-11-24
+### Added
+- **All-Stages Visible Startup Splash Screen (`AlphaSplashForm`):**
+  - All 5 startup stages are visible from the instant the launcher opens, providing users with a clear roadmap of the initialization sequence.
+  - Features 3 distinct visual states: **Completed** (emerald ring with crisp checkmark `✓`), **Active In-Progress** (glowing pulsing cyan wave & bold text), and **Pending** (subtle muted dark ring with dimmed slate text indicating queued status).
+  - Added early stage-2 dispatch in PowerShell runtime (`Set-SplashStage "2"`) for smooth, real-time stage transitions.
+- **Stacked Accounts List with Active Default Highlighting (`ListSettingsAccounts`):**
+  - Redesigned the Accounts & Connections tab to display all connected accounts in a clean vertical stack.
+  - The active default account features an exclusive glowing cyan border (`#38BDF8`), deep navy background (`#112240`), and `[✓ Default Account]` badge.
+  - Non-default accounts feature a one-click `[Set as Default]` button to switch active accounts seamlessly, alongside web folder opening and disconnect options.
+- **Bulletproof Modal Dialog Close Architecture (`New-AlphaModalWindow` & `Show-AlphaMessageBox`):**
+  - Resolved non-client hit-test collision in RTL layouts by setting `WindowChrome CaptionHeight="0"`, ensuring 100% WPF client area hit-testing for close buttons.
+  - Added redundant `Click` and `PreviewMouseLeftButtonUp` handlers, smart title-bar drag-move exclusion, and `Escape` key dismissal across all modal dialogs.
+- **Full 7-Language Parity (395 Keys Across All Locales):**
+  - Localized account card badges and controls across Arabic, English, German, Spanish, French, Indonesian, and Chinese.
+
 ## [1.1.0] - 2026-11-24
 ### Added
 - **5-Tab Organized Settings Control Center (`Select-SettingsSubTab`):**

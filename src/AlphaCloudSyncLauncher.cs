@@ -17,8 +17,8 @@ using System.Windows.Forms;
 [assembly: AssemblyCompany("Alpha Algorithms Company")]
 [assembly: AssemblyProduct("AlphaCloudSync")]
 [assembly: AssemblyCopyright("Copyright (c) 2026 Alpha Algorithms Company (MIT License)")]
-[assembly: AssemblyVersion("1.1.0.0")]
-[assembly: AssemblyFileVersion("1.1.0.0")]
+[assembly: AssemblyVersion("1.2.0.0")]
+[assembly: AssemblyFileVersion("1.2.0.0")]
 
 namespace AlphaCloudSync
 {
@@ -223,7 +223,7 @@ namespace AlphaCloudSync
                 g.FillPath(pillBg, pillPath);
                 g.DrawPath(pillBorder, pillPath);
                 StringFormat sfC = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
-                g.DrawString("v1.1.0", pillFont, pillText, pillRect, sfC);
+                g.DrawString("v1.2.0", pillFont, pillText, pillRect, sfC);
             }
 
             // Divider line
@@ -232,10 +232,9 @@ namespace AlphaCloudSync
                 g.DrawLine(divPen, leftPad, 80, this.Width - leftPad, 80);
             }
 
-            // Stacked live startup stages (1.._currentStage)
+            // Stacked live startup stages (all 5 stages visible immediately with 3 distinct visual states)
             int startY = 96;
             int rowH = 31;
-            int visibleCount = Math.Min(_currentStage, _stages.Length);
             StringFormat textFmt = new StringFormat { LineAlignment = StringAlignment.Center };
             if (_isRtl)
             {
@@ -247,15 +246,17 @@ namespace AlphaCloudSync
                 textFmt.Alignment = StringAlignment.Near;
             }
 
-            for (int i = 0; i < visibleCount; i++)
+            for (int i = 0; i < _stages.Length; i++)
             {
                 int y = startY + (i * rowH);
-                bool isCompleted = _allDone || (i < visibleCount - 1);
+                bool isCompleted = _allDone || (i < _currentStage - 1);
+                bool isActive    = !_allDone && (i == _currentStage - 1);
                 int iconX = _isRtl ? (this.Width - leftPad - 18) : leftPad;
                 int iconY = y + 5;
 
                 if (isCompleted)
                 {
+                    // State 1: Completed - emerald ring with checkmark
                     using (SolidBrush okBg = new SolidBrush(Color.FromArgb(15, 45, 32)))
                     using (Pen okRing = new Pen(Color.FromArgb(16, 185, 129), 1.4f))
                     using (Pen chkPen = new Pen(Color.FromArgb(74, 222, 128), 2.0f))
@@ -272,8 +273,9 @@ namespace AlphaCloudSync
                         });
                     }
                 }
-                else
+                else if (isActive)
                 {
+                    // State 2: Active - glowing cyan pulse wave
                     double wave = 0.45 + 0.55 * Math.Abs(Math.Sin(_pulsePhase * Math.PI / 15.0));
                     int alphaRing = (int)(70 + 140 * wave);
                     int alphaDot = (int)(130 + 125 * wave);
@@ -286,13 +288,40 @@ namespace AlphaCloudSync
                         g.FillEllipse(dotBrush, iconX + 5, iconY + 5, 8, 8);
                     }
                 }
+                else
+                {
+                    // State 3: Pending - subtle muted ring & small dormant dot showing its turn hasn't arrived
+                    using (SolidBrush waitBg = new SolidBrush(Color.FromArgb(14, 23, 38)))
+                    using (Pen waitRing = new Pen(Color.FromArgb(36, 52, 77), 1.2f))
+                    using (SolidBrush waitDot = new SolidBrush(Color.FromArgb(56, 78, 108)))
+                    {
+                        g.FillEllipse(waitBg, iconX, iconY, 18, 18);
+                        g.DrawEllipse(waitRing, iconX, iconY, 18, 18);
+                        g.FillEllipse(waitDot, iconX + 6, iconY + 6, 6, 6);
+                    }
+                }
 
                 Rectangle textRect = _isRtl
                     ? new Rectangle(leftPad, y, this.Width - (leftPad * 2) - 28, 28)
                     : new Rectangle(leftPad + 28, y, this.Width - (leftPad * 2) - 28, 28);
 
-                using (Font stFont = new Font("Segoe UI", 9.8f, isCompleted ? FontStyle.Regular : FontStyle.Bold))
-                using (SolidBrush stBrush = new SolidBrush(isCompleted ? Color.FromArgb(148, 163, 184) : Color.FromArgb(241, 245, 249)))
+                FontStyle fontStyle = isActive ? FontStyle.Bold : FontStyle.Regular;
+                Color textColor;
+                if (isCompleted)
+                {
+                    textColor = Color.FromArgb(148, 163, 184); // Muted slate
+                }
+                else if (isActive)
+                {
+                    textColor = Color.FromArgb(241, 245, 249); // Bright white
+                }
+                else
+                {
+                    textColor = Color.FromArgb(75, 95, 120);   // Dimmed pending slate
+                }
+
+                using (Font stFont = new Font("Segoe UI", 9.8f, fontStyle))
+                using (SolidBrush stBrush = new SolidBrush(textColor))
                 {
                     g.DrawString(_stages[i], stFont, stBrush, textRect, textFmt);
                 }
@@ -330,7 +359,7 @@ namespace AlphaCloudSync
 
     internal static class Program
     {
-        private const string AppVersion = "1.1.0";
+        private const string AppVersion = "1.2.0";
         private const string AppUserModelId = "AlphaAlgorithms.AlphaCloudSync";
         private const string RestoreSignalName = "Local\\AlphaCloudSync_RestoreSignal";
 

@@ -33,6 +33,7 @@ function Select-StudioTab {
         }
     }
     if ($TabName -eq "Storage") { Refresh-MultiDrivesGrid }
+    if ($TabName -eq "Settings") { Refresh-SettingsAccountsList }
 }
 
 $BtnNavFolders.Add_Click({  Select-StudioTab "Folders"  })
@@ -342,7 +343,7 @@ function New-AlphaModalWindow {
                         <Image x:Name="ImgModalIcon" DockPanel.Dock="Left" FlowDirection="LeftToRight" Width="16" Height="16" Margin="0,0,8,0" RenderOptions.BitmapScalingMode="HighQuality"/>
                         <TextBlock Text="$safeTitle" FontSize="12" FontWeight="SemiBold" Foreground="#E2E8F0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                     </DockPanel>
-                    <Button x:Name="BtnModalCloseX" Grid.Column="1" Width="42" Height="36" Background="Transparent" Foreground="#94A3B8" BorderThickness="0" Cursor="Hand" Focusable="False" ToolTip="$closeTip">
+                    <Button x:Name="BtnModalCloseX" WindowChrome.IsHitTestVisibleInChrome="True" Grid.Column="1" Width="42" Height="36" Background="Transparent" Foreground="#94A3B8" BorderThickness="0" Cursor="Hand" Focusable="False" ToolTip="$closeTip">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border x:Name="Bd" Background="{TemplateBinding Background}">
@@ -386,6 +387,7 @@ function New-AlphaModalWindow {
     if ($null -ne $closeBtn) {
         $closeBtn.Add_Click({ try { $mw.Close() } catch {} })
         $closeBtn.Add_PreviewMouseLeftButtonUp({ param($s,$e) try { $mw.Close() } catch {} })
+        $closeBtn.Add_PreviewMouseLeftButtonDown({ param($s,$e) $e.Handled = $true; try { $mw.Close() } catch {} })
     }
     $titleBar = $mw.FindName("ModalTitleBar")
     if ($null -ne $titleBar) {
@@ -1267,17 +1269,25 @@ function Build-SidebarAccountCardObject {
 }
 
 function Refresh-SidebarAccountsOverview {
+    param([switch]$ForceRefresh)
     try {
-        $remotes = if ($script:CachedDriveRemotes.Count -gt 0) { @($script:CachedDriveRemotes) } else { @(Get-ConfiguredDriveRemotes) }
-        if ($remotes.Count -eq 0) { $remotes = @($script:ActiveRemote) }
+        $remotes = if ($ForceRefresh -or $script:CachedDriveRemotes.Count -eq 0) { @(Get-ConfiguredDriveRemotes -ForceRefresh) } else { @($script:CachedDriveRemotes) }
+        if ($remotes.Count -eq 0) {
+            if (Test-GDriveConfigured -TargetRemote $script:ActiveRemote) { $remotes = @($script:ActiveRemote) }
+        }
+        $script:CachedDriveRemotes = $remotes
         $mounts  = @(Get-MountsState)
         $uniSnap = Get-UnifiedMountInfo
-        $TxtSidebarAccountsCount.Text = "$($remotes.Count)"
+        if ($null -ne $TxtSidebarAccountsCount) {
+            $TxtSidebarAccountsCount.Text = "$($remotes.Count)"
+        }
         $script:SidebarAccountCards.Clear()
         foreach ($r in $remotes) {
-            $script:SidebarAccountCards.Add((Build-SidebarAccountCardObject -TargetRemote $r -Mounts $mounts -UniInfo $uniSnap -UniInfoProvided))
+            try {
+                $script:SidebarAccountCards.Add((Build-SidebarAccountCardObject -TargetRemote $r -Mounts $mounts -UniInfo $uniSnap -UniInfoProvided))
+            } catch {}
         }
-        Refresh-SettingsAccountsList
+        Refresh-SettingsAccountsList -ForceRefresh:$ForceRefresh
     } catch {}
 }
 
@@ -1374,10 +1384,14 @@ function Build-SettingsAccountCardObject {
 }
 
 function Refresh-SettingsAccountsList {
+    param([switch]$ForceRefresh)
     try {
         if ($null -eq $ListSettingsAccounts) { return }
-        $remotes = if ($script:CachedDriveRemotes.Count -gt 0) { @($script:CachedDriveRemotes) } else { @(Get-ConfiguredDriveRemotes) }
-        if ($remotes.Count -eq 0) { $remotes = @($script:ActiveRemote) }
+        $remotes = if ($ForceRefresh -or $script:CachedDriveRemotes.Count -eq 0) { @(Get-ConfiguredDriveRemotes -ForceRefresh) } else { @($script:CachedDriveRemotes) }
+        if ($remotes.Count -eq 0) {
+            if (Test-GDriveConfigured -TargetRemote $script:ActiveRemote) { $remotes = @($script:ActiveRemote) }
+        }
+        $script:CachedDriveRemotes = $remotes
         $mounts  = @(Get-MountsState)
         $uniSnap = Get-UnifiedMountInfo
         if ($null -ne $TxtSettingsAccountsCount) {
@@ -1385,7 +1399,9 @@ function Refresh-SettingsAccountsList {
         }
         $script:SettingsAccountCards.Clear()
         foreach ($r in $remotes) {
-            $script:SettingsAccountCards.Add((Build-SettingsAccountCardObject -TargetRemote $r -Mounts $mounts -UniInfo $uniSnap -UniInfoProvided))
+            try {
+                $script:SettingsAccountCards.Add((Build-SettingsAccountCardObject -TargetRemote $r -Mounts $mounts -UniInfo $uniSnap -UniInfoProvided))
+            } catch {}
         }
     } catch {}
 }

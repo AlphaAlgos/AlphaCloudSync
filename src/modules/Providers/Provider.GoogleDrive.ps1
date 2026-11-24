@@ -253,8 +253,6 @@ function New-BrandedOAuthTemplateFile {
         document.getElementById('bIcon').className='badge err';
         document.getElementById('hTitle').textContent=document.getElementById('rawTitle').textContent;
         document.getElementById('pHint').textContent=document.getElementById('rawBody').textContent;
-      } else {
-        setTimeout(function(){ try{ window.open('','_self'); window.close(); }catch(e){} }, 1200);
       }
     })();
   </script>

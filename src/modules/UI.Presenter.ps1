@@ -102,6 +102,7 @@ function Apply-UiLanguage {
     $BtnUnmountAll.Content     = $loc.btnUnmountAll
     $BtnToggleDriveRow.Content = $loc.btnToggleDriveRow
     $BtnRenameAccount.Content  = $loc.btnRenameAccount
+    if ($null -ne $BtnMount -and $loc.showDrive) { $BtnMount.Content = $loc.showDrive }
     if ($GridMultiDrives.Columns.Count -ge 6) {
         $GridMultiDrives.Columns[0].Header = $loc.colAccountName
         $GridMultiDrives.Columns[1].Header = $loc.colDriveLetter
@@ -136,6 +137,7 @@ function Apply-UiLanguage {
     $CbiPresetCustom.Content   = $loc.presetCustomFile
     $BtnEditJsonRules.Content  = $loc.editJson
     $BtnLoadJsonRules.Content  = $loc.loadJson
+    if ($null -ne $BtnPickExclusions -and $loc.btnPickExclusions) { $BtnPickExclusions.Content = $loc.btnPickExclusions }
 
     $LblSchedule.Text          = $loc.scheduleLabel
     $BtnOpenScheduler.Content  = $loc.configureSchedule
@@ -576,7 +578,8 @@ function Get-SelectedDriveLetter {
 }
 
 function Refresh-ProfilesDropdown {
-    $remotes = @(Get-ConfiguredDriveRemotes)
+    param([switch]$ForceRefresh)
+    $remotes = @(Get-ConfiguredDriveRemotes -ForceRefresh:$ForceRefresh)
     $script:CachedDriveRemotes = $remotes
     if ($remotes.Count -eq 0) { $remotes = @("gdrive") }
     if ($remotes -notcontains $script:ActiveRemote) { $script:ActiveRemote = $remotes[0] }
@@ -716,11 +719,11 @@ function Invoke-ScanFolderSizes {
 }
 
 function Refresh-StudioHeader {
-    param([switch]$FastLocalOnly)
+    param([switch]$FastLocalOnly, [switch]$ForceRefresh)
     if ($script:IsRefreshing) { return }
     $script:IsRefreshing = $true
     try {
-        Refresh-ProfilesDropdown
+        Refresh-ProfilesDropdown -ForceRefresh:$ForceRefresh
         Refresh-DriveLettersDropdown
         Sync-JsonRulesUiForActiveAccount
         $ident = Get-ConnectedGoogleIdentity -TargetRemote $script:ActiveRemote -CacheOnly
@@ -824,10 +827,11 @@ function Refresh-StudioHeader {
             $BtnDisableSchedule.Visibility = "Collapsed"
         }
 
-        Update-FoldersGrid
-        Refresh-MultiDrivesGrid
-        Switch-AccountActivityView
-        Refresh-SidebarAccountsOverview
+        try { Update-FoldersGrid } catch {}
+        try { Refresh-MultiDrivesGrid -ForceRefresh:$ForceRefresh } catch {}
+        try { Switch-AccountActivityView } catch {}
+        try { Refresh-SidebarAccountsOverview -ForceRefresh:$ForceRefresh } catch {}
+        try { Refresh-SettingsAccountsList -ForceRefresh:$ForceRefresh } catch {}
     } catch {
         Write-StudioLog "[WARN] Header refresh notice: $($_.Exception.Message)"
     } finally { $script:IsRefreshing = $false }

@@ -556,6 +556,9 @@ function Switch-ActiveAccountRemote {
     Persist-GridCheckboxChanges
     $script:ActiveRemote = $TargetRemote
     $cfg = Get-Settings; $cfg.ActiveRemote = $TargetRemote; Save-Settings -Obj $cfg
+    Refresh-ProfilesDropdown
+    Refresh-SidebarAccountsOverview
+    Refresh-SettingsAccountsList
     Refresh-StudioHeader
     Sync-RealTimeWatchers
     if (Get-Command Promote-AccountInHydrationQueue -ErrorAction SilentlyContinue) {
@@ -578,18 +581,23 @@ function Invoke-DisconnectAccountRemote {
         Invoke-ToggleMount -TargetRemote $signedOutRem -ForceUnmount
         $null = Invoke-RcloneCapture -Arguments "config delete $(Format-WinArg $signedOutRem) --quiet"
         Clear-RcloneConfigDumpCache
+        $script:CachedDriveRemotes = @()
         if ($script:IdentityCache.ContainsKey($signedOutRem))  { $script:IdentityCache.Remove($signedOutRem) }
         if ($script:LastAboutCache.ContainsKey($signedOutRem)) { $script:LastAboutCache.Remove($signedOutRem) }
         Save-UiAccountCache
         $pMap = Get-AccountPrefsMap
         if ($pMap.ContainsKey($signedOutRem)) { $pMap.Remove($signedOutRem); Save-AccountPrefsMap -Map $pMap }
         if ($wasInUni) { Invoke-RefreshActiveUnifiedPool -QuietExplorer }
-        $remLeft = @(Get-ConfiguredDriveRemotes)
+        $remLeft = @(Get-ConfiguredDriveRemotes -ForceRefresh)
+        $script:CachedDriveRemotes = $remLeft
         if ($script:ActiveRemote -eq $signedOutRem) {
             $script:ActiveRemote = if ($remLeft.Count -gt 0) { $remLeft[0] } else { "gdrive" }
             $cfg = Get-Settings; $cfg.ActiveRemote = $script:ActiveRemote; Save-Settings -Obj $cfg
         }
-        Refresh-StudioHeader
+        Refresh-ProfilesDropdown -ForceRefresh
+        Refresh-SidebarAccountsOverview -ForceRefresh
+        Refresh-SettingsAccountsList -ForceRefresh
+        Refresh-StudioHeader -ForceRefresh
         Sync-RealTimeWatchers
     }
 }
@@ -838,7 +846,15 @@ $BtnAuthToggle.Add_Click({
         if ($script:IsSignedIn) {
             Invoke-DisconnectAccountRemote -TargetRemote $script:ActiveRemote
         } else {
-            Invoke-UiPump; Invoke-GDriveAuth -TargetRemote $script:ActiveRemote; Refresh-StudioHeader
+            Invoke-UiPump
+            $null = Invoke-GDriveAuth -TargetRemote $script:ActiveRemote
+            Clear-RcloneConfigDumpCache
+            $script:CachedDriveRemotes = @()
+            $null = @(Get-ConfiguredDriveRemotes -ForceRefresh)
+            Refresh-ProfilesDropdown -ForceRefresh
+            Refresh-SidebarAccountsOverview -ForceRefresh
+            Refresh-SettingsAccountsList -ForceRefresh
+            Refresh-StudioHeader -ForceRefresh
         }
     } catch { Write-StudioLog "[ERR] Auth error: $($_.Exception.Message)" }
 })
@@ -1174,6 +1190,10 @@ $BtnAddAccount.Add_Click({
             $newRemId  = Get-NextUniqueRemoteId -UserInput $typedName
             $aw.Close()
             $authOk = Invoke-GDriveAuth -TargetRemote $newRemId
+            Clear-RcloneConfigDumpCache
+            $script:CachedDriveRemotes = @()
+            $remLive = @(Get-ConfiguredDriveRemotes -ForceRefresh)
+            $script:CachedDriveRemotes = $remLive
             if ($authOk) {
                 $curLayout = (Get-Settings).DriveLayout
                 Set-AccountPref -Remote $newRemId -UseJsonRules $false -JsonRulesPath (Get-DefaultPresetPath) -DriveAssignment $(if ($curLayout -eq "Unified") { "Unified" } else { "Separate" })
@@ -1187,11 +1207,17 @@ $BtnAddAccount.Add_Click({
                 if ($curLayout -eq "Unified" -and $null -ne (Get-UnifiedMountInfo)) {
                     Invoke-RefreshActiveUnifiedPool -ForceShow -QuietExplorer
                 }
-                Refresh-StudioHeader
+                Refresh-ProfilesDropdown -ForceRefresh
+                Refresh-SidebarAccountsOverview -ForceRefresh
+                Refresh-SettingsAccountsList -ForceRefresh
+                Refresh-StudioHeader -ForceRefresh
                 Sync-RealTimeWatchers
             } else {
                 $script:ActiveRemote = $prevRem
-                Refresh-StudioHeader
+                Refresh-ProfilesDropdown -ForceRefresh
+                Refresh-SidebarAccountsOverview -ForceRefresh
+                Refresh-SettingsAccountsList -ForceRefresh
+                Refresh-StudioHeader -ForceRefresh
             }
         }
         $aw.FindName("BtnCanProf").Add_Click({ $aw.Close() })
@@ -1212,27 +1238,35 @@ $BtnCustomClientId.Add_Click({
             Show-AlphaMessageBox -Message (L "msgSignInRequiredBody") -Title (L "msgSignInRequiredTitle") -Buttons "OK" -Icon "Information" | Out-Null
             return
         }
-        $descT = [System.Security.SecurityElement]::Escape((L "apiKeyModalDesc"))
-        $idT   = [System.Security.SecurityElement]::Escape((L "apiKeyClientIdLabel"))
-        $secT  = [System.Security.SecurityElement]::Escape((L "apiKeySecretLabel"))
-        $okT   = [System.Security.SecurityElement]::Escape((L "apiKeyApplyBtn"))
-        $canT  = [System.Security.SecurityElement]::Escape((L "btnCancel"))
+        $descT    = [System.Security.SecurityElement]::Escape((L "apiKeyModalDesc"))
+        $gcpHelpT = [System.Security.SecurityElement]::Escape((L "apiKeyGcpHelpBtn" "🔗 فتح Google Cloud Console لإنشاء أو إيجاد المفتاح"))
+        $idT      = [System.Security.SecurityElement]::Escape((L "apiKeyClientIdLabel"))
+        $secT     = [System.Security.SecurityElement]::Escape((L "apiKeySecretLabel"))
+        $okT      = [System.Security.SecurityElement]::Escape((L "apiKeyApplyBtn"))
+        $canT     = [System.Security.SecurityElement]::Escape((L "btnCancel"))
         $body = @"
             <Grid>
-                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                <TextBlock Grid.Row="0" Text="$descT" TextWrapping="Wrap" Foreground="#94A3B8" FontSize="12" Margin="0,0,0,12"/>
-                <TextBlock Grid.Row="1" Text="$idT" FontWeight="SemiBold" Foreground="#CBD5E1" Margin="0,0,0,4"/>
-                <TextBox x:Name="TxtCid" Grid.Row="2" FlowDirection="LeftToRight" Height="32" Margin="0,0,0,10"/>
-                <TextBlock Grid.Row="3" Text="$secT" FontWeight="SemiBold" Foreground="#CBD5E1" Margin="0,0,0,4"/>
-                <PasswordBox x:Name="TxtCsec" Grid.Row="4" FlowDirection="LeftToRight" Height="32" Background="#0D1525" Foreground="#E2E8F0" BorderBrush="#243550" BorderThickness="1" Padding="7,4" VerticalContentAlignment="Center" CaretBrush="#38BDF8" Margin="0,0,0,16"/>
-                <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right">
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Text="$descT" TextWrapping="Wrap" Foreground="#94A3B8" FontSize="12" Margin="0,0,0,10"/>
+                <Button x:Name="BtnOpenGcpConsole" Grid.Row="1" Content="$gcpHelpT" Background="#112240" BorderBrush="#1D4ED8" Foreground="#38BDF8" FontWeight="SemiBold" Height="28" Padding="12,0" Margin="0,0,0,12" HorizontalAlignment="Left" Cursor="Hand"/>
+                <TextBlock Grid.Row="2" Text="$idT" FontWeight="SemiBold" Foreground="#CBD5E1" Margin="0,0,0,4"/>
+                <TextBox x:Name="TxtCid" Grid.Row="3" FlowDirection="LeftToRight" Height="32" Margin="0,0,0,10"/>
+                <TextBlock Grid.Row="4" Text="$secT" FontWeight="SemiBold" Foreground="#CBD5E1" Margin="0,0,0,4"/>
+                <PasswordBox x:Name="TxtCsec" Grid.Row="5" FlowDirection="LeftToRight" Height="32" Background="#0D1525" Foreground="#E2E8F0" BorderBrush="#243550" BorderThickness="1" Padding="7,4" VerticalContentAlignment="Center" CaretBrush="#38BDF8" Margin="0,0,0,16"/>
+                <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button x:Name="BtnApplyCid" Content="$okT" Background="#10B981" BorderBrush="#34D399" Foreground="#FFFFFF" Margin="0,0,8,0"/>
                     <Button x:Name="BtnCloseCid" Content="$canT"/>
                 </StackPanel>
             </Grid>
 "@
-        $cw = New-AlphaModalWindow -Title (L "apiKeyModalTitle") -ReqWidth 550 -ReqHeight 365 -Resizable $true -BodyXaml $body
+        $cw = New-AlphaModalWindow -Title (L "apiKeyModalTitle") -ReqWidth 560 -ReqHeight 395 -Resizable $true -BodyXaml $body
         $tId = $cw.FindName("TxtCid"); $tSec = $cw.FindName("TxtCsec")
+        $bOpenGcp = $cw.FindName("BtnOpenGcpConsole")
+        if ($null -ne $bOpenGcp) {
+            $bOpenGcp.Add_Click({
+                try { [System.Diagnostics.Process]::Start((New-Object System.Diagnostics.ProcessStartInfo("https://console.cloud.google.com/apis/credentials") -Property @{ UseShellExecute = $true })) } catch {}
+            })
+        }
         $cw.FindName("BtnCloseCid").Add_Click({ $cw.Close() })
         $cw.FindName("BtnApplyCid").Add_Click({
             $cid = $tId.Text.Trim(); $csc = $tSec.Password.Trim()
@@ -1530,6 +1564,314 @@ $BtnEditJsonRules.Add_Click({
         [void]$edWin.ShowDialog()
     } catch {}
 })
+
+if ($null -ne $BtnPickExclusions) {
+    $BtnPickExclusions.Add_Click({
+        try {
+            $rCfg = Get-AccountRulesConfig -TargetRemote $script:ActiveRemote
+            $rulesPath = $rCfg.JsonRulesPath
+            if (-not (Test-Path -LiteralPath $rulesPath)) { $rulesPath = Get-DefaultPresetPath }
+            $currentRulesObj = $null
+            if (Test-Path -LiteralPath $rulesPath) {
+                try { $currentRulesObj = [System.IO.File]::ReadAllText($rulesPath, [System.Text.Encoding]::UTF8) | ConvertFrom-Json } catch {}
+            }
+            if ($null -eq $currentRulesObj) {
+                $currentRulesObj = [PSCustomObject]@{
+                    schemaVersion        = "1.0"
+                    presetName           = "Custom Exclusions"
+                    description          = "User-defined manual file and directory exclusion rules."
+                    enabled              = $true
+                    excludeDirectories   = @()
+                    excludeFiles         = @()
+                    customRclonePatterns = @()
+                }
+            }
+
+            $excludedItems = New-Object System.Collections.ObjectModel.ObservableCollection[object]
+            
+            if ($currentRulesObj.excludeDirectories) {
+                foreach ($d in $currentRulesObj.excludeDirectories) {
+                    if (-not [string]::IsNullOrWhiteSpace($d)) {
+                        $excludedItems.Add([PSCustomObject]@{
+                            Type       = (L "lblExclusionTypeFolder" "Folder")
+                            Pattern    = $d.ToString()
+                            TypeBrush  = "#38BDF8"
+                            TypeBg     = "#0E243A"
+                        })
+                    }
+                }
+            }
+            if ($currentRulesObj.excludeFiles) {
+                foreach ($f in $currentRulesObj.excludeFiles) {
+                    if (-not [string]::IsNullOrWhiteSpace($f)) {
+                        $excludedItems.Add([PSCustomObject]@{
+                            Type       = (L "lblExclusionTypeFile" "File")
+                            Pattern    = $f.ToString()
+                            TypeBrush  = "#4ADE80"
+                            TypeBg     = "#0F291E"
+                        })
+                    }
+                }
+            }
+            if ($currentRulesObj.customRclonePatterns) {
+                foreach ($p in $currentRulesObj.customRclonePatterns) {
+                    if (-not [string]::IsNullOrWhiteSpace($p)) {
+                        $excludedItems.Add([PSCustomObject]@{
+                            Type       = "Pattern"
+                            Pattern    = $p.ToString()
+                            TypeBrush  = "#C084FC"
+                            TypeBg     = "#241438"
+                        })
+                    }
+                }
+            }
+
+            $e = { param($k, $fb) [System.Security.SecurityElement]::Escape((L $k $fb)) }
+            $body = @"
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    
+                    <TextBlock Grid.Row="0" Text="$(& $e 'manualExclusionsDesc' 'Select files or folders to exclude from sync.')" TextWrapping="Wrap" Foreground="#94A3B8" FontSize="12" Margin="0,0,0,12"/>
+                    
+                    <WrapPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,12">
+                        <Button x:Name="BtnDlgAddFiles" Content="$(& $e 'btnAddFilesExclude' '+ Exclude Files (Multi-Select)...')" Background="#0F291E" BorderBrush="#10B981" Foreground="#4ADE80" FontWeight="SemiBold" Padding="12,5" Margin="0,2,8,2" Cursor="Hand"/>
+                        <Button x:Name="BtnDlgAddFolder" Content="$(& $e 'btnAddFolderExclude' '+ Exclude Folder...')" Background="#0E243A" BorderBrush="#0284C7" Foreground="#38BDF8" FontWeight="SemiBold" Padding="12,5" Margin="0,2,8,2" Cursor="Hand"/>
+                        <Button x:Name="BtnDlgAddPattern" Content="$(& $e 'btnAddPatternExclude' '+ Add Pattern...')" Background="#1E1B38" BorderBrush="#7C3AED" Foreground="#C084FC" FontWeight="SemiBold" Padding="12,5" Margin="0,2,0,2" Cursor="Hand"/>
+                    </WrapPanel>
+                    
+                    <TextBlock Grid.Row="2" Text="$(& $e 'lblCurrentExclusions' 'Current exclusions list:')" FontWeight="SemiBold" Foreground="#CBD5E1" FontSize="12.5" Margin="0,0,0,6"/>
+                    
+                    <Border Grid.Row="3" Background="#070C15" BorderBrush="#1E2C42" BorderThickness="1" CornerRadius="8" Padding="6" Margin="0,0,0,14">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <ItemsControl x:Name="LstDlgExclusions">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#0C1424" BorderBrush="#1E2F4A" BorderThickness="1" CornerRadius="6" Padding="8,5" Margin="0,0,0,5">
+                                            <DockPanel LastChildFill="True">
+                                                <Button Uid="BtnRemoveItem" Tag="{Binding Pattern}" DockPanel.Dock="Right" Content="&#x2715;" Width="24" Height="24" Background="#1C1824" BorderBrush="#5B2129" Foreground="#F87171" FontWeight="Bold" FontSize="11" Padding="0" Cursor="Hand" Margin="6,0,0,0" ToolTip="Remove exclusion"/>
+                                                <Border DockPanel.Dock="Left" Background="{Binding TypeBg}" BorderThickness="0" CornerRadius="4" Padding="6,2" Margin="0,0,8,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Type}" Foreground="{Binding TypeBrush}" FontSize="10.5" FontWeight="Bold"/>
+                                                </Border>
+                                                <TextBlock Text="{Binding Pattern}" FlowDirection="LeftToRight" Foreground="#E2E8F0" FontSize="12" FontFamily="Consolas" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                            </DockPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Border>
+                    
+                    <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button x:Name="BtnDlgSave" Content="$(& $e 'btnSaveExclusions' 'Save &amp; Activate Exclusions')" Background="#10B981" BorderBrush="#34D399" Foreground="#FFFFFF" FontWeight="Bold" Padding="14,6" Margin="0,0,10,0" Cursor="Hand"/>
+                        <Button x:Name="BtnDlgCancel" Content="$(& $e 'btnCancel' 'Cancel')" Padding="14,6" Cursor="Hand"/>
+                    </StackPanel>
+                </Grid>
+"@
+            $mWin = New-AlphaModalWindow -Title (L "titleManualExclusions" "Manual Files &amp; Folders Exclusion") -ReqWidth 680 -ReqHeight 540 -Resizable $true -BodyXaml $body
+            $lstControl = $mWin.FindName("LstDlgExclusions")
+            $lstControl.ItemsSource = $excludedItems
+
+            $lstControl.AddHandler([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent, [System.Windows.RoutedEventHandler]{
+                param($s, $ev)
+                try {
+                    $btn = $ev.OriginalSource
+                    while ($null -ne $btn -and $btn -isnot [System.Windows.Controls.Button]) {
+                        if ($btn -is [System.Windows.Media.Visual] -or $btn -is [System.Windows.Media.Media3D.Visual3D]) { $btn = [System.Windows.Media.VisualTreeHelper]::GetParent($btn) }
+                        else { $btn = [System.Windows.LogicalTreeHelper]::GetParent($btn) }
+                    }
+                    if ($null -ne $btn -and $btn.Uid -eq "BtnRemoveItem" -and $null -ne $btn.Tag) {
+                        $patToRemove = $btn.Tag.ToString()
+                        for ($k = $excludedItems.Count - 1; $k -ge 0; $k--) {
+                            if ($excludedItems[$k].Pattern -eq $patToRemove) {
+                                $excludedItems.RemoveAt($k)
+                                break
+                            }
+                        }
+                    }
+                } catch {}
+            })
+
+            $bFiles = $mWin.FindName("BtnDlgAddFiles")
+            if ($null -ne $bFiles) {
+                $bFiles.Add_Click({
+                    try {
+                        $ofd = New-Object System.Windows.Forms.OpenFileDialog
+                        $ofd.Title = L "btnAddFilesExclude" "Exclude Files"
+                        $ofd.Filter = "All Files (*.*)|*.*"
+                        $ofd.Multiselect = $true
+                        $activeFolders = @(Get-SyncFolders -TargetRemote $script:ActiveRemote)
+                        if ($activeFolders.Count -gt 0 -and (Test-Path -LiteralPath $activeFolders[0].LocalPath)) {
+                            $ofd.InitialDirectory = $activeFolders[0].LocalPath
+                        }
+                        if ($ofd.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+                            foreach ($fullF in $ofd.FileNames) {
+                                $pat = Split-Path -Leaf $fullF
+                                foreach ($fld in $activeFolders) {
+                                    if ($fullF.StartsWith($fld.LocalPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+                                        $rel = $fullF.Substring($fld.LocalPath.Length).TrimStart('\', '/') -replace '\\', '/'
+                                        if (-not [string]::IsNullOrWhiteSpace($rel)) { $pat = $rel; break }
+                                    }
+                                }
+                                $exists = $false
+                                foreach ($it in $excludedItems) { if ($it.Pattern -ieq $pat) { $exists = $true; break } }
+                                if (-not $exists) {
+                                    $excludedItems.Add([PSCustomObject]@{
+                                        Type      = (L "lblExclusionTypeFile" "File")
+                                        Pattern   = $pat
+                                        TypeBrush = "#4ADE80"
+                                        TypeBg    = "#0F291E"
+                                    })
+                                }
+                            }
+                        }
+                    } catch {}
+                })
+            }
+
+            $bFolder = $mWin.FindName("BtnDlgAddFolder")
+            if ($null -ne $bFolder) {
+                $bFolder.Add_Click({
+                    try {
+                        $fbd = New-Object System.Windows.Forms.FolderBrowserDialog
+                        $fbd.Description = L "btnAddFolderExclude" "Exclude Folder"
+                        $activeFolders = @(Get-SyncFolders -TargetRemote $script:ActiveRemote)
+                        if ($activeFolders.Count -gt 0 -and (Test-Path -LiteralPath $activeFolders[0].LocalPath)) {
+                            $fbd.SelectedPath = $activeFolders[0].LocalPath
+                        }
+                        if ($fbd.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+                            $chosen = $fbd.SelectedPath
+                            $pat = Split-Path -Leaf $chosen
+                            foreach ($fld in $activeFolders) {
+                                if ($chosen.StartsWith($fld.LocalPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+                                    $rel = $chosen.Substring($fld.LocalPath.Length).TrimStart('\', '/') -replace '\\', '/'
+                                    if (-not [string]::IsNullOrWhiteSpace($rel)) { $pat = $rel; break }
+                                }
+                            }
+                            $exists = $false
+                            foreach ($it in $excludedItems) { if ($it.Pattern -ieq $pat) { $exists = $true; break } }
+                            if (-not $exists) {
+                                $excludedItems.Add([PSCustomObject]@{
+                                    Type      = (L "lblExclusionTypeFolder" "Folder")
+                                    Pattern   = $pat
+                                    TypeBrush = "#38BDF8"
+                                    TypeBg    = "#0E243A"
+                                })
+                            }
+                        }
+                    } catch {}
+                })
+            }
+
+            $bPat = $mWin.FindName("BtnDlgAddPattern")
+            if ($null -ne $bPat) {
+                $bPat.Add_Click({
+                    try {
+                        $promptBody = @"
+                            <Grid>
+                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Text="Enter file pattern or folder name (e.g. *.tmp, cache/**, *.log):" Foreground="#CBD5E1" Margin="0,0,0,8"/>
+                                <TextBox x:Name="TxtCustomPat" Grid.Row="1" FlowDirection="LeftToRight" Height="32" Margin="0,0,0,14"/>
+                                <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <Button x:Name="BtnOkPat" Content="Add" Background="#0284C7" BorderBrush="#38BDF8" Foreground="#FFFFFF" Margin="0,0,8,0"/>
+                                    <Button x:Name="BtnCanPat" Content="Cancel"/>
+                                </StackPanel>
+                            </Grid>
+"@
+                        $pWin = New-AlphaModalWindow -Title (L "btnAddPatternExclude" "+ Add Pattern") -ReqWidth 440 -ReqHeight 200 -Resizable $false -BodyXaml $promptBody
+                        $txtP = $pWin.FindName("TxtCustomPat")
+                        $doAddP = {
+                            $pVal = $txtP.Text.Trim()
+                            if (-not [string]::IsNullOrWhiteSpace($pVal)) {
+                                $pWin.Close()
+                                $isDir = $pVal.EndsWith("/**") -or (-not $pVal.Contains(".") -and -not $pVal.Contains("*"))
+                                $excludedItems.Add([PSCustomObject]@{
+                                    Type      = if ($isDir) { (L "lblExclusionTypeFolder" "Folder") } else { (L "lblExclusionTypeFile" "File") }
+                                    Pattern   = $pVal
+                                    TypeBrush = if ($isDir) { "#38BDF8" } else { "#C084FC" }
+                                    TypeBg    = if ($isDir) { "#0E243A" } else { "#241438" }
+                                })
+                            }
+                        }
+                        $pWin.FindName("BtnOkPat").Add_Click($doAddP)
+                        $pWin.FindName("BtnCanPat").Add_Click({ $pWin.Close() })
+                        $pWin.Add_KeyDown({ param($s, $ke) if ($ke.Key -eq [System.Windows.Input.Key]::Enter) { & $doAddP } })
+                        $pWin.Add_ContentRendered({ try { $txtP.Focus() } catch {} })
+                        [void]$pWin.ShowDialog()
+                    } catch {}
+                })
+            }
+
+            $bSave = $mWin.FindName("BtnDlgSave")
+            if ($null -ne $bSave) {
+                $bSave.Add_Click({
+                    try {
+                        $dirs = New-Object System.Collections.Generic.List[string]
+                        $files = New-Object System.Collections.Generic.List[string]
+                        $pats = New-Object System.Collections.Generic.List[string]
+
+                        $typeFolderLbl = (L "lblExclusionTypeFolder" "Folder")
+                        $typeFileLbl   = (L "lblExclusionTypeFile" "File")
+
+                        foreach ($it in $excludedItems) {
+                            $p = $it.Pattern.Trim()
+                            if ([string]::IsNullOrWhiteSpace($p)) { continue }
+                            if ($it.Type -eq $typeFolderLbl -or $it.Type -eq "Folder") {
+                                $cleanD = $p.TrimEnd('/').Replace('/**', '')
+                                if (-not $dirs.Contains($cleanD)) { $dirs.Add($cleanD) }
+                            } elseif ($it.Type -eq $typeFileLbl -or $it.Type -eq "File") {
+                                if (-not $files.Contains($p)) { $files.Add($p) }
+                            } else {
+                                if (-not $pats.Contains($p)) { $pats.Add($p) }
+                            }
+                        }
+
+                        $rulesObj = [ordered]@{
+                            schemaVersion        = "1.0"
+                            presetName           = "Custom Exclusions"
+                            description          = "User-defined manual file and directory exclusion rules."
+                            enabled              = $true
+                            excludeDirectories   = @($dirs)
+                            excludeFiles         = @($files)
+                            customRclonePatterns = @($pats)
+                        }
+
+                        $saveJson = $rulesObj | ConvertTo-Json -Depth 6
+                        $savePath = Join-Path $AppDataDir "rules-$(Get-SanitizedName $script:ActiveRemote).json"
+                        [System.IO.File]::WriteAllText($savePath, $saveJson, (New-Object System.Text.UTF8Encoding($false)))
+
+                        Set-AccountPref -Remote $script:ActiveRemote -UseJsonRules $true -JsonRulesPath $savePath
+                        $ChkJsonRules.IsChecked = $true
+                        $script:IsRefreshing = $true
+                        $CmbJsonPreset.SelectedIndex = 3
+                        $script:IsRefreshing = $false
+                        
+                        Build-SafeExcludeFile -TargetRemote $script:ActiveRemote | Out-Null
+                        Refresh-JsonRulesBanner
+                        $mWin.Close()
+                        Show-AlphaMessageBox -Message (L "msgExclusionsSaved" "Exclusion rules saved and activated successfully!") -Title (L "titleManualExclusions") -Buttons "OK" -Icon "Information" | Out-Null
+                    } catch {
+                        Show-AlphaMessageBox -Message $_.Exception.Message -Title (L "titleManualExclusions") -Buttons "OK" -Icon "Error" | Out-Null
+                    }
+                })
+            }
+
+            $bCancel = $mWin.FindName("BtnDlgCancel")
+            if ($null -ne $bCancel) {
+                $bCancel.Add_Click({ $mWin.Close() })
+            }
+
+            [void]$mWin.ShowDialog()
+        } catch {
+            Write-StudioLog "[ERR] Manual Exclusions picker: $($_.Exception.Message)"
+        }
+    })
+}
 
 $BtnOpenScheduler.Add_Click({
     try {
