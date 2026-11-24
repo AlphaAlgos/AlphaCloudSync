@@ -405,5 +405,6 @@
   "lblCurrentExclusions": "Currently configured exclusions for this account:",
   "lblExclusionTypeFolder": "Folder",
   "lblExclusionTypeFile": "File",
-  "msgExclusionsSaved": "Exclusion rules saved and activated successfully!"
+  "msgExclusionsSaved": "Exclusion rules saved and activated successfully!",
+  "apiKeyStepsGuide": "Quick Steps (1-2-3):\n1. Open Google Cloud Console, enable Google Drive API (Library), and add your email under Test Users (OAuth Consent Screen).\n2. In Credentials click [+ Create credentials] -> [OAuth client ID] -> Application type: [Desktop app] -> Create.\n3. Copy the Client ID & Client Secret, paste them below, and click Save & Reconnect."
 }

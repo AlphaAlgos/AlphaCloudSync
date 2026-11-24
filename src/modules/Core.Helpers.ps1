@@ -390,9 +390,15 @@ function Show-AlphaMessageBox {
         $resBox = [PSCustomObject]@{ Val = if ($Buttons -eq "YesNo") { [System.Windows.MessageBoxResult]::No } elseif ($Buttons -eq "OK") { [System.Windows.MessageBoxResult]::OK } else { [System.Windows.MessageBoxResult]::Cancel } }
         $bClose = $dlg.FindName("BtnMbCloseX")
         if ($null -ne $bClose) {
-            $bClose.Add_Click({ $dlg.Close() })
-            $bClose.Add_PreviewMouseLeftButtonUp({ param($s,$e) $dlg.Close() })
-            $bClose.Add_PreviewMouseLeftButtonDown({ param($s,$e) $e.Handled = $true; $dlg.Close() })
+            $bClose.Add_Click({
+                param($s, $e)
+                try { $wObj = [System.Windows.Window]::GetWindow($s); if ($null -ne $wObj) { $wObj.Close() } } catch {}
+            })
+            $bClose.Add_PreviewMouseLeftButtonDown({
+                param($s, $e)
+                $e.Handled = $true
+                try { $wObj = [System.Windows.Window]::GetWindow($s); if ($null -ne $wObj) { $wObj.Close() } } catch {}
+            })
         }
         $mbTitleBar = $dlg.FindName("MbTitleBar")
         if ($null -ne $mbTitleBar) {
@@ -400,23 +406,34 @@ function Show-AlphaMessageBox {
                 param($s, $e)
                 try {
                     if ($e.ButtonState -eq [System.Windows.Input.MouseButtonState]::Pressed) {
-                        $orig = $e.OriginalSource
-                        $isClose = ($null -ne $bClose -and ($orig -eq $bClose -or $bClose.IsMouseOver))
-                        if (-not $isClose) { $dlg.DragMove() }
+                        $cur = $e.OriginalSource
+                        $isClose = $false
+                        while ($null -ne $cur) {
+                            if ($cur -is [System.Windows.Controls.Button] -and $cur.Name -eq "BtnMbCloseX") { $isClose = $true; break }
+                            if ($cur -is [System.Windows.Media.Visual] -or $cur -is [System.Windows.Media.Media3D.Visual3D]) {
+                                $cur = [System.Windows.Media.VisualTreeHelper]::GetParent($cur)
+                            } else {
+                                $cur = [System.Windows.LogicalTreeHelper]::GetParent($cur)
+                            }
+                        }
+                        if (-not $isClose) {
+                            $wObj = [System.Windows.Window]::GetWindow($s)
+                            if ($null -ne $wObj) { $wObj.DragMove() }
+                        }
                     }
                 } catch {}
             })
         }
-        $bYes = $dlg.FindName("BtnDlgYes"); if ($null -ne $bYes) { $bYes.Add_Click({ $resBox.Val = [System.Windows.MessageBoxResult]::Yes; $dlg.Close() }) }
-        $bNo  = $dlg.FindName("BtnDlgNo");  if ($null -ne $bNo)  { $bNo.Add_Click({  $resBox.Val = [System.Windows.MessageBoxResult]::No;  $dlg.Close() }) }
-        $bOk  = $dlg.FindName("BtnDlgOk");  if ($null -ne $bOk)  { $bOk.Add_Click({  $resBox.Val = [System.Windows.MessageBoxResult]::OK;  $dlg.Close() }) }
-        $bCan = $dlg.FindName("BtnDlgCancel"); if ($null -ne $bCan) { $bCan.Add_Click({ $resBox.Val = [System.Windows.MessageBoxResult]::Cancel; $dlg.Close() }) }
+        $bYes = $dlg.FindName("BtnDlgYes"); if ($null -ne $bYes) { $bYes.Add_Click({ param($s,$e) $resBox.Val = [System.Windows.MessageBoxResult]::Yes; $wObj = [System.Windows.Window]::GetWindow($s); if ($null -ne $wObj) { $wObj.Close() } }) }
+        $bNo  = $dlg.FindName("BtnDlgNo");  if ($null -ne $bNo)  { $bNo.Add_Click({  param($s,$e) $resBox.Val = [System.Windows.MessageBoxResult]::No;  $wObj = [System.Windows.Window]::GetWindow($s); if ($null -ne $wObj) { $wObj.Close() } }) }
+        $bOk  = $dlg.FindName("BtnDlgOk");  if ($null -ne $bOk)  { $bOk.Add_Click({  param($s,$e) $resBox.Val = [System.Windows.MessageBoxResult]::OK;  $wObj = [System.Windows.Window]::GetWindow($s); if ($null -ne $wObj) { $wObj.Close() } }) }
+        $bCan = $dlg.FindName("BtnDlgCancel"); if ($null -ne $bCan) { $bCan.Add_Click({ param($s,$e) $resBox.Val = [System.Windows.MessageBoxResult]::Cancel; $wObj = [System.Windows.Window]::GetWindow($s); if ($null -ne $wObj) { $wObj.Close() } }) }
         $dlg.Add_KeyDown({
             param($s, $e)
-            if ($e.Key -eq [System.Windows.Input.Key]::Escape) { $dlg.Close() }
+            if ($e.Key -eq [System.Windows.Input.Key]::Escape) { try { $s.Close() } catch {} }
             elseif ($e.Key -eq [System.Windows.Input.Key]::Enter) {
-                if ($null -ne $bOk) { $resBox.Val = [System.Windows.MessageBoxResult]::OK; $dlg.Close() }
-                elseif ($null -ne $bYes) { $resBox.Val = [System.Windows.MessageBoxResult]::Yes; $dlg.Close() }
+                if ($null -ne $bOk) { $resBox.Val = [System.Windows.MessageBoxResult]::OK; try { $s.Close() } catch {} }
+                elseif ($null -ne $bYes) { $resBox.Val = [System.Windows.MessageBoxResult]::Yes; try { $s.Close() } catch {} }
             }
         })
         [void]$dlg.ShowDialog()

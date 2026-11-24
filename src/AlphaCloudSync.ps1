@@ -28,7 +28,7 @@ if (-not [string]::IsNullOrWhiteSpace($DriveLetter)) {
 $script:LastAboutCache = @{}
 $script:IdentityCache  = @{}
 $AppName      = "AlphaCloudSync"
-$AppVersion   = "1.2.0"
+$AppVersion   = "1.2.1"
 $ScriptSelf   = $MyInvocation.MyCommand.Path
 $ScriptDir    = Split-Path -Parent $ScriptSelf
 $ProjectRoot  = if (-not [string]::IsNullOrWhiteSpace($env:ALPHACLOUDSYNC_RUNTIME_ROOT) -and (Test-Path -LiteralPath $env:ALPHACLOUDSYNC_RUNTIME_ROOT)) {

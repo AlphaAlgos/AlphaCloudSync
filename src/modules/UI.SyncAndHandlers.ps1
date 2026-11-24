@@ -841,23 +841,25 @@ $TxtComputerLabel.Add_LostFocus({
     } catch {}
 })
 
-$BtnAuthToggle.Add_Click({
-    try {
-        if ($script:IsSignedIn) {
-            Invoke-DisconnectAccountRemote -TargetRemote $script:ActiveRemote
-        } else {
-            Invoke-UiPump
-            $null = Invoke-GDriveAuth -TargetRemote $script:ActiveRemote
-            Clear-RcloneConfigDumpCache
-            $script:CachedDriveRemotes = @()
-            $null = @(Get-ConfiguredDriveRemotes -ForceRefresh)
-            Refresh-ProfilesDropdown -ForceRefresh
-            Refresh-SidebarAccountsOverview -ForceRefresh
-            Refresh-SettingsAccountsList -ForceRefresh
-            Refresh-StudioHeader -ForceRefresh
-        }
-    } catch { Write-StudioLog "[ERR] Auth error: $($_.Exception.Message)" }
-})
+if ($null -ne $BtnAuthToggle) {
+    $BtnAuthToggle.Add_Click({
+        try {
+            if ($script:IsSignedIn) {
+                Invoke-DisconnectAccountRemote -TargetRemote $script:ActiveRemote
+            } else {
+                Invoke-UiPump
+                $null = Invoke-GDriveAuth -TargetRemote $script:ActiveRemote
+                Clear-RcloneConfigDumpCache
+                $script:CachedDriveRemotes = @()
+                $null = @(Get-ConfiguredDriveRemotes -ForceRefresh)
+                Refresh-ProfilesDropdown -ForceRefresh
+                Refresh-SidebarAccountsOverview -ForceRefresh
+                Refresh-SettingsAccountsList -ForceRefresh
+                Refresh-StudioHeader -ForceRefresh
+            }
+        } catch { Write-StudioLog "[ERR] Auth error: $($_.Exception.Message)" }
+    })
+}
 
 function Apply-DriveLayoutChange {
     param([string]$NewLayout)
@@ -1240,26 +1242,30 @@ $BtnCustomClientId.Add_Click({
         }
         $descT    = [System.Security.SecurityElement]::Escape((L "apiKeyModalDesc"))
         $gcpHelpT = [System.Security.SecurityElement]::Escape((L "apiKeyGcpHelpBtn" "🔗 فتح Google Cloud Console لإنشاء أو إيجاد المفتاح"))
+        $stepsT   = [System.Security.SecurityElement]::Escape((L "apiKeyStepsGuide" "Quick Steps (1-2-3): 1) Enable Google Drive API -> 2) Create Credentials -> OAuth client ID -> Desktop app -> 3) Paste Client ID & Secret below."))
         $idT      = [System.Security.SecurityElement]::Escape((L "apiKeyClientIdLabel"))
         $secT     = [System.Security.SecurityElement]::Escape((L "apiKeySecretLabel"))
         $okT      = [System.Security.SecurityElement]::Escape((L "apiKeyApplyBtn"))
         $canT     = [System.Security.SecurityElement]::Escape((L "btnCancel"))
         $body = @"
             <Grid>
-                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <TextBlock Grid.Row="0" Text="$descT" TextWrapping="Wrap" Foreground="#94A3B8" FontSize="12" Margin="0,0,0,10"/>
-                <Button x:Name="BtnOpenGcpConsole" Grid.Row="1" Content="$gcpHelpT" Background="#112240" BorderBrush="#1D4ED8" Foreground="#38BDF8" FontWeight="SemiBold" Height="28" Padding="12,0" Margin="0,0,0,12" HorizontalAlignment="Left" Cursor="Hand"/>
-                <TextBlock Grid.Row="2" Text="$idT" FontWeight="SemiBold" Foreground="#CBD5E1" Margin="0,0,0,4"/>
-                <TextBox x:Name="TxtCid" Grid.Row="3" FlowDirection="LeftToRight" Height="32" Margin="0,0,0,10"/>
-                <TextBlock Grid.Row="4" Text="$secT" FontWeight="SemiBold" Foreground="#CBD5E1" Margin="0,0,0,4"/>
-                <PasswordBox x:Name="TxtCsec" Grid.Row="5" FlowDirection="LeftToRight" Height="32" Background="#0D1525" Foreground="#E2E8F0" BorderBrush="#243550" BorderThickness="1" Padding="7,4" VerticalContentAlignment="Center" CaretBrush="#38BDF8" Margin="0,0,0,16"/>
-                <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button x:Name="BtnOpenGcpConsole" Grid.Row="1" Content="$gcpHelpT" Background="#112240" BorderBrush="#1D4ED8" Foreground="#38BDF8" FontWeight="SemiBold" Height="28" Padding="12,0" Margin="0,0,0,10" HorizontalAlignment="Left" Cursor="Hand"/>
+                <Border Grid.Row="2" Background="#0B1526" BorderBrush="#1E3A5F" BorderThickness="1" CornerRadius="7" Padding="10,8" Margin="0,0,0,12">
+                    <TextBlock Text="$stepsT" TextWrapping="Wrap" Foreground="#CBD5E1" FontSize="11.5" LineHeight="18"/>
+                </Border>
+                <TextBlock Grid.Row="3" Text="$idT" FontWeight="SemiBold" Foreground="#CBD5E1" Margin="0,0,0,4"/>
+                <TextBox x:Name="TxtCid" Grid.Row="4" FlowDirection="LeftToRight" Height="32" Margin="0,0,0,10"/>
+                <TextBlock Grid.Row="5" Text="$secT" FontWeight="SemiBold" Foreground="#CBD5E1" Margin="0,0,0,4"/>
+                <PasswordBox x:Name="TxtCsec" Grid.Row="6" FlowDirection="LeftToRight" Height="32" Background="#0D1525" Foreground="#E2E8F0" BorderBrush="#243550" BorderThickness="1" Padding="7,4" VerticalContentAlignment="Center" CaretBrush="#38BDF8" Margin="0,0,0,16"/>
+                <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button x:Name="BtnApplyCid" Content="$okT" Background="#10B981" BorderBrush="#34D399" Foreground="#FFFFFF" Margin="0,0,8,0"/>
                     <Button x:Name="BtnCloseCid" Content="$canT"/>
                 </StackPanel>
             </Grid>
 "@
-        $cw = New-AlphaModalWindow -Title (L "apiKeyModalTitle") -ReqWidth 560 -ReqHeight 395 -Resizable $true -BodyXaml $body
+        $cw = New-AlphaModalWindow -Title (L "apiKeyModalTitle") -ReqWidth 585 -ReqHeight 495 -Resizable $true -BodyXaml $body
         $tId = $cw.FindName("TxtCid"); $tSec = $cw.FindName("TxtCsec")
         $bOpenGcp = $cw.FindName("BtnOpenGcpConsole")
         if ($null -ne $bOpenGcp) {

@@ -385,9 +385,15 @@ function New-AlphaModalWindow {
 
     $closeBtn = $mw.FindName("BtnModalCloseX")
     if ($null -ne $closeBtn) {
-        $closeBtn.Add_Click({ try { $mw.Close() } catch {} })
-        $closeBtn.Add_PreviewMouseLeftButtonUp({ param($s,$e) try { $mw.Close() } catch {} })
-        $closeBtn.Add_PreviewMouseLeftButtonDown({ param($s,$e) $e.Handled = $true; try { $mw.Close() } catch {} })
+        $closeBtn.Add_Click({
+            param($s, $e)
+            try { $wObj = [System.Windows.Window]::GetWindow($s); if ($null -ne $wObj) { $wObj.Close() } } catch {}
+        })
+        $closeBtn.Add_PreviewMouseLeftButtonDown({
+            param($s, $e)
+            $e.Handled = $true
+            try { $wObj = [System.Windows.Window]::GetWindow($s); if ($null -ne $wObj) { $wObj.Close() } } catch {}
+        })
     }
     $titleBar = $mw.FindName("ModalTitleBar")
     if ($null -ne $titleBar) {
@@ -395,11 +401,10 @@ function New-AlphaModalWindow {
             param($s, $e)
             try {
                 if ($e.ButtonState -eq [System.Windows.Input.MouseButtonState]::Pressed) {
-                    $orig = $e.OriginalSource
+                    $cur = $e.OriginalSource
                     $isClose = $false
-                    $cur = $orig
                     while ($null -ne $cur) {
-                        if ($cur -eq $closeBtn) { $isClose = $true; break }
+                        if ($cur -is [System.Windows.Controls.Button] -and $cur.Name -eq "BtnModalCloseX") { $isClose = $true; break }
                         if ($cur -is [System.Windows.Media.Visual] -or $cur -is [System.Windows.Media.Media3D.Visual3D]) {
                             $cur = [System.Windows.Media.VisualTreeHelper]::GetParent($cur)
                         } else {
@@ -407,7 +412,8 @@ function New-AlphaModalWindow {
                         }
                     }
                     if (-not $isClose) {
-                        $mw.DragMove()
+                        $wObj = [System.Windows.Window]::GetWindow($s)
+                        if ($null -ne $wObj) { $wObj.DragMove() }
                     }
                 }
             } catch {}
@@ -416,7 +422,7 @@ function New-AlphaModalWindow {
     $mw.Add_KeyDown({
         param($s, $e)
         if ($e.Key -eq [System.Windows.Input.Key]::Escape) {
-            try { $mw.Close() } catch {}
+            try { $s.Close() } catch {}
         }
     })
     return $mw
@@ -1460,8 +1466,8 @@ function Apply-HydratedAccountToUi {
                 $TxtAccountStatus.Text    = Wrap-Ltr $idDisplay
                 $TxtAccountStatus.ToolTip = $idDisplay
                 $DotAccount.Fill          = $bc.ConvertFromString("#10B981")
-                $TxtSettingsAccount.Text  = if ($idDisplay -ieq $dispLabel) { Wrap-Ltr $dispLabel } else { Wrap-Ltr "$dispLabel  --  $idDisplay" }
-                $DotSettingsAccount.Fill  = $bc.ConvertFromString("#10B981")
+                if ($null -ne $TxtSettingsAccount) { $TxtSettingsAccount.Text = if ($idDisplay -ieq $dispLabel) { Wrap-Ltr $dispLabel } else { Wrap-Ltr "$dispLabel  --  $idDisplay" } }
+                if ($null -ne $DotSettingsAccount) { $DotSettingsAccount.Fill = $bc.ConvertFromString("#10B981") }
                 $BtnCustomClientId.Content = if ($ident.HasCustomClientId) { L "apiKeyActive" } else { L "apiKey" }
             }
         }

@@ -751,22 +751,26 @@ function Refresh-StudioHeader {
             $TxtAccountStatus.Text = Wrap-Ltr $idDisplay
             $TxtAccountStatus.ToolTip = $idDisplay
             $DotAccount.Fill = $bc.ConvertFromString("#10B981")
-            $TxtSettingsAccount.Text = if ($idDisplay -ieq $dispLabel) { Wrap-Ltr $dispLabel } else { Wrap-Ltr "$dispLabel  --  $idDisplay" }
-            $DotSettingsAccount.Fill = $bc.ConvertFromString("#10B981")
-            $BtnAuthToggle.Content = L "signOut"
-            $BtnAuthToggle.Background  = $bc.ConvertFromString("#162238")
-            $BtnAuthToggle.BorderBrush = $bc.ConvertFromString("#273A57")
+            if ($null -ne $TxtSettingsAccount) { $TxtSettingsAccount.Text = if ($idDisplay -ieq $dispLabel) { Wrap-Ltr $dispLabel } else { Wrap-Ltr "$dispLabel  --  $idDisplay" } }
+            if ($null -ne $DotSettingsAccount) { $DotSettingsAccount.Fill = $bc.ConvertFromString("#10B981") }
+            if ($null -ne $BtnAuthToggle) {
+                $BtnAuthToggle.Content = L "signOut"
+                $BtnAuthToggle.Background  = $bc.ConvertFromString("#162238")
+                $BtnAuthToggle.BorderBrush = $bc.ConvertFromString("#273A57")
+            }
             $BtnCustomClientId.Content = if ($ident.HasCustomClientId) { L "apiKeyActive" } else { L "apiKey" }
             Update-DriveQuotaDisplay -UseCache
         } else {
             $TxtAccountStatus.Text = L "accountNotSignedIn"
             $TxtAccountStatus.ToolTip = $null
             $DotAccount.Fill = $bc.ConvertFromString("#F59E0B")
-            $TxtSettingsAccount.Text = L "accountNotSignedIn"
-            $DotSettingsAccount.Fill = $bc.ConvertFromString("#F59E0B")
-            $BtnAuthToggle.Content = L "signIn"
-            $BtnAuthToggle.Background  = $bc.ConvertFromString("#0284C7")
-            $BtnAuthToggle.BorderBrush = $bc.ConvertFromString("#38BDF8")
+            if ($null -ne $TxtSettingsAccount) { $TxtSettingsAccount.Text = L "accountNotSignedIn" }
+            if ($null -ne $DotSettingsAccount) { $DotSettingsAccount.Fill = $bc.ConvertFromString("#F59E0B") }
+            if ($null -ne $BtnAuthToggle) {
+                $BtnAuthToggle.Content = L "signIn"
+                $BtnAuthToggle.Background  = $bc.ConvertFromString("#0284C7")
+                $BtnAuthToggle.BorderBrush = $bc.ConvertFromString("#38BDF8")
+            }
             $BtnCustomClientId.Content = L "apiKey"
             Update-DriveQuotaDisplay -UseCache
         }

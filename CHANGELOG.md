@@ -2,6 +2,17 @@
 
 All notable changes to **AlphaCloudSync** are documented in this file.
 
+## [1.2.1] - 2026-11-24
+### Fixed
+- **Root-Cause Fix for Sidebar Accounts Overview & Mount Status Display (`Refresh-StudioHeader`):**
+  - Removed 3 orphaned XAML element lookups (`TxtSettingsAccount`, `DotSettingsAccount`, `BtnAuthToggle`) that threw null-reference exceptions halfway through `Refresh-StudioHeader`, preventing the sidebar account cards (`ListSidebarAccounts`), account counter (`TxtSidebarAccountsCount`), mount status text, and drive button label from updating.
+- **Root-Cause Fix for Modal Close (`✕`), Title-Bar Drag & `Escape` Key Across All Dialogs (`New-AlphaModalWindow` & `Show-AlphaMessageBox`):**
+  - Fixed PowerShell local-variable scope loss where `$mw` became `$null` inside event handlers after `New-AlphaModalWindow` returned. All modal `✕` close buttons, drag-move handlers, and `Escape` key handlers now resolve the parent WPF window directly via `[System.Windows.Window]::GetWindow($s)` / `$s.Close()`.
+
+### Added
+- **Built-In 1-2-3 Step Guide in Faster Mode Dialog (`apiKeyStepsGuide`, 7 Languages x 408 Keys):**
+  - Added a clear 3-step visual guide inside the Google Cloud personal key dialog walking users through enabling Google Drive API, creating an `OAuth client ID` of type `Desktop app`, and pasting their credentials.
+
 ## [1.2.0] - 2026-11-24
 ### Added
 - **All-Stages Visible Startup Splash Screen (`AlphaSplashForm`):**

@@ -405,5 +405,6 @@
   "lblCurrentExclusions": "Pengecualian yang saat ini dikonfigurasi untuk akun ini:",
   "lblExclusionTypeFolder": "Folder",
   "lblExclusionTypeFile": "File",
-  "msgExclusionsSaved": "Aturan pengecualian berhasil disimpan dan diaktifkan!"
+  "msgExclusionsSaved": "Aturan pengecualian berhasil disimpan dan diaktifkan!",
+  "apiKeyStepsGuide": "Langkah Cepat (1-2-3):\n1. Buka Google Cloud Console, aktifkan Google Drive API (Library), lalu tambahkan email Anda di Test Users (OAuth Consent Screen).\n2. Di Credentials klik [+ Create credentials] -> [OAuth client ID] -> Tipe aplikasi: [Desktop app] -> Create.\n3. Salin Client ID & Client Secret, tempel di bawah ini, lalu klik Simpan & Sambungkan Ulang."
 }

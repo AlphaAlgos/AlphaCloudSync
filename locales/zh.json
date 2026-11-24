@@ -405,5 +405,6 @@
   "lblCurrentExclusions": "此账户当前配置的排除规则：",
   "lblExclusionTypeFolder": "文件夹",
   "lblExclusionTypeFile": "文件",
-  "msgExclusionsSaved": "排除规则已成功保存并立即生效！"
+  "msgExclusionsSaved": "排除规则已成功保存并立即生效！",
+  "apiKeyStepsGuide": "快速步骤 (1-2-3)：\n1. 打开 Google Cloud Console，在库中启用 Google Drive API，并在 OAuth 同意屏幕的测试用户中添加您的邮箱。\n2. 在凭据页面点击 [+ 创建凭据] -> [OAuth 客户端 ID] -> 应用类型选择 [桌面应用 (Desktop app)] -> 创建。\n3. 复制 Client ID 和 Client Secret 粘贴到下方，然后点击保存并重新连接。"
 }
