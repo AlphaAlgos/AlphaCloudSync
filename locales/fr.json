@@ -412,5 +412,13 @@
   "updStageDownload": "Téléchargement de {0}... ({1}% — {2})",
   "updStageVerify": "Vérification de l'empreinte de sécurité SHA-256...",
   "updStageRestart": "Vérifié ! Installation de la mise à jour et redémarrage...",
-  "updStageFailed": "Échec de la mise à jour : {0}"
+  "updStageFailed": "Échec de la mise à jour : {0}",
+  "btnStatusConnected": "✓ Connecté",
+  "btnStatusDisconnected": "↻ Déconnecté — Reconnecter",
+  "btnStatusChecking": "↻ Actualiser la connexion",
+  "tipStatusConnected": "Compte connecté — cliquez pour renouveler la session à tout moment",
+  "tipStatusDisconnected": "Session expirée — cliquez pour vous reconnecter et restaurer le statut connecté",
+  "msgAccountDeduplicatedTitle": "Session du compte actualisée",
+  "msgAccountDeduplicatedBody": "Le compte ({0}) est déjà connecté ! Sa session a été renouvelée automatiquement sans créer de doublon, tout en conservant vos dossiers.",
+  "btnResetApiKey": "Supprimer la clé personnelle"
 }

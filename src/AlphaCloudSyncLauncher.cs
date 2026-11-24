@@ -17,8 +17,8 @@ using System.Windows.Forms;
 [assembly: AssemblyCompany("Alpha Algorithms Company")]
 [assembly: AssemblyProduct("AlphaCloudSync")]
 [assembly: AssemblyCopyright("Copyright (c) 2026 Alpha Algorithms Company (MIT License)")]
-[assembly: AssemblyVersion("1.2.3.0")]
-[assembly: AssemblyFileVersion("1.2.3.0")]
+[assembly: AssemblyVersion("1.2.4.0")]
+[assembly: AssemblyFileVersion("1.2.4.0")]
 
 namespace AlphaCloudSync
 {
@@ -224,7 +224,7 @@ namespace AlphaCloudSync
                 g.FillPath(pillBg, pillPath);
                 g.DrawPath(pillBorder, pillPath);
                 StringFormat sfC = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
-                g.DrawString("v1.2.3", pillFont, pillText, pillRect, sfC);
+                g.DrawString("v1.2.4", pillFont, pillText, pillRect, sfC);
             }
 
             // Divider line
@@ -360,7 +360,7 @@ namespace AlphaCloudSync
 
     internal static class Program
     {
-        private const string AppVersion = "1.2.3";
+        private const string AppVersion = "1.2.4";
         private const string AppUserModelId = "AlphaAlgorithms.AlphaCloudSync";
         private const string RestoreSignalName = "Local\\AlphaCloudSync_RestoreSignal";
 

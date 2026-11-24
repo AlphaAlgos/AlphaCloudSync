@@ -342,7 +342,7 @@ $script:DarkControlStylesXaml = @"
 [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="AlphaCloudSync v1.2.3"
+        Title="AlphaCloudSync v1.2.4"
         WindowStyle="SingleBorderWindow"
         ResizeMode="CanResize"
         WindowStartupLocation="Manual"
@@ -543,7 +543,7 @@ $script:DarkControlStylesXaml = @"
                         <Image x:Name="ImgTitleIcon" FlowDirection="LeftToRight" Width="20" Height="20" Margin="0,0,9,0" RenderOptions.BitmapScalingMode="HighQuality"/>
                         <TextBlock x:Name="TxtWindowTitle" FlowDirection="LeftToRight" Text="AlphaCloudSync" FontSize="13" FontWeight="Bold" Foreground="#F1F5F9" VerticalAlignment="Center"/>
                         <Border Background="#12243D" BorderBrush="#1F3B61" BorderThickness="1" CornerRadius="4" Padding="6,1" Margin="8,0,0,0" VerticalAlignment="Center">
-                            <TextBlock x:Name="TxtBrandBadge" Text="v1.2.3" FontSize="10" FontWeight="SemiBold" Foreground="#38BDF8"/>
+                            <TextBlock x:Name="TxtBrandBadge" Text="v1.2.4" FontSize="10" FontWeight="SemiBold" Foreground="#38BDF8"/>
                         </Border>
                         <TextBlock x:Name="TxtWindowSubtitle" Text="" FontSize="11.5" Foreground="#64748B" VerticalAlignment="Center" Margin="10,0,0,0"/>
                         <Button x:Name="BtnUpdateBanner" Visibility="Collapsed" Background="#064E3B" BorderBrush="#10B981" Foreground="#A7F3D0" FontSize="11" FontWeight="Bold" Padding="10,2" Height="24" Margin="12,0,0,0" VerticalAlignment="Center" Cursor="Hand">
@@ -1127,6 +1127,8 @@ $script:DarkControlStylesXaml = @"
 
                                                         <!-- Actions (Right) -->
                                                         <WrapPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <!-- Interactive Connection Status / Reconnect Button -->
+                                                            <Button Uid="BtnReconnectAccount" Tag="{Binding Remote}" Content="{Binding ConnStatusBtnText}" ToolTip="{Binding ConnStatusToolTip}" Background="{Binding ConnStatusBtnBg}" BorderBrush="{Binding ConnStatusBtnBorder}" Foreground="{Binding ConnStatusBtnFg}" FontSize="11.5" FontWeight="Bold" Padding="10,5" Margin="0,2,8,2" Cursor="Hand"/>
                                                             <!-- Set as Default Button (Visible only when NOT default) -->
                                                             <Button Uid="BtnSetDefaultAccount" Tag="{Binding Remote}" Visibility="{Binding SetDefaultBtnVis}" Content="{Binding SetDefaultBtnText}" ToolTip="{Binding SetDefaultToolTip}" Background="#0284C7" BorderBrush="#38BDF8" Foreground="#FFFFFF" FontSize="11.5" FontWeight="SemiBold" Padding="11,5" Margin="0,2,8,2" Cursor="Hand"/>
                                                             <!-- Current Default Indicator (Visible only when IS default) -->

@@ -412,5 +412,13 @@
   "updStageDownload": "Downloading {0}... ({1}% — {2})",
   "updStageVerify": "Verifying SHA-256 security checksum...",
   "updStageRestart": "Verified! Installing update and restarting...",
-  "updStageFailed": "Update failed: {0}"
+  "updStageFailed": "Update failed: {0}",
+  "btnStatusConnected": "✓ Connected",
+  "btnStatusDisconnected": "↻ Disconnected — Reconnect",
+  "btnStatusChecking": "↻ Refresh Sign-In",
+  "tipStatusConnected": "Account is connected and healthy — click to refresh sign-in session anytime",
+  "tipStatusDisconnected": "Session expired for this account — click to sign in again and restore green connected status",
+  "msgAccountDeduplicatedTitle": "Existing Account Refreshed",
+  "msgAccountDeduplicatedBody": "Account ({0}) is already connected! Its sign-in session was automatically refreshed without creating a duplicate, preserving all your folders and settings.",
+  "btnResetApiKey": "Remove Custom Key"
 }

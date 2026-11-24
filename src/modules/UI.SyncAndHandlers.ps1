@@ -309,9 +309,18 @@ $timer.Add_Tick({
                 }
                 Save-SyncFolders -Folders $folders -TargetRemote $syncRem
                 if ($syncRem -eq $script:ActiveRemote) { Update-FoldersGrid }
-                if ($code -eq 0) { Write-StudioLog -Msg "[OK] Completed '$($script:CurrentFolder)' cleanly." -TargetRemote $syncRem }
-                else {
+                if ($code -eq 0) {
+                    if ($script:AuthExpiredRemotes.ContainsKey($syncRem)) { $script:AuthExpiredRemotes.Remove($syncRem) }
+                    $script:AuthVerifiedRemotes[$syncRem] = $true
+                    Apply-HydratedAccountToUi -TargetRemote $syncRem
+                    Write-StudioLog -Msg "[OK] Completed '$($script:CurrentFolder)' cleanly." -TargetRemote $syncRem
+                } else {
                     $script:BatchHadError = $true
+                    if ($null -ne $friendlyErr -and $friendlyErr.StatusToken -eq "Err:AuthExpired") {
+                        $script:AuthExpiredRemotes[$syncRem] = $true
+                        if ($script:AuthVerifiedRemotes.ContainsKey($syncRem)) { $script:AuthVerifiedRemotes.Remove($syncRem) }
+                        Apply-HydratedAccountToUi -TargetRemote $syncRem
+                    }
                     $errMsgLine = if (-not [string]::IsNullOrWhiteSpace($errDetail)) { "[WARN] $($friendlyErr.UserMessage) ($errDetail)" } else { "[WARN] $($friendlyErr.UserMessage)" }
                     Write-StudioLog -Msg $errMsgLine -TargetRemote $syncRem
                     Save-BackupHealth -Mode "GUI-$($script:LastBatchMode)" -Status "FAIL" -ExitCode $code -FoldersProcessed $script:BatchCurrentIndex -Summary $friendlyErr.UserMessage -TargetRemote $syncRem
@@ -578,6 +587,8 @@ function Invoke-DisconnectAccountRemote {
         }
         $uInfo = Get-UnifiedMountInfo
         $wasInUni = ($null -ne $uInfo -and ($uInfo.Remotes.Count -eq 0 -or ($uInfo.Remotes -contains $signedOutRem)))
+        # Archive full per-account profile (folders + JSON exclusion rules + preferences) by Google email before sign-out
+        Save-AccountEmailSnapshot -TargetRemote $signedOutRem
         Invoke-ToggleMount -TargetRemote $signedOutRem -ForceUnmount
         $null = Invoke-RcloneCapture -Arguments "config delete $(Format-WinArg $signedOutRem) --quiet"
         Clear-RcloneConfigDumpCache
@@ -628,6 +639,23 @@ if ($null -ne $ListSettingsAccounts) {
             if ($null -eq $btn -or $null -eq $btn.Tag) { return }
             $rem = $btn.Tag.ToString()
             switch ($btn.Uid) {
+                "BtnReconnectAccount" {
+                    $authOk = Invoke-GDriveAuth -TargetRemote $rem
+                    Clear-RcloneConfigDumpCache
+                    if ($authOk) {
+                        if ($script:AuthExpiredRemotes.ContainsKey($rem)) { $script:AuthExpiredRemotes.Remove($rem) }
+                        $script:AuthVerifiedRemotes[$rem] = $true
+                        $null = Get-ConnectedGoogleIdentity -TargetRemote $rem
+                        Save-UiAccountCache
+                        Apply-HydratedAccountToUi -TargetRemote $rem
+                        Refresh-SidebarAccountsOverview -ForceRefresh
+                        Refresh-SettingsAccountsList -ForceRefresh
+                        if ($rem -eq $script:ActiveRemote) { Refresh-StudioHeader -ForceRefresh }
+                        if (Get-Command Promote-AccountInHydrationQueue -ErrorAction SilentlyContinue) {
+                            Promote-AccountInHydrationQueue -TargetRemote $rem
+                        }
+                    }
+                }
                 "BtnSetDefaultAccount" {
                     Switch-ActiveAccountRemote -TargetRemote $rem
                 }
@@ -1197,13 +1225,72 @@ $BtnAddAccount.Add_Click({
             $remLive = @(Get-ConfiguredDriveRemotes -ForceRefresh)
             $script:CachedDriveRemotes = $remLive
             if ($authOk) {
+                # Smart Email Deduplication: if this Google email is ALREADY linked to an existing remote,
+                # refresh the existing remote's OAuth token instead of creating a duplicate account!
+                $dupTarget = $null
+                $dupEmail  = ""
+                try {
+                    $newIdent = Get-ConnectedGoogleIdentity -TargetRemote $newRemId
+                    if ($null -ne $newIdent -and -not [string]::IsNullOrWhiteSpace($newIdent.Email) -and $newIdent.Email.Contains("@")) {
+                        $dupEmail = $newIdent.Email.Trim()
+                        $newUserShort = Format-EmailUsername -Email $dupEmail -FallbackRemote ""
+                        foreach ($otherRem in @($remLive | Where-Object { $_ -ne $newRemId })) {
+                            $oEmail = if ($script:IdentityCache.ContainsKey($otherRem) -and -not [string]::IsNullOrWhiteSpace($script:IdentityCache[$otherRem].Email)) { [string]$script:IdentityCache[$otherRem].Email } else { "" }
+                            $oDisp  = Get-AccountDisplayLabel -TargetRemote $otherRem
+                            if ((-not [string]::IsNullOrWhiteSpace($oEmail) -and $oEmail -ieq $dupEmail) -or (-not [string]::IsNullOrWhiteSpace($newUserShort) -and $oDisp -ieq $newUserShort)) {
+                                $dupTarget = $otherRem
+                                break
+                            }
+                        }
+                    }
+                } catch {}
+
+                if (-not [string]::IsNullOrWhiteSpace($dupTarget)) {
+                    try {
+                        $dmpAll = Get-RcloneConfigDumpCached -ForceRefresh
+                        $freshTok = if ($null -ne $dmpAll -and $dmpAll.PSObject.Properties[$newRemId] -and $dmpAll.$newRemId.PSObject.Properties["token"]) { [string]$dmpAll.$newRemId.token } else { "" }
+                        if (-not [string]::IsNullOrWhiteSpace($freshTok)) {
+                            $null = Invoke-RcloneCapture -Arguments "config update $(Format-WinArg $dupTarget) client_id `"`" client_secret `"`" token $(Format-WinArg $freshTok) --non-interactive" -TimeoutMs 15000
+                        }
+                        $null = Invoke-RcloneCapture -Arguments "config delete $(Format-WinArg $newRemId) --quiet" -TimeoutMs 15000
+                        Clear-RcloneConfigDumpCache
+                        if ($script:IdentityCache.ContainsKey($newRemId))  { $script:IdentityCache.Remove($newRemId) }
+                        if ($script:LastAboutCache.ContainsKey($newRemId)) { $script:LastAboutCache.Remove($newRemId) }
+                        if ($script:AuthExpiredRemotes.ContainsKey($dupTarget)) { $script:AuthExpiredRemotes.Remove($dupTarget) }
+                        $script:AuthVerifiedRemotes[$dupTarget] = $true
+                        $script:CachedDriveRemotes = @(Get-ConfiguredDriveRemotes -ForceRefresh)
+                        $script:ActiveRemote = $dupTarget
+                        $cfg = Get-Settings; $cfg.ActiveRemote = $dupTarget; Save-Settings -Obj $cfg
+                        $null = Get-ConnectedGoogleIdentity -TargetRemote $dupTarget
+                        Save-UiAccountCache
+                        Refresh-ProfilesDropdown -ForceRefresh
+                        Refresh-SidebarAccountsOverview -ForceRefresh
+                        Refresh-SettingsAccountsList -ForceRefresh
+                        Refresh-StudioHeader -ForceRefresh
+                        Sync-RealTimeWatchers
+                        Show-AlphaMessageBox -Message (LF "msgAccountDeduplicatedBody" @($dupEmail)) -Title (L "msgAccountDeduplicatedTitle" "Account Session Refreshed") -Buttons "OK" -Icon "Information" | Out-Null
+                        return
+                    } catch {}
+                }
+
                 $curLayout = (Get-Settings).DriveLayout
-                Set-AccountPref -Remote $newRemId -UseJsonRules $false -JsonRulesPath (Get-DefaultPresetPath) -DriveAssignment $(if ($curLayout -eq "Unified") { "Unified" } else { "Separate" })
+                $restoredProfile = $false
+                if (-not [string]::IsNullOrWhiteSpace($dupEmail)) {
+                    $restoredProfile = Restore-AccountEmailSnapshot -Email $dupEmail -TargetRemote $newRemId
+                }
+                if (-not $restoredProfile) {
+                    Set-AccountPref -Remote $newRemId -UseJsonRules $false -JsonRulesPath (Get-DefaultPresetPath) -DriveAssignment $(if ($curLayout -eq "Unified") { "Unified" } else { "Separate" })
+                }
                 if (-not [string]::IsNullOrWhiteSpace($typedName)) {
                     Set-AccountPref -Remote $newRemId -CustomName $typedName
                 } else {
                     Ensure-RemoteAutoNameCached -TargetRemote $newRemId
                 }
+                if (-not [string]::IsNullOrWhiteSpace($dupEmail)) {
+                    Save-AccountEmailSnapshot -TargetRemote $newRemId -Email $dupEmail
+                }
+                if ($script:AuthExpiredRemotes.ContainsKey($newRemId)) { $script:AuthExpiredRemotes.Remove($newRemId) }
+                $script:AuthVerifiedRemotes[$newRemId] = $true
                 $script:ActiveRemote = $newRemId
                 $cfg = Get-Settings; $cfg.ActiveRemote = $newRemId; Save-Settings -Obj $cfg
                 if ($curLayout -eq "Unified" -and $null -ne (Get-UnifiedMountInfo)) {
@@ -1240,6 +1327,9 @@ $BtnCustomClientId.Add_Click({
             Show-AlphaMessageBox -Message (L "msgSignInRequiredBody") -Title (L "msgSignInRequiredTitle") -Buttons "OK" -Icon "Information" | Out-Null
             return
         }
+        $identApi = Get-ConnectedGoogleIdentity -TargetRemote $script:ActiveRemote -CacheOnly
+        $resetVis = if ($null -ne $identApi -and [bool]$identApi.HasCustomClientId) { "Visible" } else { "Collapsed" }
+        $resetT   = [System.Security.SecurityElement]::Escape((L "btnResetApiKey" "Remove Custom Key"))
         $descT    = [System.Security.SecurityElement]::Escape((L "apiKeyModalDesc"))
         $gcpHelpT = [System.Security.SecurityElement]::Escape((L "apiKeyGcpHelpBtn" "🔗 فتح Google Cloud Console لإنشاء أو إيجاد المفتاح"))
         $stepsRaw = L "apiKeyStepsGuide" "Quick Steps (1-2-3):`n1. Open Google Cloud Console & enable Google Drive API.`n2. Create Credentials -> OAuth client ID -> Desktop app.`n3. Paste Client ID & Secret below."
@@ -1259,10 +1349,13 @@ $BtnCustomClientId.Add_Click({
                 <TextBox x:Name="TxtCid" Grid.Row="4" FlowDirection="LeftToRight" Height="32" Margin="0,0,0,10"/>
                 <TextBlock Grid.Row="5" Text="$secT" FontWeight="SemiBold" Foreground="#CBD5E1" Margin="0,0,0,4"/>
                 <PasswordBox x:Name="TxtCsec" Grid.Row="6" FlowDirection="LeftToRight" Height="32" Background="#0D1525" Foreground="#E2E8F0" BorderBrush="#243550" BorderThickness="1" Padding="7,4" VerticalContentAlignment="Center" CaretBrush="#38BDF8" Margin="0,0,0,16"/>
-                <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button x:Name="BtnApplyCid" Content="$okT" Background="#10B981" BorderBrush="#34D399" Foreground="#FFFFFF" Margin="0,0,8,0"/>
-                    <Button x:Name="BtnCloseCid" Content="$canT"/>
-                </StackPanel>
+                <DockPanel Grid.Row="7" LastChildFill="False">
+                    <Button x:Name="BtnResetCid" DockPanel.Dock="Left" Visibility="$resetVis" Content="$resetT" Background="#3A171E" BorderBrush="#991B1B" Foreground="#FCA5A5" Cursor="Hand"/>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <Button x:Name="BtnApplyCid" Content="$okT" Background="#10B981" BorderBrush="#34D399" Foreground="#FFFFFF" Margin="0,0,8,0"/>
+                        <Button x:Name="BtnCloseCid" Content="$canT"/>
+                    </StackPanel>
+                </DockPanel>
             </Grid>
 "@
         $cw = New-AlphaModalWindow -Title (L "apiKeyModalTitle") -ReqWidth 600 -ReqHeight 515 -Resizable $true -BodyXaml $body
@@ -1329,6 +1422,20 @@ $BtnCustomClientId.Add_Click({
                 try { [System.Diagnostics.Process]::Start((New-Object System.Diagnostics.ProcessStartInfo("https://console.cloud.google.com/apis/credentials") -Property @{ UseShellExecute = $true })) } catch {}
             })
         }
+        $bResetCid = $cw.FindName("BtnResetCid")
+        if ($null -ne $bResetCid) {
+            $bResetCid.Add_Click({
+                $cw.Close()
+                $null = Invoke-RcloneCapture -Arguments "config update $(Format-WinArg $script:ActiveRemote) client_id `"`" client_secret `"`" --non-interactive" -TimeoutMs 15000
+                Clear-RcloneConfigDumpCache
+                $okRe = Invoke-GDriveAuth -TargetRemote $script:ActiveRemote
+                if ($okRe) {
+                    if ($script:AuthExpiredRemotes.ContainsKey($script:ActiveRemote)) { $script:AuthExpiredRemotes.Remove($script:ActiveRemote) }
+                    $script:AuthVerifiedRemotes[$script:ActiveRemote] = $true
+                }
+                Refresh-StudioHeader -ForceRefresh
+            })
+        }
         $cw.FindName("BtnCloseCid").Add_Click({ $cw.Close() })
         $cw.FindName("BtnApplyCid").Add_Click({
             $cid = $tId.Text.Trim(); $csc = $tSec.Password.Trim()
@@ -1336,9 +1443,26 @@ $BtnCustomClientId.Add_Click({
                 Show-AlphaMessageBox -Message (L "msgMissingFieldsBody") -Title (L "msgMissingFieldsTitle") -Buttons "OK" -Icon "Warning" | Out-Null; return
             }
             $cw.Close()
+            # Snapshot previous client_id/secret so cancelling OAuth rolls back cleanly without breaking the account
+            $prevCid = ""; $prevCsc = ""
+            try {
+                $dmpPrev = Get-RcloneConfigDumpCached -ForceRefresh
+                if ($null -ne $dmpPrev -and $dmpPrev.PSObject.Properties[$script:ActiveRemote]) {
+                    if ($dmpPrev.($script:ActiveRemote).PSObject.Properties["client_id"])     { $prevCid = [string]$dmpPrev.($script:ActiveRemote).client_id }
+                    if ($dmpPrev.($script:ActiveRemote).PSObject.Properties["client_secret"]) { $prevCsc = [string]$dmpPrev.($script:ActiveRemote).client_secret }
+                }
+            } catch {}
             $null = Invoke-RcloneCapture -Arguments "config update $(Format-WinArg $script:ActiveRemote) client_id $(Format-WinArg $cid) client_secret $(Format-WinArg $csc) --non-interactive" -TimeoutMs 15000
             Clear-RcloneConfigDumpCache
-            Invoke-GDriveAuth -TargetRemote $script:ActiveRemote; Refresh-StudioHeader
+            $okAuth = Invoke-GDriveAuth -TargetRemote $script:ActiveRemote
+            if (-not $okAuth) {
+                $null = Invoke-RcloneCapture -Arguments "config update $(Format-WinArg $script:ActiveRemote) client_id $(Format-WinArg $prevCid) client_secret $(Format-WinArg $prevCsc) --non-interactive" -TimeoutMs 15000
+                Clear-RcloneConfigDumpCache
+            } else {
+                if ($script:AuthExpiredRemotes.ContainsKey($script:ActiveRemote)) { $script:AuthExpiredRemotes.Remove($script:ActiveRemote) }
+                $script:AuthVerifiedRemotes[$script:ActiveRemote] = $true
+            }
+            Refresh-StudioHeader -ForceRefresh
         })
         [void]$cw.ShowDialog()
     } catch { Write-StudioLog "[ERR] $($_.Exception.Message)" }
@@ -1914,6 +2038,7 @@ if ($null -ne $BtnPickExclusions) {
                         $script:IsRefreshing = $false
                         
                         Build-SafeExcludeFile -TargetRemote $script:ActiveRemote | Out-Null
+                        Save-AccountEmailSnapshot -TargetRemote $script:ActiveRemote
                         Refresh-JsonRulesBanner
                         $mWin.Close()
                         Show-AlphaMessageBox -Message (L "msgExclusionsSaved" "Exclusion rules saved and activated successfully!") -Title (L "titleManualExclusions") -Buttons "OK" -Icon "Information" | Out-Null

@@ -412,5 +412,13 @@
   "updStageDownload": "Descargando {0}... ({1}% — {2})",
   "updStageVerify": "Verificando suma de comprobación SHA-256...",
   "updStageRestart": "¡Verificado! Instalando actualización y reiniciando...",
-  "updStageFailed": "Error al actualizar: {0}"
+  "updStageFailed": "Error al actualizar: {0}",
+  "btnStatusConnected": "✓ Conectado",
+  "btnStatusDisconnected": "↻ Desconectado — Reconectar",
+  "btnStatusChecking": "↻ Actualizar sesión",
+  "tipStatusConnected": "Cuenta conectada correctamente — haz clic para renovar la sesión en cualquier momento",
+  "tipStatusDisconnected": "Sesión expirada — haz clic para iniciar sesión de nuevo y restaurar la conexión",
+  "msgAccountDeduplicatedTitle": "Sesión de cuenta actualizada",
+  "msgAccountDeduplicatedBody": "¡La cuenta ({0}) ya estaba conectada! Se renovó su sesión automáticamente sin duplicarla, conservando todas tus carpetas y ajustes.",
+  "btnResetApiKey": "Quitar clave personal"
 }

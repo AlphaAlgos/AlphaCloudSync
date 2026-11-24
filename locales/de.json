@@ -412,5 +412,13 @@
   "updStageDownload": "Lade {0} herunter... ({1}% — {2})",
   "updStageVerify": "SHA-256-Prüfsumme wird überprüft...",
   "updStageRestart": "Verifiziert! Update wird installiert und App neu gestartet...",
-  "updStageFailed": "Update fehlgeschlagen: {0}"
+  "updStageFailed": "Update fehlgeschlagen: {0}",
+  "btnStatusConnected": "✓ Verbunden",
+  "btnStatusDisconnected": "↻ Getrennt — Neu verbinden",
+  "btnStatusChecking": "↻ Anmeldung aktualisieren",
+  "tipStatusConnected": "Konto ist verbunden — klicken Sie hier, um die Sitzung jederzeit zu erneuern",
+  "tipStatusDisconnected": "Sitzung abgelaufen — klicken Sie hier, um sich erneut anzumelden",
+  "msgAccountDeduplicatedTitle": "Bestehendes Konto aktualisiert",
+  "msgAccountDeduplicatedBody": "Das Konto ({0}) ist bereits verbunden! Die Sitzung wurde ohne Duplikat erneuert und alle Ordner blieben erhalten.",
+  "btnResetApiKey": "Eigenen Schlüssel entfernen"
 }

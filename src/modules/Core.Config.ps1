@@ -144,10 +144,97 @@ function Get-ProfileFilePath {
     return (Join-Path $ProfilesDir "folders-$(Get-SanitizedName $TargetRemote).json")
 }
 
+function Get-EmailSnapshotFilePath {
+    param([string]$Email)
+    if ([string]::IsNullOrWhiteSpace($Email) -or -not $Email.Contains("@")) { return $null }
+    $archDir = Join-Path $ProfilesDir "email-archive"
+    if (-not (Test-Path -LiteralPath $archDir)) { New-Item -ItemType Directory -Path $archDir -Force | Out-Null }
+    $safeMail = (($Email.Trim().ToLowerInvariant() -replace '@', '_at_') -replace '[^a-z0-9._-]', '_')
+    return (Join-Path $archDir "$safeMail.json")
+}
+
+function Save-AccountEmailSnapshot {
+    param([string]$TargetRemote, [string]$Email = "")
+    try {
+        if ([string]::IsNullOrWhiteSpace($TargetRemote)) { return }
+        if ([string]::IsNullOrWhiteSpace($Email) -and $script:IdentityCache.ContainsKey($TargetRemote) -and -not [string]::IsNullOrWhiteSpace($script:IdentityCache[$TargetRemote].Email)) {
+            $Email = [string]$script:IdentityCache[$TargetRemote].Email
+        }
+        $snapFile = Get-EmailSnapshotFilePath -Email $Email
+        if ([string]::IsNullOrWhiteSpace($snapFile)) { return }
+
+        $folders = @(Get-SyncFolders -TargetRemote $TargetRemote)
+        $pMap    = Get-AccountPrefsMap
+        $pref    = if ($pMap.ContainsKey($TargetRemote)) { $pMap[$TargetRemote] } else { $null }
+        $rPath   = if ($null -ne $pref -and $pref.PSObject.Properties["JsonRulesPath"]) { [string]$pref.JsonRulesPath } else { "" }
+        $customJson = ""
+        if (-not [string]::IsNullOrWhiteSpace($rPath) -and (Test-Path -LiteralPath $rPath -PathType Leaf)) {
+            $isBundled = (-not [string]::IsNullOrWhiteSpace($PresetsDir) -and $rPath.StartsWith($PresetsDir, [System.StringComparison]::OrdinalIgnoreCase))
+            if (-not $isBundled) {
+                try { $customJson = [System.IO.File]::ReadAllText($rPath, [System.Text.Encoding]::UTF8) } catch {}
+            }
+        }
+        $snapObj = [ordered]@{
+            Email           = $Email.Trim().ToLowerInvariant()
+            SavedUtc        = ([datetime]::UtcNow.ToString("o"))
+            Folders         = @($folders)
+            UseJsonRules    = if ($null -ne $pref) { [bool]$pref.UseJsonRules } else { $false }
+            JsonRulesPath   = $rPath
+            CustomRulesJson = $customJson
+            DriveAssignment = if ($null -ne $pref -and -not [string]::IsNullOrWhiteSpace($pref.DriveAssignment)) { [string]$pref.DriveAssignment } else { "" }
+            MountScope      = if ($null -ne $pref -and -not [string]::IsNullOrWhiteSpace($pref.MountScope)) { [string]$pref.MountScope } else { "MyDrive" }
+            PreferredDrive  = if ($null -ne $pref -and -not [string]::IsNullOrWhiteSpace($pref.PreferredDrive)) { [string]$pref.PreferredDrive } else { "" }
+            CustomName      = if ($null -ne $pref -and -not [string]::IsNullOrWhiteSpace($pref.CustomName)) { [string]$pref.CustomName } else { "" }
+        }
+        [System.IO.File]::WriteAllText($snapFile, ($snapObj | ConvertTo-Json -Depth 6), (New-Object System.Text.UTF8Encoding($false)))
+    } catch {}
+}
+
+function Restore-AccountEmailSnapshot {
+    param([string]$Email, [string]$TargetRemote)
+    try {
+        if ([string]::IsNullOrWhiteSpace($TargetRemote)) { return $false }
+        $snapFile = Get-EmailSnapshotFilePath -Email $Email
+        if ([string]::IsNullOrWhiteSpace($snapFile) -or -not (Test-Path -LiteralPath $snapFile -PathType Leaf)) { return $false }
+        $snap = [System.IO.File]::ReadAllText($snapFile, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
+        if ($null -eq $snap) { return $false }
+
+        if ($snap.PSObject.Properties["Folders"] -and $null -ne $snap.Folders) {
+            $restFolders = if ($snap.Folders -is [System.Array]) { @($snap.Folders) } else { @($snap.Folders) }
+            Save-SyncFolders -Folders $restFolders -TargetRemote $TargetRemote
+        }
+
+        $finalRulesPath = ""
+        if ($snap.PSObject.Properties["CustomRulesJson"] -and -not [string]::IsNullOrWhiteSpace([string]$snap.CustomRulesJson)) {
+            $finalRulesPath = Join-Path $AppDataDir "rules-$(Get-SanitizedName $TargetRemote).json"
+            [System.IO.File]::WriteAllText($finalRulesPath, [string]$snap.CustomRulesJson, (New-Object System.Text.UTF8Encoding($false)))
+        } elseif ($snap.PSObject.Properties["JsonRulesPath"] -and -not [string]::IsNullOrWhiteSpace([string]$snap.JsonRulesPath) -and (Test-Path -LiteralPath ([string]$snap.JsonRulesPath) -PathType Leaf)) {
+            $finalRulesPath = [string]$snap.JsonRulesPath
+        } else {
+            $finalRulesPath = Get-DefaultPresetPath
+        }
+
+        $spArgs = @{
+            Remote        = $TargetRemote
+            UseJsonRules  = ([bool]$snap.UseJsonRules)
+            JsonRulesPath = $finalRulesPath
+        }
+        if ($snap.PSObject.Properties["DriveAssignment"] -and -not [string]::IsNullOrWhiteSpace([string]$snap.DriveAssignment)) { $spArgs["DriveAssignment"] = [string]$snap.DriveAssignment }
+        if ($snap.PSObject.Properties["MountScope"]      -and -not [string]::IsNullOrWhiteSpace([string]$snap.MountScope))      { $spArgs["MountScope"]      = [string]$snap.MountScope }
+        if ($snap.PSObject.Properties["PreferredDrive"]  -and -not [string]::IsNullOrWhiteSpace([string]$snap.PreferredDrive))  { $spArgs["PreferredDrive"]  = [string]$snap.PreferredDrive }
+        if ($snap.PSObject.Properties["CustomName"]      -and -not [string]::IsNullOrWhiteSpace([string]$snap.CustomName))      { $spArgs["CustomName"]      = [string]$snap.CustomName }
+        Set-AccountPref @spArgs
+        return $true
+    } catch { return $false }
+}
+
 function Save-SyncFolders {
     param([array]$Folders, [string]$TargetRemote = $RemoteName)
     $pFile = Get-ProfileFilePath -TargetRemote $TargetRemote
     [System.IO.File]::WriteAllText($pFile, (ConvertTo-Json -InputObject @($Folders) -Depth 5), (New-Object System.Text.UTF8Encoding($false)))
+    if ($script:IdentityCache -and $script:IdentityCache.ContainsKey($TargetRemote) -and -not [string]::IsNullOrWhiteSpace($script:IdentityCache[$TargetRemote].Email)) {
+        Save-AccountEmailSnapshot -TargetRemote $TargetRemote -Email ([string]$script:IdentityCache[$TargetRemote].Email)
+    }
 }
 
 function Get-SyncFolders {

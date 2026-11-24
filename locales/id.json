@@ -412,5 +412,13 @@
   "updStageDownload": "Mengunduh {0}... ({1}% — {2})",
   "updStageVerify": "Memverifikasi checksum keamanan SHA-256...",
   "updStageRestart": "Terverifikasi! Memasang pembaruan dan memulai ulang...",
-  "updStageFailed": "Pembaruan gagal: {0}"
+  "updStageFailed": "Pembaruan gagal: {0}",
+  "btnStatusConnected": "✓ Terhubung",
+  "btnStatusDisconnected": "↻ Terputus — Sambungkan Ulang",
+  "btnStatusChecking": "↻ Segarkan Login",
+  "tipStatusConnected": "Akun terhubung dengan baik — klik untuk menyegarkan sesi login kapan saja",
+  "tipStatusDisconnected": "Sesi akun ini berakhir — klik untuk login kembali dan mengaktifkan status hijau",
+  "msgAccountDeduplicatedTitle": "Sesi Akun Diperbarui",
+  "msgAccountDeduplicatedBody": "Akun ({0}) sudah terhubung sebelumnya! Sesi login diperbarui otomatis tanpa membuat duplikat, dengan semua folder tetap aman.",
+  "btnResetApiKey": "Hapus Kunci Pribadi"
 }

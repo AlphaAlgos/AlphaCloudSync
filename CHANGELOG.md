@@ -2,6 +2,19 @@
 
 All notable changes to **AlphaCloudSync** are documented in this file.
 
+## [1.2.4] - 2026-11-25
+### Added
+- **Interactive Account Connection Status Button (`BtnReconnectAccount`) & Live Red/Amber/Green Health Dots (7 Languages x 422 Keys):**
+  - Every account card now displays a live clickable connection status button (`✓ Connected` in green, `↻ Refresh Sign-In` in amber while checking, or `↻ Disconnected — Reconnect` in bright red with red border & red status dot when OAuth expires).
+  - Clicking the status button directly refreshes Google Sign-In for that exact existing account and flips its status dot straight to emerald green (`#10B981`) without losing folders or settings.
+  - Background account hydration and sync runs automatically detect expired/revoked OAuth tokens and flag the account in red immediately across both Settings and Sidebar account cards.
+- **Smart Email Deduplication & Persistent Email-Bound Account Profiles (`Save-AccountEmailSnapshot` & `Restore-AccountEmailSnapshot`):**
+  - Every Google account maintains its own completely isolated sync folder list, custom JSON exclusion rules, and drive/scope preferences.
+  - Signing out automatically archives the account's full profile snapshot under its Google email (`profiles\email-archive\`); signing back into that email later automatically restores all its folders, JSON exclusions, and settings intact.
+  - Signing into a Google email that is already connected automatically refreshes the existing account's OAuth token (preserving all synced folders, rules, and drive assignments) instead of creating a duplicate entry.
+- **Faster Mode Safe Rollback & One-Click Remove Custom Key (`BtnResetCid`):**
+  - Cancelling browser sign-in after entering custom credentials automatically rolls back to the previous configuration so the account is never left broken, and an explicit **Remove Custom Key** button lets users revert to standard mode in one click.
+
 ## [1.2.3] - 2026-11-24
 ### Improved
 - **100% Native C# Atomic Self-Update (`--apply-update`, Zero Hidden PowerShell / Zero Defender False Positives):**

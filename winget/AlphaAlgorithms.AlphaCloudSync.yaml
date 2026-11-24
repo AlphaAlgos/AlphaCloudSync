@@ -1,5 +1,5 @@
 PackageIdentifier: AlphaAlgorithms.AlphaCloudSync
-PackageVersion: 1.2.3
+PackageVersion: 1.2.4
 PackageLocale: en-US
 Publisher: Alpha Algorithms Company
 PublisherUrl: https://github.com/AlphaAlgos
@@ -26,8 +26,8 @@ Tags:
 Installers:
   - Architecture: x64
     InstallerType: portable
-    InstallerUrl: https://github.com/AlphaAlgos/AlphaCloudSync/releases/download/v1.2.3/AlphaCloudSync.exe
-    InstallerSha256: AC2EF76947E753D2766CF8F3523C961F86AE63B8B70AFF60A1D8E2F85ED298BF
+    InstallerUrl: https://github.com/AlphaAlgos/AlphaCloudSync/releases/download/v1.2.4/AlphaCloudSync.exe
+    InstallerSha256: F8B20AC63806F20DCBA1E3B1AA0C334B3BCA34AC2B9B2A572BD11877A842DDE5
     Commands:
       - AlphaCloudSync
 ManifestType: singleton

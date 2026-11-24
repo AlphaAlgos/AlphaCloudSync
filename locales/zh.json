@@ -412,5 +412,13 @@
   "updStageDownload": "正在下载 {0}... ({1}% — {2})",
   "updStageVerify": "正在校验 SHA-256 安全签名...",
   "updStageRestart": "校验通过！正在安装更新并重启程序...",
-  "updStageFailed": "更新失败：{0}"
+  "updStageFailed": "更新失败：{0}",
+  "btnStatusConnected": "✓ 已连接",
+  "btnStatusDisconnected": "↻ 已断开 — 重新连接",
+  "btnStatusChecking": "↻ 刷新登录",
+  "tipStatusConnected": "账户已正常连接 — 点击可随时刷新登录会话",
+  "tipStatusDisconnected": "此账户会话已过期 — 点击重新登录并恢复绿色连接状态",
+  "msgAccountDeduplicatedTitle": "已刷新现有账户会话",
+  "msgAccountDeduplicatedBody": "账户 ({0}) 已连接！系统已自动刷新其登录会话而未创建重复项，您的所有文件夹和设置均完整保留。",
+  "btnResetApiKey": "移除自定义密钥"
 }

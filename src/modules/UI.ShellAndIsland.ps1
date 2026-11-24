@@ -1249,7 +1249,13 @@ function Build-SidebarAccountCardObject {
         $syncSum = ("{0:N1}%  $([char]0x2022)  {1}" -f $syncPct, (L "trayPausedShort" "Paused"))
     }
 
-    $dotHex = if ($isSyncingThis) { "#38BDF8" } elseif ($isMounted) { if ($isUniMember) { "#FBBF24" } else { "#10B981" } } elseif ($rt.WasPausedByUser) { "#F59E0B" } else { "#64748B" }
+    $isAuthExpired  = ($script:AuthExpiredRemotes.ContainsKey($TargetRemote) -and [bool]$script:AuthExpiredRemotes[$TargetRemote])
+    $isAuthVerified = ($script:AuthVerifiedRemotes.ContainsKey($TargetRemote) -and [bool]$script:AuthVerifiedRemotes[$TargetRemote])
+    if ($isAuthExpired) {
+        $qSummary = L "btnStatusDisconnected" "↻ Disconnected — Reconnect"
+    }
+
+    $dotHex = if ($isAuthExpired) { "#EF4444" } elseif ($isSyncingThis) { "#38BDF8" } elseif ($isAuthVerified) { "#10B981" } elseif ($isMounted) { if ($isUniMember) { "#FBBF24" } else { "#10B981" } } elseif ($rt.WasPausedByUser) { "#F59E0B" } else { "#F59E0B" }
     $starCh = [string][char]0x2605
     $badgeTxt = if (-not [string]::IsNullOrWhiteSpace($ltr)) { if ($isUniMember) { "$starCh $ltr" } else { $ltr } } else { "" }
     $badgeBg     = if ($isMounted) { if ($isUniMember) { "#261D0B" } else { "#10243C" } } else { "#111A2B" }
@@ -1269,8 +1275,8 @@ function Build-SidebarAccountCardObject {
         SyncPct       = $syncPct
         SyncSummary   = $syncSum
         DotBrush      = $dotHex
-        CardBg        = if ($isActiveCard) { "#12233E" } else { "#0F1829" }
-        CardBorder    = if ($isActiveCard) { "#38BDF8" } else { "#1C2A40" }
+        CardBg        = if ($isAuthExpired) { "#221018" } elseif ($isActiveCard) { "#12233E" } else { "#0F1829" }
+        CardBorder    = if ($isAuthExpired) { "#EF4444" } elseif ($isActiveCard) { "#38BDF8" } else { "#1C2A40" }
     }
 }
 
@@ -1352,22 +1358,52 @@ function Build-SettingsAccountCardObject {
         } catch {}
     }
 
+    $isAuthExpired  = ($script:AuthExpiredRemotes.ContainsKey($TargetRemote) -and [bool]$script:AuthExpiredRemotes[$TargetRemote])
+    $isAuthVerified = ($script:AuthVerifiedRemotes.ContainsKey($TargetRemote) -and [bool]$script:AuthVerifiedRemotes[$TargetRemote])
+
     $starCh = [string][char]0x2605
     $badgeTxt = if (-not [string]::IsNullOrWhiteSpace($ltr)) { if ($isUniMember) { "$starCh $ltr" } else { $ltr } } else { "" }
     $badgeBg     = if ($isMounted) { if ($isUniMember) { "#261D0B" } else { "#10243C" } } else { "#111A2B" }
     $badgeBorder = if ($isMounted) { if ($isUniMember) { "#D97706" } else { "#1E3B5C" } } else { if ($isUniMember) { "#5C4514" } else { "#25344D" } }
     $badgeFg     = if ($isMounted) { if ($isUniMember) { "#FBBF24" } else { "#38BDF8" } } else { if ($isUniMember) { "#B8933A" } else { "#64748B" } }
-    $dotHex      = if ($isMounted) { if ($isUniMember) { "#FBBF24" } else { "#10B981" } } else { "#38BDF8" }
 
-    $cardBg     = if ($isActive) { "#112240" } else { "#0A1322" }
-    $cardBorder = if ($isActive) { "#38BDF8" } else { "#1C2A40" }
-    $cardThick  = if ($isActive) { "2" } else { "1" }
+    if ($isAuthExpired) {
+        $dotHex        = "#EF4444"
+        $connBtnText   = L "btnStatusDisconnected" "↻ غير متصل — أعد الاتصال"
+        $connBtnBg     = "#451A1A"
+        $connBtnBorder = "#EF4444"
+        $connBtnFg     = "#FCA5A5"
+        $connBtnTip    = L "tipStatusDisconnected" "انتهت الجلسة — اضغط لإعادة تسجيل الدخول"
+    } elseif ($isAuthVerified) {
+        $dotHex        = "#10B981"
+        $connBtnText   = L "btnStatusConnected" "✓ متصل"
+        $connBtnBg     = "#0D281E"
+        $connBtnBorder = "#10B981"
+        $connBtnFg     = "#4ADE80"
+        $connBtnTip    = L "tipStatusConnected" "متصل — اضغط لتجديد جلسة الدخول في أي وقت"
+    } else {
+        $dotHex        = "#F59E0B"
+        $connBtnText   = L "btnStatusChecking" "↻ تحديث الاتصال"
+        $connBtnBg     = "#2A200D"
+        $connBtnBorder = "#F59E0B"
+        $connBtnFg     = "#FDE68A"
+        $connBtnTip    = L "tipStatusConnected" "اضغط لتجديد جلسة الدخول في أي وقت"
+    }
+
+    $cardBg     = if ($isAuthExpired) { "#221018" } elseif ($isActive) { "#112240" } else { "#0A1322" }
+    $cardBorder = if ($isAuthExpired) { "#EF4444" } elseif ($isActive) { "#38BDF8" } else { "#1C2A40" }
+    $cardThick  = if ($isActive -or $isAuthExpired) { "2" } else { "1" }
 
     return [PSCustomObject]@{
         Remote              = $TargetRemote
         DisplayName         = $disp
         RemoteLabel         = "($TargetRemote)"
         DotBrush            = $dotHex
+        ConnStatusBtnText   = $connBtnText
+        ConnStatusBtnBg     = $connBtnBg
+        ConnStatusBtnBorder = $connBtnBorder
+        ConnStatusBtnFg     = $connBtnFg
+        ConnStatusToolTip   = $connBtnTip
         DriveLetter         = $badgeTxt
         DriveBadgeVis       = if (-not [string]::IsNullOrWhiteSpace($badgeTxt)) { "Visible" } else { "Collapsed" }
         DriveBadgeBg        = $badgeBg
@@ -1416,12 +1452,15 @@ function Refresh-SettingsAccountsList {
 # SEQUENTIAL NON-BLOCKING ACCOUNT HYDRATION QUEUE (Account #1 -> #2 -> ... #N)
 # Never blocks window launch or UI clicks even with 10-50+ Google Drive accounts!
 # ==============================================================================
+$script:AuthExpiredRemotes  = @{}
+$script:AuthVerifiedRemotes = @{}
 $script:HydrateQueue       = New-Object System.Collections.Generic.List[string]
 $script:HydrateTimer       = $null
 $script:HydrateCurrentRem  = $null
 $script:HydratePhase       = "Idle"
 $script:HydrateProc        = $null
 $script:HydrateOutTask     = $null
+$script:HydrateErrTask     = $null
 $script:HydrateWebClient   = $null
 $script:HydrateWebTask     = $null
 $script:HydrateStartUtc    = [datetime]::MinValue
@@ -1465,9 +1504,10 @@ function Apply-HydratedAccountToUi {
                 $idDisplay = if (-not [string]::IsNullOrWhiteSpace($ident.DisplayName)) { "$($ident.Email) ($($ident.DisplayName))" } else { $ident.Email }
                 $TxtAccountStatus.Text    = Wrap-Ltr $idDisplay
                 $TxtAccountStatus.ToolTip = $idDisplay
-                $DotAccount.Fill          = $bc.ConvertFromString("#10B981")
+                $isActExp = ($script:AuthExpiredRemotes.ContainsKey($TargetRemote) -and [bool]$script:AuthExpiredRemotes[$TargetRemote])
+                $DotAccount.Fill          = $bc.ConvertFromString($(if ($isActExp) { "#EF4444" } else { "#10B981" }))
                 if ($null -ne $TxtSettingsAccount) { $TxtSettingsAccount.Text = if ($idDisplay -ieq $dispLabel) { Wrap-Ltr $dispLabel } else { Wrap-Ltr "$dispLabel  --  $idDisplay" } }
-                if ($null -ne $DotSettingsAccount) { $DotSettingsAccount.Fill = $bc.ConvertFromString("#10B981") }
+                if ($null -ne $DotSettingsAccount) { $DotSettingsAccount.Fill = $bc.ConvertFromString($(if ($isActExp) { "#EF4444" } else { "#10B981" })) }
                 $BtnCustomClientId.Content = if ($ident.HasCustomClientId) { L "apiKeyActive" } else { L "apiKey" }
             }
         }
@@ -1495,6 +1535,7 @@ function Step-SequentialAccountHydration {
             if ($null -eq $script:HydrateProc -or $script:HydrateProc.HasExited -or $timedOut) {
                 $rem = $script:HydrateCurrentRem
                 $aboutOk = $false
+                $authErrDetected = $false
                 try {
                     if ($null -ne $script:HydrateProc) {
                         if (-not $script:HydrateProc.HasExited) { $script:HydrateProc.Kill() }
@@ -1504,15 +1545,27 @@ function Step-SequentialAccountHydration {
                                 $script:LastAboutCache[$rem] = $txt
                                 $aboutOk = $true
                             }
+                        } elseif ($script:HydrateProc.ExitCode -ne 0 -and $null -ne $script:HydrateErrTask) {
+                            $errTxt = $script:HydrateErrTask.GetAwaiter().GetResult()
+                            if ($errTxt -match "invalid_grant|token expired|couldn't fetch token|unauthorized_client|401|403|oauth2|accessNotConfigured|Invalid Credentials|expired or revoked") {
+                                $authErrDetected = $true
+                            }
                         }
                         $script:HydrateProc.Dispose()
                     }
                 } catch {}
                 $script:HydrateProc    = $null
                 $script:HydrateOutTask = $null
+                $script:HydrateErrTask = $null
 
                 if ($aboutOk) {
+                    if ($script:AuthExpiredRemotes.ContainsKey($rem)) { $script:AuthExpiredRemotes.Remove($rem) }
+                    $script:AuthVerifiedRemotes[$rem] = $true
                     Save-UiAccountCache
+                    Apply-HydratedAccountToUi -TargetRemote $rem
+                } elseif ($authErrDetected) {
+                    $script:AuthExpiredRemotes[$rem] = $true
+                    if ($script:AuthVerifiedRemotes.ContainsKey($rem)) { $script:AuthVerifiedRemotes.Remove($rem) }
                     Apply-HydratedAccountToUi -TargetRemote $rem
                 }
 
@@ -1633,6 +1686,7 @@ function Step-SequentialAccountHydration {
         $psi.StandardOutputEncoding = [System.Text.Encoding]::UTF8
         $script:HydrateProc    = [System.Diagnostics.Process]::Start($psi)
         $script:HydrateOutTask = $script:HydrateProc.StandardOutput.ReadToEndAsync()
+        $script:HydrateErrTask = $script:HydrateProc.StandardError.ReadToEndAsync()
     } catch {
         $script:HydrateCurrentRem = $null
         $script:HydratePhase      = "Idle"
