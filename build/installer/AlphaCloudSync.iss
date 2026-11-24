@@ -5,7 +5,7 @@
 ; ==============================================================================
 
 #define MyAppName "AlphaCloudSync"
-#define MyAppVersion "1.2.2"
+#define MyAppVersion "1.2.3"
 #define MyAppPublisher "Alpha Algorithms Company"
 #define MyAppURL "https://github.com/AlphaAlgos/AlphaCloudSync"
 #define MyAppExeName "AlphaCloudSync.exe"
@@ -39,7 +39,7 @@ DisableProgramGroupPage=yes
 ChangesEnvironment=yes
 CloseApplications=yes
 RestartApplications=no
-VersionInfoVersion=1.2.2.0
+VersionInfoVersion=1.2.3.0
 VersionInfoCompany={#MyAppPublisher}
 VersionInfoProductName={#MyAppName}
 VersionInfoProductVersion={#MyAppVersion}

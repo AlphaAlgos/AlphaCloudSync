@@ -1242,7 +1242,7 @@ $BtnCustomClientId.Add_Click({
         }
         $descT    = [System.Security.SecurityElement]::Escape((L "apiKeyModalDesc"))
         $gcpHelpT = [System.Security.SecurityElement]::Escape((L "apiKeyGcpHelpBtn" "🔗 فتح Google Cloud Console لإنشاء أو إيجاد المفتاح"))
-        $stepsT   = [System.Security.SecurityElement]::Escape((L "apiKeyStepsGuide" "Quick Steps (1-2-3): 1) Enable Google Drive API -> 2) Create Credentials -> OAuth client ID -> Desktop app -> 3) Paste Client ID & Secret below."))
+        $stepsRaw = L "apiKeyStepsGuide" "Quick Steps (1-2-3):`n1. Open Google Cloud Console & enable Google Drive API.`n2. Create Credentials -> OAuth client ID -> Desktop app.`n3. Paste Client ID & Secret below."
         $idT      = [System.Security.SecurityElement]::Escape((L "apiKeyClientIdLabel"))
         $secT     = [System.Security.SecurityElement]::Escape((L "apiKeySecretLabel"))
         $okT      = [System.Security.SecurityElement]::Escape((L "apiKeyApplyBtn"))
@@ -1252,8 +1252,8 @@ $BtnCustomClientId.Add_Click({
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <TextBlock Grid.Row="0" Text="$descT" TextWrapping="Wrap" Foreground="#94A3B8" FontSize="12" Margin="0,0,0,10"/>
                 <Button x:Name="BtnOpenGcpConsole" Grid.Row="1" Content="$gcpHelpT" Background="#112240" BorderBrush="#1D4ED8" Foreground="#38BDF8" FontWeight="SemiBold" Height="28" Padding="12,0" Margin="0,0,0,10" HorizontalAlignment="Left" Cursor="Hand"/>
-                <Border Grid.Row="2" Background="#0B1526" BorderBrush="#1E3A5F" BorderThickness="1" CornerRadius="7" Padding="10,8" Margin="0,0,0,12">
-                    <TextBlock Text="$stepsT" TextWrapping="Wrap" Foreground="#CBD5E1" FontSize="11.5" LineHeight="18"/>
+                <Border Grid.Row="2" Background="#0B1526" BorderBrush="#1E3A5F" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,0,0,14">
+                    <StackPanel x:Name="PnlGcpSteps" Orientation="Vertical"/>
                 </Border>
                 <TextBlock Grid.Row="3" Text="$idT" FontWeight="SemiBold" Foreground="#CBD5E1" Margin="0,0,0,4"/>
                 <TextBox x:Name="TxtCid" Grid.Row="4" FlowDirection="LeftToRight" Height="32" Margin="0,0,0,10"/>
@@ -1265,7 +1265,63 @@ $BtnCustomClientId.Add_Click({
                 </StackPanel>
             </Grid>
 "@
-        $cw = New-AlphaModalWindow -Title (L "apiKeyModalTitle") -ReqWidth 585 -ReqHeight 495 -Resizable $true -BodyXaml $body
+        $cw = New-AlphaModalWindow -Title (L "apiKeyModalTitle") -ReqWidth 600 -ReqHeight 515 -Resizable $true -BodyXaml $body
+        $pnlSteps = $cw.FindName("PnlGcpSteps")
+        if ($null -ne $pnlSteps) {
+            $bcSt = New-Object System.Windows.Media.BrushConverter
+            $stepLines = @($stepsRaw -split '\r?\n' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+            for ($si = 0; $si -lt $stepLines.Count; $si++) {
+                $lnTxt = $stepLines[$si].Trim()
+                if ($si -eq 0 -and $lnTxt -notmatch '^\d+\.') {
+                    $tbHdr = New-Object System.Windows.Controls.TextBlock
+                    $tbHdr.Text = $lnTxt
+                    $tbHdr.FontWeight = [System.Windows.FontWeights]::Bold
+                    $tbHdr.FontSize = 12
+                    $tbHdr.Foreground = $bcSt.ConvertFromString("#38BDF8")
+                    $tbHdr.Margin = [System.Windows.Thickness]::new(0, 0, 0, 8)
+                    [void]$pnlSteps.Children.Add($tbHdr)
+                } else {
+                    $numTok = ""
+                    $bodyTok = $lnTxt
+                    if ($lnTxt -match '^(\d+)\.\s*(.+)$') {
+                        $numTok = $Matches[1]
+                        $bodyTok = $Matches[2]
+                    }
+                    $dpRow = New-Object System.Windows.Controls.DockPanel
+                    $dpRow.LastChildFill = $true
+                    $dpRow.Margin = [System.Windows.Thickness]::new(0, 0, 0, $(if ($si -lt ($stepLines.Count - 1)) { 7 } else { 0 }))
+                    if (-not [string]::IsNullOrWhiteSpace($numTok)) {
+                        $bdNum = New-Object System.Windows.Controls.Border
+                        $bdNum.Width = 20; $bdNum.Height = 20
+                        $bdNum.CornerRadius = [System.Windows.CornerRadius]::new(10)
+                        $bdNum.Background = $bcSt.ConvertFromString("#10243C")
+                        $bdNum.BorderBrush = $bcSt.ConvertFromString("#38BDF8")
+                        $bdNum.BorderThickness = [System.Windows.Thickness]::new(1)
+                        $bdNum.VerticalAlignment = [System.Windows.VerticalAlignment]::Top
+                        $bdNum.Margin = [System.Windows.Thickness]::new(0, 1, 8, 0)
+                        [System.Windows.Controls.DockPanel]::SetDock($bdNum, [System.Windows.Controls.Dock]::Left)
+                        $tbNum = New-Object System.Windows.Controls.TextBlock
+                        $tbNum.Text = $numTok
+                        $tbNum.FontSize = 10.5
+                        $tbNum.FontWeight = [System.Windows.FontWeights]::Bold
+                        $tbNum.Foreground = $bcSt.ConvertFromString("#38BDF8")
+                        $tbNum.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
+                        $tbNum.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+                        $bdNum.Child = $tbNum
+                        [void]$dpRow.Children.Add($bdNum)
+                    }
+                    $tbLine = New-Object System.Windows.Controls.TextBlock
+                    $tbLine.Text = $bodyTok
+                    $tbLine.TextWrapping = [System.Windows.TextWrapping]::Wrap
+                    $tbLine.FontSize = 11.8
+                    $tbLine.LineHeight = 19
+                    $tbLine.Foreground = $bcSt.ConvertFromString("#E2E8F0")
+                    $tbLine.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+                    [void]$dpRow.Children.Add($tbLine)
+                    [void]$pnlSteps.Children.Add($dpRow)
+                }
+            }
+        }
         $tId = $cw.FindName("TxtCid"); $tSec = $cw.FindName("TxtCsec")
         $bOpenGcp = $cw.FindName("BtnOpenGcpConsole")
         if ($null -ne $bOpenGcp) {

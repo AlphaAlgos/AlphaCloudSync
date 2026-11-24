@@ -17,8 +17,8 @@ using System.Windows.Forms;
 [assembly: AssemblyCompany("Alpha Algorithms Company")]
 [assembly: AssemblyProduct("AlphaCloudSync")]
 [assembly: AssemblyCopyright("Copyright (c) 2026 Alpha Algorithms Company (MIT License)")]
-[assembly: AssemblyVersion("1.2.2.0")]
-[assembly: AssemblyFileVersion("1.2.2.0")]
+[assembly: AssemblyVersion("1.2.3.0")]
+[assembly: AssemblyFileVersion("1.2.3.0")]
 
 namespace AlphaCloudSync
 {
@@ -224,7 +224,7 @@ namespace AlphaCloudSync
                 g.FillPath(pillBg, pillPath);
                 g.DrawPath(pillBorder, pillPath);
                 StringFormat sfC = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
-                g.DrawString("v1.2.2", pillFont, pillText, pillRect, sfC);
+                g.DrawString("v1.2.3", pillFont, pillText, pillRect, sfC);
             }
 
             // Divider line
@@ -360,7 +360,7 @@ namespace AlphaCloudSync
 
     internal static class Program
     {
-        private const string AppVersion = "1.2.2";
+        private const string AppVersion = "1.2.3";
         private const string AppUserModelId = "AlphaAlgorithms.AlphaCloudSync";
         private const string RestoreSignalName = "Local\\AlphaCloudSync_RestoreSignal";
 
@@ -492,6 +492,58 @@ namespace AlphaCloudSync
             try { SetCurrentProcessExplicitAppUserModelID(AppUserModelId); } catch { }
 
             bool isHeadlessCli = false;
+            if (args.Length >= 2 && string.Equals(args[0], "--apply-update", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    string targetExe = args[1];
+                    int waitPid = 0;
+                    if (args.Length >= 3) int.TryParse(args[2], out waitPid);
+                    if (waitPid > 0)
+                    {
+                        try
+                        {
+                            using (Process oldPs = Process.GetProcessById(waitPid))
+                            {
+                                oldPs.WaitForExit(10000);
+                            }
+                        }
+                        catch { }
+                    }
+                    int myPid = Process.GetCurrentProcess().Id;
+                    for (int w = 0; w < 30; w++)
+                    {
+                        bool otherAlive = false;
+                        foreach (Process p in Process.GetProcessesByName("AlphaCloudSync"))
+                        {
+                            if (p.Id != myPid) { otherAlive = true; break; }
+                        }
+                        if (!otherAlive) break;
+                        Thread.Sleep(200);
+                    }
+                    Thread.Sleep(250);
+                    string selfPath = Assembly.GetExecutingAssembly().Location;
+                    string targetDir = Path.GetDirectoryName(targetExe);
+                    if (!string.IsNullOrEmpty(targetDir)) Directory.CreateDirectory(targetDir);
+                    for (int attempt = 0; attempt < 20; attempt++)
+                    {
+                        try
+                        {
+                            File.Copy(selfPath, targetExe, true);
+                            break;
+                        }
+                        catch { Thread.Sleep(250); }
+                    }
+                    ProcessStartInfo launchNew = new ProcessStartInfo();
+                    launchNew.FileName = targetExe;
+                    launchNew.WorkingDirectory = string.IsNullOrEmpty(targetDir) ? Environment.CurrentDirectory : targetDir;
+                    launchNew.UseShellExecute = true;
+                    Process.Start(launchNew);
+                }
+                catch { }
+                return 0;
+            }
+
             bool isMinimized = false;
             string contextAction = "";
             string contextTargetPath = "";
@@ -578,6 +630,15 @@ namespace AlphaCloudSync
             {
                 string localAppBase = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AlphaCloudSync");
                 Directory.CreateDirectory(localAppBase);
+                try
+                {
+                    string pendingUpd = Path.Combine(localAppBase, "pending-update.exe");
+                    if (File.Exists(pendingUpd) && !string.Equals(Assembly.GetExecutingAssembly().Location, pendingUpd, StringComparison.OrdinalIgnoreCase))
+                    {
+                        File.Delete(pendingUpd);
+                    }
+                }
+                catch { }
 
                 // Instant (~30ms) Obsidian Dark Splash Card for interactive GUI launch!
                 if (!isHeadlessCli && !isMinimized)

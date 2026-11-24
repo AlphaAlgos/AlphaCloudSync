@@ -1862,8 +1862,8 @@ function Invoke-AppSelfUpdate {
             Phase         = "Idle"
             WebClient     = $null
             Task          = $null
-            ExeTmp        = (Join-Path $env:TEMP "AlphaCloudSync_upd_$PID.exe")
-            SumsTmp       = (Join-Path $env:TEMP "AlphaCloudSync_sums_$PID.txt")
+            ExeTmp        = (Join-Path $LocalDataDir "pending-update.exe")
+            SumsTmp       = (Join-Path $LocalDataDir "pending-update-sums.txt")
             ExeUrl        = ""
             SumsUrl       = ""
             ExpectedBytes = [int64]0
@@ -1990,51 +1990,17 @@ function Invoke-AppSelfUpdate {
                         } else {
                             Join-Path $env:LOCALAPPDATA "AlphaCloudSync\app\AlphaCloudSync.exe"
                         }
-                        $destDir = Split-Path -Parent $destExe
-                        $swapScript = Join-Path $env:TEMP "AlphaCloudSync_swap_$PID.ps1"
-                        $qTmp  = $updState.ExeTmp.Replace("'", "''")
-                        $qSums = $updState.SumsTmp.Replace("'", "''")
-                        $qDest = $destExe.Replace("'", "''")
-                        $qDir  = $destDir.Replace("'", "''")
-                        $swapBody = @"
-`$ErrorActionPreference = 'SilentlyContinue'
-for (`$i = 0; `$i -lt 40; `$i++) {
-    `$alivePs = Get-Process -Id $PID -ErrorAction SilentlyContinue
-    `$aliveEx = @(Get-Process -Name 'AlphaCloudSync' -ErrorAction SilentlyContinue)
-    if (`$null -eq `$alivePs -and `$aliveEx.Count -eq 0) { break }
-    Start-Sleep -Milliseconds 150
-}
-foreach (`$p in @(Get-Process -Name 'AlphaCloudSync' -ErrorAction SilentlyContinue)) {
-    try { Stop-Process -Id `$p.Id -Force -ErrorAction SilentlyContinue } catch {}
-}
-Start-Sleep -Milliseconds 350
-New-Item -ItemType Directory -Path '$qDir' -Force | Out-Null
-for (`$t = 0; `$t -lt 15; `$t++) {
-    try {
-        Move-Item -LiteralPath '$qTmp' -Destination '$qDest' -Force -ErrorAction Stop
-        break
-    } catch { Start-Sleep -Milliseconds 250 }
-}
-Remove-Item -LiteralPath '$qSums' -Force -ErrorAction SilentlyContinue
-`$psiLaunch = New-Object System.Diagnostics.ProcessStartInfo
-`$psiLaunch.FileName = '$qDest'
-`$psiLaunch.WorkingDirectory = '$qDir'
-`$psiLaunch.UseShellExecute = `$true
-[void][System.Diagnostics.Process]::Start(`$psiLaunch)
-Remove-Item -LiteralPath `$PSCommandPath -Force -ErrorAction SilentlyContinue
-"@
-                        [System.IO.File]::WriteAllText($swapScript, $swapBody, (New-Object System.Text.UTF8Encoding($false)))
-                        $psExe = Join-Path $env:WINDIR "System32\WindowsPowerShell\v1.0\powershell.exe"
-                        if (-not (Test-Path -LiteralPath $psExe)) { $psExe = "powershell.exe" }
+                        Remove-Item -LiteralPath $updState.SumsTmp -Force -ErrorAction SilentlyContinue
+                        # Pure native C# atomic self-update (zero hidden PowerShell, zero temp scripts!)
                         $psiSwap = New-Object System.Diagnostics.ProcessStartInfo
-                        $psiSwap.FileName = $psExe
-                        $psiSwap.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$swapScript`""
-                        $psiSwap.UseShellExecute = $false
-                        $psiSwap.CreateNoWindow = $true
+                        $psiSwap.FileName = $updState.ExeTmp
+                        $psiSwap.Arguments = "--apply-update `"$destExe`" $PID"
+                        $psiSwap.WorkingDirectory = $LocalDataDir
+                        $psiSwap.UseShellExecute = $true
                         [void][System.Diagnostics.Process]::Start($psiSwap)
 
                         $updState.ShouldQuitApp = $true
-                        $updState.FinishAtUtc   = [datetime]::UtcNow.AddMilliseconds(600)
+                        $updState.FinishAtUtc   = [datetime]::UtcNow.AddMilliseconds(550)
                         $updState.Phase         = "ClosingToRestart"
                     }
                     "ClosingToRestart" {

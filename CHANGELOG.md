@@ -2,6 +2,14 @@
 
 All notable changes to **AlphaCloudSync** are documented in this file.
 
+## [1.2.3] - 2026-11-24
+### Improved
+- **100% Native C# Atomic Self-Update (`--apply-update`, Zero Hidden PowerShell / Zero Defender False Positives):**
+  - Eliminated all hidden PowerShell update helper scripts (`irm | iex` and temp `.ps1` swap files) that could trigger Windows Defender `Trojan:Win32/Commando.B!ml` heuristics.
+  - The SHA-256 verified binary now performs the atomic swap and clean Splash Screen relaunch natively in C# (`AlphaCloudSyncLauncher.cs`).
+- **Clean Multi-Line Numbered Steps in Faster Mode Dialog (`PnlGcpSteps`):**
+  - Fixed XML attribute newline collapsing in the Google Cloud personal key guide by rendering each step (`1`, `2`, `3`) on its own cleanly spaced row with numbered cyan pill badges for effortless reading across all 7 languages (including RTL Arabic).
+
 ## [1.2.2] - 2026-11-24
 ### Added
 - **Live In-App Self-Updater Progress Modal (`Invoke-AppSelfUpdate`, 7 Languages x 414 Keys):**
