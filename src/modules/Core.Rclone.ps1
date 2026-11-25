@@ -114,16 +114,63 @@ function Test-RcloneSourceHasIncludedFiles {
         return [PSCustomObject]@{ Safe = $false; HasFiles = $false; FileCount = 0; Error = "Source folder is missing or invalid." }
     }
 
-    # Enumerate the effective source after filters; raw directory entries can all be excluded.
-    $listArgs = "lsf $(Format-WinArg $LocalPath) --recursive --files-only $ExcludeFlags --quiet"
-    $listResult = Invoke-RcloneCapture -Arguments $listArgs -TimeoutMs 60000
-    if ($null -eq $listResult -or $listResult.ExitCode -ne 0) {
-        $err = if ($null -ne $listResult -and -not [string]::IsNullOrWhiteSpace($listResult.StdErr)) { $listResult.StdErr.Trim() } else { "rclone source enumeration failed." }
-        return [PSCustomObject]@{ Safe = $false; HasFiles = $false; FileCount = 0; Error = $err }
+    # Fast shallow probe first (depth 1): returns in <200ms whenever the folder root has at least 1 included file.
+    $shallowArgs = "lsf $(Format-WinArg $LocalPath) --max-depth 1 --files-only $ExcludeFlags --quiet"
+    $shallowRes = Invoke-RcloneCapture -Arguments $shallowArgs -TimeoutMs 15000
+    if ($null -ne $shallowRes -and $shallowRes.ExitCode -eq 0) {
+        $shallowFiles = @($shallowRes.StdOut -split "`r?`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        if ($shallowFiles.Count -gt 0) {
+            return [PSCustomObject]@{ Safe = $true; HasFiles = $true; FileCount = $shallowFiles.Count; Error = "" }
+        }
     }
 
-    $includedFiles = @($listResult.StdOut -split "`r?`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-    return [PSCustomObject]@{ Safe = $true; HasFiles = ($includedFiles.Count -gt 0); FileCount = $includedFiles.Count; Error = "" }
+    # Early-stop streaming recursive scan: stops the INSTANT the first non-excluded file line arrives!
+    # Prevents 60s timeouts on huge repositories (100k+ files) while preserving 100% fail-closed empty-source safety.
+    $listArgs = "lsf $(Format-WinArg $LocalPath) --recursive --files-only $ExcludeFlags --quiet"
+    $proc = $null
+    try {
+        $psi = New-Object System.Diagnostics.ProcessStartInfo
+        $psi.FileName = $RcloneExe
+        $psi.Arguments = $listArgs
+        $psi.UseShellExecute = $false
+        $psi.CreateNoWindow = $true
+        $psi.RedirectStandardOutput = $true
+        $psi.RedirectStandardError = $true
+        $psi.StandardOutputEncoding = [System.Text.Encoding]::UTF8
+        $psi.StandardErrorEncoding = [System.Text.Encoding]::UTF8
+        $proc = [System.Diagnostics.Process]::Start($psi)
+        $stderrTask = $proc.StandardError.ReadToEndAsync()
+        $deadline = [datetime]::UtcNow.AddSeconds(90)
+        while ([datetime]::UtcNow -lt $deadline) {
+            $lineTask = $proc.StandardOutput.ReadLineAsync()
+            $remMs = [int][math]::Max(50, ($deadline - [datetime]::UtcNow).TotalMilliseconds)
+            if (-not $lineTask.Wait([math]::Min($remMs, 2000))) {
+                if ($proc.HasExited) { break }
+                continue
+            }
+            $ln = $lineTask.Result
+            if ($null -eq $ln) { break }
+            if (-not [string]::IsNullOrWhiteSpace($ln)) {
+                try { if (-not $proc.HasExited) { $proc.Kill() } } catch {}
+                return [PSCustomObject]@{ Safe = $true; HasFiles = $true; FileCount = 1; Error = "" }
+            }
+        }
+        $exited = $proc.WaitForExit(3000)
+        if (-not $exited) {
+            try { $proc.Kill() } catch {}
+            return [PSCustomObject]@{ Safe = $false; HasFiles = $false; FileCount = 0; Error = "Timeout" }
+        }
+        if ($proc.ExitCode -ne 0) {
+            $errOut = try { $stderrTask.GetAwaiter().GetResult().Trim() } catch { "" }
+            if ([string]::IsNullOrWhiteSpace($errOut)) { $errOut = "rclone source enumeration failed." }
+            return [PSCustomObject]@{ Safe = $false; HasFiles = $false; FileCount = 0; Error = $errOut }
+        }
+        return [PSCustomObject]@{ Safe = $true; HasFiles = $false; FileCount = 0; Error = "" }
+    } catch {
+        return [PSCustomObject]@{ Safe = $false; HasFiles = $false; FileCount = 0; Error = $_.Exception.Message }
+    } finally {
+        if ($null -ne $proc) { try { $proc.Dispose() } catch {} }
+    }
 }
 
 

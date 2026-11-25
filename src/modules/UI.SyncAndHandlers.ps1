@@ -301,11 +301,47 @@ $timer.Add_Tick({
                 $code = $script:ActiveProcess.ExitCode; $script:ActiveProcess = $null
                 $script:BatchCompletedWeight += $script:BatchCurrentWeight
                 $errDetail = ""
-                if ($code -ne 0 -and $script:ActiveJobLogFile -and (Test-Path -LiteralPath $script:ActiveJobLogFile)) {
-                    $tailErr = @(Read-Utf8TailLines -Path $script:ActiveJobLogFile -MaxLines 30 | Where-Object { $_ -match 'ERROR|CRITICAL|Fatal|Failed' })
-                    if ($tailErr.Count -gt 0) { $errDetail = $tailErr[$tailErr.Count - 1].Trim() }
+                if ($script:ActiveJobLogFile -and (Test-Path -LiteralPath $script:ActiveJobLogFile)) {
+                    # Full authoritative scan of the completed job log before deletion so fast bursts
+                    # (>85 lines or trailing directory-mtime notices) NEVER drop uploaded/previewed file counts!
+                    $fsAll = $null; $srAll = $null
+                    try {
+                        $fsAll = New-Object System.IO.FileStream($script:ActiveJobLogFile, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+                        $srAll = New-Object System.IO.StreamReader($fsAll, [System.Text.Encoding]::UTF8)
+                        $addedFinalPreviewUi = 0
+                        while (-not $srAll.EndOfStream) {
+                            $rawL = $srAll.ReadLine()
+                            if ([string]::IsNullOrWhiteSpace($rawL)) { continue }
+                            $cl = $rawL.Trim()
+                            if ($cl -match 'INFO\s*:\s*(.+?):\s*(Copied \(new\)|Copied \(replaced existing\)|Updated|Moved \(server-side\)|Deleted)') {
+                                $fN = $Matches[1].Trim(); $aT = $Matches[2].Trim(); $kN = "$fN|$aT"
+                                if (-not $script:SeenLogLines.ContainsKey($kN)) {
+                                    $script:SeenLogLines[$kN] = $true
+                                    $isAr = ($aT -match 'Deleted|Moved')
+                                    if ($isAr) { $rt.ArchivedCount++ } else { $script:UploadedCount++; $rt.UploadedCount++ }
+                                    Write-StudioLog -Msg "[$(if ($isAr) { 'ARCHIVED' } else { 'UPLOADED' })] $($script:CurrentFolder)/$fN ($aT)" -TargetRemote $syncRem
+                                }
+                            } elseif ($cl -match 'NOTICE:\s*(.+?):\s*Skipped (copy|update|delete|move) as --dry-run is set') {
+                                $fN = $Matches[1].Trim(); $opN = $Matches[2].Trim(); $kN = "$fN|preview|$opN"
+                                if (-not $script:SeenLogLines.ContainsKey($kN)) {
+                                    $script:SeenLogLines[$kN] = $true
+                                    $rt.PreviewCount++
+                                    if ($addedFinalPreviewUi -lt 200) {
+                                        $addedFinalPreviewUi++
+                                        $detN = switch ($opN) { "update" { L "feedActWillUpdate" } "delete" { L "feedActWillDelete" } "move" { L "feedActMoved" } default { L "feedActWillCopy" } }
+                                        Add-FileActivityRow -State (L "feedStatePreview") -FileName "$($script:CurrentFolder)/$fN" -Details $detN -TargetRemote $syncRem -Priority 2
+                                    }
+                                }
+                            } elseif ($code -ne 0 -and $cl -match 'ERROR|CRITICAL|Fatal|Failed') {
+                                $errDetail = $cl
+                            }
+                        }
+                    } catch {} finally {
+                        if ($null -ne $srAll) { try { $srAll.Dispose() } catch {} }
+                        if ($null -ne $fsAll) { try { $fsAll.Dispose() } catch {} }
+                    }
+                    Remove-Item -LiteralPath $script:ActiveJobLogFile -Force -ErrorAction SilentlyContinue
                 }
-                if ($script:ActiveJobLogFile -and (Test-Path -LiteralPath $script:ActiveJobLogFile)) { Remove-Item -LiteralPath $script:ActiveJobLogFile -Force -ErrorAction SilentlyContinue }
                 $wasTargetedFilesSync = ($null -ne $script:ActiveFilesFromFile)
                 $doneTargetFiles = $script:ActiveTargetFiles
                 $script:ActiveTargetFiles = $null
@@ -437,6 +473,7 @@ function Start-StudioBatch {
     $resilient = "--retries 10 --low-level-retries 20 --retries-sleep 5s --modify-window 1s"
 
     $queuedJobs = @()
+    $hadPreCheckError = $false
     foreach ($f in $folders) {
         $effRemote = Resolve-EffectiveRemotePath -FolderItem $f
         $script:JobSeq++
@@ -483,7 +520,12 @@ function Start-StudioBatch {
             }
 
             $sourceCheck = Test-RcloneSourceHasIncludedFiles -LocalPath $f.LocalPath -ExcludeFlags $exFlag
-            if (-not $sourceCheck.Safe) { Write-StudioLog -Msg "[ERR] Source safety check failed for '$($f.Name)': $($sourceCheck.Error)" -TargetRemote $targetRem; continue }
+            if (-not $sourceCheck.Safe) {
+                $hadPreCheckError = $true
+                Write-StudioLog -Msg "[ERR] Source safety check failed for '$($f.Name)': $($sourceCheck.Error)" -TargetRemote $targetRem
+                Show-TrayToast -Title (L "toastSyncErrTitle" "AlphaCloudSync Sync Warning") -Body (LF "errGeneralBody" @($f.Name)) -Category "Error" -Icon ([System.Windows.Forms.ToolTipIcon]::Warning)
+                continue
+            }
             if (-not $sourceCheck.HasFiles) { Write-StudioLog -Msg "[GUARD] No files remain after exclusion rules for '$($f.Name)'; remote data was left untouched." -TargetRemote $targetRem; continue }
 
             $maxDelFlag = Get-MaxDeleteFlagString -Policy $cfg.DeletePolicy -Limit ([int]$cfg.MaxDeleteLimit)
@@ -503,7 +545,7 @@ function Start-StudioBatch {
 
     $rt = Get-AccountRuntime -TargetRemote $targetRem
     if ($rt.PSObject.Properties["RecentlyCompleted"] -and $null -ne $rt.RecentlyCompleted) { $rt.RecentlyCompleted.Clear() }
-    $script:LastBatchMode = $Mode; $script:LastBatchOnlyFolder = $OnlyFolderPath; $script:LastBatchIsAuto = [bool]$IsAutoSync; $script:BatchHadError = $false; $script:WasPausedByUser = $false
+    $script:LastBatchMode = $Mode; $script:LastBatchOnlyFolder = $OnlyFolderPath; $script:LastBatchIsAuto = [bool]$IsAutoSync; $script:BatchHadError = $hadPreCheckError; $script:WasPausedByUser = $false
     $script:UploadedCount = 0; $rt.UploadedCount = 0; $rt.ArchivedCount = 0; $rt.PreviewCount = 0; $rt.WasPausedByUser = $false; $rt.LastOverallPct = 0.0
     $script:JobQueue.Clear()
     if (-not $PreserveFeed -and $Mode -eq "DryRun") {

@@ -342,7 +342,7 @@ $script:DarkControlStylesXaml = @"
 [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="AlphaCloudSync v1.2.6"
+        Title="AlphaCloudSync v1.2.7"
         WindowStyle="SingleBorderWindow"
         ResizeMode="CanResize"
         WindowStartupLocation="Manual"
@@ -543,7 +543,7 @@ $script:DarkControlStylesXaml = @"
                         <Image x:Name="ImgTitleIcon" FlowDirection="LeftToRight" Width="20" Height="20" Margin="0,0,9,0" RenderOptions.BitmapScalingMode="HighQuality"/>
                         <TextBlock x:Name="TxtWindowTitle" FlowDirection="LeftToRight" Text="AlphaCloudSync" FontSize="13" FontWeight="Bold" Foreground="#F1F5F9" VerticalAlignment="Center"/>
                         <Border Background="#12243D" BorderBrush="#1F3B61" BorderThickness="1" CornerRadius="4" Padding="6,1" Margin="8,0,0,0" VerticalAlignment="Center">
-                            <TextBlock x:Name="TxtBrandBadge" Text="v1.2.6" FontSize="10" FontWeight="SemiBold" Foreground="#38BDF8"/>
+                            <TextBlock x:Name="TxtBrandBadge" Text="v1.2.7" FontSize="10" FontWeight="SemiBold" Foreground="#38BDF8"/>
                         </Border>
                         <TextBlock x:Name="TxtWindowSubtitle" Text="" FontSize="11.5" Foreground="#64748B" VerticalAlignment="Center" Margin="10,0,0,0"/>
                         <Button x:Name="BtnUpdateBanner" Visibility="Collapsed" Background="#064E3B" BorderBrush="#10B981" Foreground="#A7F3D0" FontSize="11" FontWeight="Bold" Padding="10,2" Height="24" Margin="12,0,0,0" VerticalAlignment="Center" Cursor="Hand">

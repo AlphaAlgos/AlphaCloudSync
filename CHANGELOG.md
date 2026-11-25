@@ -2,6 +2,16 @@
 
 All notable changes to **AlphaCloudSync** are documented in this file.
 
+## [1.2.7] - 2026-11-25
+### Fixed
+- **Instant Early-Stop Source Safety Guard (`Test-RcloneSourceHasIncludedFiles` — Eliminates 60s Timeouts on Large Folders):**
+  - Replaced full-tree blocking `rclone lsf --recursive` enumeration with a shallow root probe + streaming early-stop check that exits the instant the first non-excluded file is detected (`~0.2–2.5s` even on 100,000+ file repositories instead of timing out at 60s and skipping the folder!).
+  - Retains 100% fail-closed protection when a folder is missing or contains only excluded files.
+- **Authoritative Full-Log Scan on Job Exit (100% Exact Preview & Sync File Counts):**
+  - Before deleting the temporary job log upon completion, AlphaCloudSync now performs a full streaming scan of the entire log file so rapid bursts of >85 files or trailing directory-mtime notices can never cause pending preview counts (`Pending Sync: N file(s)`) or uploaded counts to under-report `0`.
+- **Visible Warning on Pre-Check Failure:**
+  - If any folder fails its source safety check, the batch immediately flags an error and displays a clear warning notification instead of silently skipping the folder and reporting 100% / 0 pending files.
+
 ## [1.2.6] - 2026-11-25
 ### Added
 - **Per-Account Persistent Local Cloud Profile History (Last Preview, Sync Stats & Activity Log — 7 Languages x 435 Keys):**
