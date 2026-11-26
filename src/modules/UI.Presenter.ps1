@@ -190,11 +190,12 @@ function Apply-UiLanguage {
         $GridFolders.Columns[5].Header = $loc.colDriveSize
         $GridFolders.Columns[6].Header = $loc.colStatus
     }
-    if ($GridActivity.Columns.Count -ge 4) {
+    if ($GridActivity.Columns.Count -ge 5) {
         $GridActivity.Columns[0].Header = $loc.colState
         $GridActivity.Columns[1].Header = $loc.colFile
-        $GridActivity.Columns[2].Header = $loc.colDetails
-        $GridActivity.Columns[3].Header = $loc.colTime
+        $GridActivity.Columns[2].Header = $(if ($loc.PSObject.Properties["colProgress"]) { $loc.colProgress } else { "Progress" })
+        $GridActivity.Columns[3].Header = $loc.colDetails
+        $GridActivity.Columns[4].Header = $loc.colTime
     }
 
     $TxtSyncToggle.Text = if ($script:IsSyncRunning) { $loc.stopSync } else { $loc.syncAll }
@@ -403,6 +404,82 @@ function Test-ActivityRowPathMatch {
     return $false
 }
 
+# ==============================================================================
+# LIVE ACTIVITY GRID SCROLL ANCHOR (Zero-Jump viewport stability)
+# Keeps the row the user is currently reading pinned under the cursor while new
+# uploads are inserted, promoted to 100% or auto-dismissed. The wheel is never
+# yanked away and the top ceiling stays exactly where the user pinned it.
+# ==============================================================================
+function Find-VisualChildByType {
+    param($Parent, [Type]$Type, [int]$Depth = 0)
+    if ($null -eq $Parent -or $Depth -gt 24) { return $null }
+    try {
+        $count = [System.Windows.Media.VisualTreeHelper]::GetChildrenCount($Parent)
+        for ($i = 0; $i -lt $count; $i++) {
+            $child = [System.Windows.Media.VisualTreeHelper]::GetChild($Parent, $i)
+            if ($null -eq $child) { continue }
+            if ($Type.IsInstanceOfType($child)) { return $child }
+            $found = Find-VisualChildByType -Parent $child -Type $Type -Depth ($Depth + 1)
+            if ($null -ne $found) { return $found }
+        }
+    } catch {}
+    return $null
+}
+
+function Get-ActivityScrollViewer {
+    try {
+        if ($null -eq $GridActivity) { return $null }
+        if ($null -ne $script:ActivityScrollViewer -and [object]::ReferenceEquals($script:ActivityScrollViewerTarget, $GridActivity)) {
+            return $script:ActivityScrollViewer
+        }
+        $script:ActivityScrollViewer = Find-VisualChildByType -Parent $GridActivity -Type ([System.Windows.Controls.ScrollViewer])
+        $script:ActivityScrollViewerTarget = $GridActivity
+        return $script:ActivityScrollViewer
+    } catch { return $null }
+}
+
+function Get-ActivityScrollAnchor {
+    try {
+        if ($null -eq $GridActivity -or $null -eq $GridActivity.Items) { return $null }
+        $sv = Get-ActivityScrollViewer
+        if ($null -eq $sv) { return $null }
+        $offset = [double]$sv.VerticalOffset
+        $isContentScroll = [bool]$sv.CanContentScroll
+        # User is pinned to the top ceiling: always keep the top pinned, never drift
+        if ($offset -le 0.51) {
+            return [PSCustomObject]@{ PinnedTop = $true; Offset = $offset; Index = -1; Item = $null; Content = $isContentScroll }
+        }
+        $idx = -1
+        $startIdx = if ($isContentScroll) { [int][math]::Floor([math]::Max(0.0, $offset)) } else { 0 }
+        for ($i = $startIdx; $i -lt $GridActivity.Items.Count; $i++) {
+            $c = $GridActivity.ItemContainerGenerator.ContainerFromIndex($i)
+            if ($null -eq $c) { continue }
+            $p = $c.TranslatePoint((New-Object System.Windows.Point(0, 0)), $sv)
+            if ($p.Y -ge -0.5) { $idx = $i; break }
+        }
+        $it = if ($idx -ge 0) { $GridActivity.Items[$idx] } else { $null }
+        return [PSCustomObject]@{ PinnedTop = $false; Offset = $offset; Index = $idx; Item = $it; Content = $isContentScroll }
+    } catch { return $null }
+}
+
+function Restore-ActivityScrollAnchor {
+    param($Anchor, [double]$RowHeight = 32.0)
+    if ($null -eq $Anchor) { return }
+    try {
+        $sv = Get-ActivityScrollViewer
+        if ($null -eq $sv) { return }
+        if ($Anchor.PinnedTop) { $sv.ScrollToTop(); return }
+        $newIdx = if ($null -ne $Anchor.Item) { $GridActivity.Items.IndexOf($Anchor.Item) } else { -1 }
+        if ($newIdx -ge 0 -and $Anchor.Index -ge 0) {
+            $delta = [double]($newIdx - $Anchor.Index)
+            $target = if ($Anchor.Content) { [double]$Anchor.Offset + $delta } else { [double]$Anchor.Offset + ($delta * $RowHeight) }
+            $sv.ScrollToVerticalOffset([math]::Max(0.0, $target))
+        } else {
+            $sv.ScrollToVerticalOffset([double]$Anchor.Offset)
+        }
+    } catch {}
+}
+
 function Add-FileActivityRow {
     param(
         [string]$State,
@@ -411,7 +488,8 @@ function Add-FileActivityRow {
         [string]$TargetRemote = $script:ActiveRemote,
         [int]$Priority = 1,
         [switch]$FromStats,
-        [string]$BrushHex = ""
+        [string]$BrushHex = "",
+        [double]$ProgressPct = -1
     )
     if ([string]::IsNullOrWhiteSpace($TargetRemote)) { $TargetRemote = $script:ActiveRemote }
     $rt = Get-AccountRuntime -TargetRemote $TargetRemote
@@ -451,35 +529,77 @@ function Add-FileActivityRow {
     $ts = Format-Time12h -DateTime (Get-Date) -WithSeconds
     $doneAt = if ($Priority -eq 1) { $nowUtc } else { $null }
     $clrHex = if (-not [string]::IsNullOrWhiteSpace($BrushHex)) { $BrushHex } elseif ($Priority -eq 0) { "#38BDF8" } elseif ($Priority -eq 1) { "#4ADE80" } else { "#94A3B8" }
-    $newItem = [PSCustomObject]@{ State = $State; StateBrush = $clrHex; FileName = $FileName; Details = $Details; Time = $ts; Priority = $Priority; CompletedUtc = $doneAt }
 
-    # Remove any matching existing row (including middle-ellipsis truncated rows from rclone stats!)
+    # Per-file upload percentage (drives the slim in-row progress bar)
+    $pctVal = 0.0; $pctTxt = ""
+    if ($ProgressPct -ge 0) {
+        $pctVal = [math]::Round([double]$ProgressPct, 1)
+        if ($pctVal -gt 100.0) { $pctVal = 100.0 }
+        $pctTxt = "{0:0.#}%" -f $pctVal
+    }
+    $pctBrush = if ($pctVal -ge 100.0) { "#34D399" } elseif ($Priority -eq 0) { "#7DD3FC" } else { "#64748B" }
+
+    $newItem = [PSCustomObject]@{
+        State        = $State
+        StateBrush   = $clrHex
+        FileName     = $FileName
+        Details      = $Details
+        Time         = $ts
+        Priority     = $Priority
+        CompletedUtc = $doneAt
+        ProgressPct  = $pctVal
+        ProgressText = $pctTxt
+        ProgressBrush = $pctBrush
+    }
+
+    # Capture the viewport anchor BEFORE mutating the queue so nothing ever jumps
+    $scrollAnchor = if ($TargetRemote -eq $script:ActiveRemote) { Get-ActivityScrollAnchor } else { $null }
+
+    # Locate any matching existing row (including middle-ellipsis truncated rows from rclone stats!)
+    $existingIdx = -1
     for ($i = $rt.ActivityItems.Count - 1; $i -ge 0; $i--) {
         if (Test-ActivityRowPathMatch -ExistingPath $rt.ActivityItems[$i].FileName -IncomingPath $FileName) {
             # Never downgrade or truncate an already-completed full-path row back to an ellipsis stat line
             if ($rt.ActivityItems[$i].Priority -eq 1 -and ($Priority -eq 0 -or $Priority -eq 1) -and $FileName.Contains("...") -and -not $rt.ActivityItems[$i].FileName.Contains("...")) { return }
-            $rt.ActivityItems.RemoveAt($i)
-        }
-    }
-
-    # Keep Activity Queue strictly organized:
-    # Priority 0 = Active Uploading (ALWAYS TOP) -> Priority 1 = Completed / Archived (right below, auto-dismisses after 3.5s) -> Priority 2 = Queued / Preview (appended at BOTTOM, FIFO!)
-    $insertIdx = $rt.ActivityItems.Count
-    if ($Priority -lt 2) {
-        for ($i = 0; $i -lt $rt.ActivityItems.Count; $i++) {
-            $itemPri = if ($rt.ActivityItems[$i].PSObject.Properties["Priority"]) { [int]$rt.ActivityItems[$i].Priority } else { 1 }
-            if ($itemPri -ge $Priority) {
-                $insertIdx = $i
-                break
+            if ($existingIdx -lt 0) {
+                $existingIdx = $i
+            } else {
+                $rt.ActivityItems.RemoveAt($i)
+                # Removing a row below the kept one shifts its index down by exactly one
+                if ($existingIdx -gt $i) { $existingIdx-- }
             }
         }
     }
-    $rt.ActivityItems.Insert($insertIdx, $newItem)
-    while ($rt.ActivityItems.Count -gt 300) { $rt.ActivityItems.RemoveAt($rt.ActivityItems.Count - 1) }
 
-    # Automatically keep the top event ceiling (active uploads & latest completions) visible in the live feed!
-    if ($TargetRemote -eq $script:ActiveRemote -and $Priority -le 1 -and $rt.ActivityItems.Count -gt 0) {
-        try { if ($null -ne $GridActivity) { $GridActivity.ScrollIntoView($rt.ActivityItems[0]) } } catch {}
+    if ($existingIdx -ge 0) {
+        # ZERO-JUMP: update the row exactly where the user already sees it.
+        # The percentage climbs in place instead of the row being re-inserted at
+        # the top every second (which used to shove the whole queue downward).
+        $rt.ActivityItems[$existingIdx] = $newItem
+    } else {
+        # Keep Activity Queue strictly organized:
+        # Priority 0 = Active Uploading (ALWAYS TOP) -> Priority 1 = Completed / Archived (right below, auto-dismisses after 3.5s) -> Priority 2 = Queued / Preview (appended at BOTTOM, FIFO!)
+        $insertIdx = $rt.ActivityItems.Count
+        if ($Priority -lt 2) {
+            for ($i = 0; $i -lt $rt.ActivityItems.Count; $i++) {
+                $itemPri = if ($rt.ActivityItems[$i].PSObject.Properties["Priority"]) { [int]$rt.ActivityItems[$i].Priority } else { 1 }
+                if ($itemPri -ge $Priority) {
+                    $insertIdx = $i
+                    break
+                }
+            }
+        }
+        $rt.ActivityItems.Insert($insertIdx, $newItem)
+        while ($rt.ActivityItems.Count -gt 300) { $rt.ActivityItems.RemoveAt($rt.ActivityItems.Count - 1) }
+    }
+
+    # Restore the exact viewport the user was reading (pinned top stays pinned)
+    if ($TargetRemote -eq $script:ActiveRemote) {
+        if ($null -ne $scrollAnchor) {
+            Restore-ActivityScrollAnchor -Anchor $scrollAnchor
+        } elseif ($Priority -le 1 -and $rt.ActivityItems.Count -gt 0) {
+            try { if ($null -ne $GridActivity) { $GridActivity.ScrollIntoView($rt.ActivityItems[0]) } } catch {}
+        }
     }
 }
 
@@ -499,6 +619,7 @@ function Complete-StuckUploadingRowsForFolder {
             }
         }
         $toPromote = @()
+        $promoteAnchor = if ($TargetRemote -eq $script:ActiveRemote) { Get-ActivityScrollAnchor } else { $null }
         for ($i = $rt.ActivityItems.Count - 1; $i -ge 0; $i--) {
             $row = $rt.ActivityItems[$i]
             $pri = if ($row.PSObject.Properties["Priority"]) { [int]$row.Priority } else { 1 }
@@ -518,9 +639,10 @@ function Complete-StuckUploadingRowsForFolder {
                 if (Test-ActivityRowPathMatch -ExistingPath $ex.FileName -IncomingPath $oldR.FileName) { $already = $true; break }
             }
             if (-not $already) {
-                Add-FileActivityRow -State $doneLbl -FileName $oldR.FileName -Details "100%" -TargetRemote $TargetRemote -Priority 1
+                Add-FileActivityRow -State $doneLbl -FileName $oldR.FileName -Details "100%" -TargetRemote $TargetRemote -Priority 1 -ProgressPct 100
             }
         }
+        if ($TargetRemote -eq $script:ActiveRemote) { Restore-ActivityScrollAnchor -Anchor $promoteAnchor }
     } catch {}
 }
 

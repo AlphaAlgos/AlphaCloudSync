@@ -118,6 +118,7 @@
   "colState": "الوضع",
   "colFile": "مسار الملف",
   "colDetails": "التقدم / الإجراء",
+  "colProgress": "نسبة الرفع",
   "colTime": "الوقت",
   "gridNotScanned": "لم يُفحص بعد",
   "gridClickScan": "اضغط فحص المساحة",

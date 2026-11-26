@@ -118,6 +118,7 @@
   "colState": "状态",
   "colFile": "文件路径",
   "colDetails": "进度 / 操作",
+  "colProgress": "上传进度",
   "colTime": "时间",
   "gridNotScanned": "未扫描",
   "gridClickScan": "点击检查空间",

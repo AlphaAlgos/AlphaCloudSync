@@ -118,6 +118,7 @@
   "colState": "État",
   "colFile": "Chemin du fichier",
   "colDetails": "Progrès / Action",
+  "colProgress": "Progression de l'envoi",
   "colTime": "Heure",
   "gridNotScanned": "Non analysé",
   "gridClickScan": "Cliquez sur Vérifier l'espace",

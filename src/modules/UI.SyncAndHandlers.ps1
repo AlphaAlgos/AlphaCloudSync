@@ -152,16 +152,25 @@ $timer.Add_Tick({
     try {
         # Auto-dismiss completed/archived rows from the live queue after 3.5s (like Google Drive; full history remains in the log below!)
         $nowTick = [datetime]::UtcNow
+        $activeRtAcc = Get-AccountRuntime -TargetRemote $script:ActiveRemote
+        $dismissAnchor = $null
+        $dismissTouchedActive = $false
         foreach ($rtAcc in $script:AccountRuntimeMap.Values) {
             for ($ai = $rtAcc.ActivityItems.Count - 1; $ai -ge 0; $ai--) {
                 $aRow = $rtAcc.ActivityItems[$ai]
                 if ($null -ne $aRow -and $aRow.PSObject.Properties["CompletedUtc"] -and $null -ne $aRow.CompletedUtc) {
                     if (($nowTick - [datetime]$aRow.CompletedUtc).TotalSeconds -ge 3.5) {
+                        if (-not $dismissTouchedActive -and [object]::ReferenceEquals($rtAcc, $activeRtAcc)) {
+                            $dismissAnchor = Get-ActivityScrollAnchor
+                            $dismissTouchedActive = $true
+                        }
                         $rtAcc.ActivityItems.RemoveAt($ai)
                     }
                 }
             }
         }
+        # Never let a disappearing completed row slide the queue under the user's cursor
+        if ($dismissTouchedActive) { Restore-ActivityScrollAnchor -Anchor $dismissAnchor }
 
         # Instantly surface newly detected file changes/deletions into the Activity Queue with exact status!
         if ($script:AutoWatchEnabled -and -not $script:IsGloballyPaused -and $null -ne $script:WatchHub -and [datetime]::UtcNow -ge $script:WatchResumeAfterUtc) {
@@ -230,7 +239,7 @@ $timer.Add_Tick({
                         $stateLabel = if ($isArch) { L "feedStateArchived" } else { L "feedStateUploaded" }
                         $stateClr   = if ($isArch) { "#FBBF24" } else { "#4ADE80" }
                         if ($isArch) { $rt.ArchivedCount++ } else { $script:UploadedCount++; $rt.UploadedCount++ }
-                        Add-FileActivityRow -State $stateLabel -FileName "$($script:CurrentFolder)/$fName" -Details (Translate-RcloneAction $act) -TargetRemote $syncRem -Priority 1 -BrushHex $stateClr
+                        Add-FileActivityRow -State $stateLabel -FileName "$($script:CurrentFolder)/$fName" -Details (Translate-RcloneAction $act) -TargetRemote $syncRem -Priority 1 -BrushHex $stateClr -ProgressPct $(if ($isArch) { -1 } else { 100 })
                         Write-StudioLog -Msg "[$(if ($isArch) { 'ARCHIVED' } else { 'UPLOADED' })] $($script:CurrentFolder)/$fName ($act)" -TargetRemote $syncRem
                     }
                 } elseif ($clean -match 'NOTICE:\s*(.+?):\s*Skipped (copy|update|delete|move) as --dry-run is set') {
@@ -245,9 +254,9 @@ $timer.Add_Tick({
                     $fName = ($Matches[1].Trim() -replace ([char]0x2026), '...'); $fPct = $Matches[2]; $fSpd = $Matches[4].Trim()
                     if ([int]$fPct -lt 100) {
                         $activeUploading++
-                        Add-FileActivityRow -State (L "feedStateUploading") -FileName "$($script:CurrentFolder)/$fName" -Details (Wrap-Ltr "$fPct% ($fSpd)") -TargetRemote $syncRem -Priority 0 -FromStats
+                        Add-FileActivityRow -State (L "feedStateUploading") -FileName "$($script:CurrentFolder)/$fName" -Details (Wrap-Ltr "$fPct% ($fSpd)") -TargetRemote $syncRem -Priority 0 -FromStats -ProgressPct ([double]$fPct)
                     } else {
-                        Add-FileActivityRow -State (L "feedStateUploaded") -FileName "$($script:CurrentFolder)/$fName" -Details (Wrap-Ltr "100% ($fSpd)") -TargetRemote $syncRem -Priority 1 -FromStats
+                        Add-FileActivityRow -State (L "feedStateUploaded") -FileName "$($script:CurrentFolder)/$fName" -Details (Wrap-Ltr "100% ($fSpd)") -TargetRemote $syncRem -Priority 1 -FromStats -ProgressPct 100
                     }
                 } elseif ($clean -match 'Transferred:\s+([^/]+/\s*[^,]+),\s*(\d+)%,\s*([^,]+/s),\s*ETA\s*(.+)$') {
                     $bytesRatioTxt = $Matches[1].Trim(); $bytePct = [double]$Matches[2]; $speedTxt = $Matches[3].Trim(); $etaTxt = $Matches[4].Trim()

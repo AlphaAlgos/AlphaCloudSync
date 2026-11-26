@@ -2,6 +2,22 @@
 
 All notable changes to **AlphaCloudSync** are documented in this file.
 
+## [1.2.8] - 2026-11-26
+### Added
+- **Per-File Upload Progress Bar Inside Every Queue Row (`GridActivity` → `Progress` column):**
+  - Each row now shows a slim, rounded, luminous progress bar plus its exact percentage (`0% → 100%`), so you can watch a single file climb in real time instead of reading a text-only stat.
+  - Colors follow the Obsidian Dark identity: cyan gradient while uploading, emerald at `100%`, muted slate for queued previews.
+  - New `colProgress` key added across all 7 languages (`Arabic · English · Español · Français · Deutsch · 中文 · Bahasa Indonesia`).
+### Fixed
+- **Zero-Jump Live Queue (Scroll Anchor — the queue never slides under your cursor anymore):**
+  - Rows are now updated **in place** (`ActivityItems[index] = row`) instead of being removed and re-inserted at the top on every 1-second rclone stats tick. The percentage climbs where you are already looking, and the queue no longer shoves itself downward while you read it.
+  - Added a real viewport anchor (`Get-ActivityScrollAnchor` / `Restore-ActivityScrollAnchor`): if you pin the top, the top stays pinned; if you scroll down, the row you are reading stays exactly under your cursor while new uploads are inserted, promoted to `100%`, or auto-dismissed after 3.5s.
+  - Removed the unconditional `ScrollIntoView(top)` that yanked the wheel away from the user on every upload event.
+### Changed
+- **Single-Hue Signature Progress Bar (No More Rainbow Spectrum):**
+  - The main overall progress bar (`BarSyncProgress`), the sidebar per-account bar, and the in-row bars now share one deep-azure → sky gradient (`#0B6E99 → #2196C9 → #38BDF8 → #8BE0FF`) that matches the Obsidian Dark accent instead of the multi-color cyan/purple/pink/green spectrum.
+
+
 ## [1.2.7] - 2026-11-25
 ### Fixed
 - **Instant Early-Stop Source Safety Guard (`Test-RcloneSourceHasIncludedFiles` — Eliminates 60s Timeouts on Large Folders):**

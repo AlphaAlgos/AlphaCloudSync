@@ -118,6 +118,7 @@
   "colState": "Status",
   "colFile": "File Path",
   "colDetails": "Progress / Action",
+  "colProgress": "Upload Progress",
   "colTime": "Time",
   "gridNotScanned": "Not scanned",
   "gridClickScan": "Click Check Space",

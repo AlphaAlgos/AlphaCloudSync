@@ -118,6 +118,7 @@
   "colState": "Status",
   "colFile": "Dateipfad",
   "colDetails": "Fortschritt / Aktion",
+  "colProgress": "Upload-Fortschritt",
   "colTime": "Zeit",
   "gridNotScanned": "Nicht geprüft",
   "gridClickScan": "Auf Speicher prüfen klicken",

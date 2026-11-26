@@ -118,6 +118,7 @@
   "colState": "Estado",
   "colFile": "Ruta del archivo",
   "colDetails": "Progreso / Acción",
+  "colProgress": "Progreso de subida",
   "colTime": "Hora",
   "gridNotScanned": "Sin analizar",
   "gridClickScan": "Pulsa Revisar espacio",

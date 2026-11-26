@@ -118,6 +118,7 @@
   "colState": "Status",
   "colFile": "Jalur File",
   "colDetails": "Kemajuan / Aksi",
+  "colProgress": "Progres Unggahan",
   "colTime": "Waktu",
   "gridNotScanned": "Belum dipindai",
   "gridClickScan": "Klik Periksa Ruang",
