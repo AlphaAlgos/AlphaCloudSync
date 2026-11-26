@@ -95,17 +95,17 @@ function Start-NextStudioJob {
         if ($syncRem -eq $script:ActiveRemote -and -not $isPreviewMode) { Update-DriveQuotaDisplay }
         $dispDone = Get-AccountDisplayLabel -TargetRemote $syncRem
         if ($isPreviewMode) {
-            Show-TrayToast -Title (L "toastPreviewDoneTitle" "Preview Completed") -Body (LF "toastPreviewDoneBody" @($rt.PreviewCount, $dispDone)) -Category "Manual"
+            Show-TrayToast -Title (L "toastPreviewDoneTitle" "Preview Completed") -Body (LF "toastPreviewDoneBody" @($rt.PreviewCount, $dispDone)) -Category "Manual" -Sound "PreviewComplete"
         } elseif ($isRestoreMode) {
             Show-TrayToast -Title (L "toastRestoreDoneTitle" "Safe Restore Completed") -Body (LF "toastRestoreDoneBody" @($rt.UploadedCount, $dispDone)) -Category "Manual"
         } elseif ($script:LastBatchIsAuto) {
             # Silent Auto-Sync: ONLY show a notification when real files were uploaded/archived (NEVER spam "0 file(s)"!)
             if ($totalSynced -gt 0 -and -not $script:BatchHadError) {
-                Show-TrayToast -Title (L "toastSyncDoneTitle") -Body (LF "toastSyncDoneBody" @($totalSynced, $dispDone)) -Category "AutoSync"
+                Show-TrayToast -Title (L "toastSyncDoneTitle") -Body (LF "toastSyncDoneBody" @($totalSynced, $dispDone)) -Category "AutoSync" -Sound "UploadComplete"
             }
         } else {
             if (-not $script:BatchHadError) {
-                Show-TrayToast -Title (L "toastSyncDoneTitle") -Body (LF "toastSyncDoneBody" @($totalSynced, $dispDone)) -Category "Manual"
+                Show-TrayToast -Title (L "toastSyncDoneTitle") -Body (LF "toastSyncDoneBody" @($totalSynced, $dispDone)) -Category "Manual" -Sound "UploadComplete"
             }
         }
         Update-SidebarSingleAccountCard -TargetRemote $syncRem
@@ -252,11 +252,13 @@ $timer.Add_Tick({
                     }
                 } elseif ($clean -match '^\*\s+(.+?):\s*(\d+)%\s*/([^,]+),\s*([^,]+)') {
                     $fName = ($Matches[1].Trim() -replace ([char]0x2026), '...'); $fPct = $Matches[2]; $fSpd = $Matches[4].Trim()
+                    $displaySpeed = $fSpd
+                    if ($displaySpeed -match '^0(?:\.0+)?\s*(?:B/s|Bytes/s)$') { $displaySpeed = "" }
                     if ([int]$fPct -lt 100) {
                         $activeUploading++
-                        Add-FileActivityRow -State (L "feedStateUploading") -FileName "$($script:CurrentFolder)/$fName" -Details (Wrap-Ltr "$fPct% ($fSpd)") -TargetRemote $syncRem -Priority 0 -FromStats -ProgressPct ([double]$fPct)
+                        Add-FileActivityRow -State (L "feedStateUploading") -FileName "$($script:CurrentFolder)/$fName" -Details $(if ($displaySpeed) { Wrap-Ltr $displaySpeed } else { "" }) -TargetRemote $syncRem -Priority 0 -FromStats -ProgressPct ([double]$fPct)
                     } else {
-                        Add-FileActivityRow -State (L "feedStateUploaded") -FileName "$($script:CurrentFolder)/$fName" -Details (Wrap-Ltr "100% ($fSpd)") -TargetRemote $syncRem -Priority 1 -FromStats -ProgressPct 100
+                        Add-FileActivityRow -State (L "feedStateUploaded") -FileName "$($script:CurrentFolder)/$fName" -Details $(if ($displaySpeed) { Wrap-Ltr $displaySpeed } else { "" }) -TargetRemote $syncRem -Priority 1 -FromStats -ProgressPct 100
                     }
                 } elseif ($clean -match 'Transferred:\s+([^/]+/\s*[^,]+),\s*(\d+)%,\s*([^,]+/s),\s*ETA\s*(.+)$') {
                     $bytesRatioTxt = $Matches[1].Trim(); $bytePct = [double]$Matches[2]; $speedTxt = $Matches[3].Trim(); $etaTxt = $Matches[4].Trim()

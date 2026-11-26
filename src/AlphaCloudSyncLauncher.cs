@@ -17,9 +17,6 @@ using System.Windows.Forms;
 [assembly: AssemblyCompany("Alpha Algorithms Company")]
 [assembly: AssemblyProduct("AlphaCloudSync")]
 [assembly: AssemblyCopyright("Copyright (c) 2026 Alpha Algorithms Company (MIT License)")]
-[assembly: AssemblyVersion("1.2.8.0")]
-[assembly: AssemblyFileVersion("1.2.8.0")]
-
 namespace AlphaCloudSync
 {
     internal sealed class AlphaSplashForm : Form
@@ -224,7 +221,7 @@ namespace AlphaCloudSync
                 g.FillPath(pillBg, pillPath);
                 g.DrawPath(pillBorder, pillPath);
                 StringFormat sfC = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
-                g.DrawString("v1.2.4", pillFont, pillText, pillRect, sfC);
+                g.DrawString("v" + Program.AppVersion, pillFont, pillText, pillRect, sfC);
             }
 
             // Divider line
@@ -360,9 +357,16 @@ namespace AlphaCloudSync
 
     internal static class Program
     {
-        private const string AppVersion = "1.2.4";
+        internal static readonly string AppVersion = GetAppVersion();
         private const string AppUserModelId = "AlphaAlgorithms.AlphaCloudSync";
         private const string RestoreSignalName = "Local\\AlphaCloudSync_RestoreSignal";
+
+        private static string GetAppVersion()
+        {
+            Version version = Assembly.GetExecutingAssembly().GetName().Version;
+            if (version == null) return "0.0.0";
+            return string.Format("{0}.{1}.{2}", version.Major, version.Minor, Math.Max(0, version.Build));
+        }
 
         [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
         private static extern int SetCurrentProcessExplicitAppUserModelID(string AppID);
@@ -704,6 +708,7 @@ namespace AlphaCloudSync
                 psi.CreateNoWindow = true;
                 psi.EnvironmentVariables["ALPHACLOUDSYNC_EXE_PATH"] = Assembly.GetExecutingAssembly().Location;
                 psi.EnvironmentVariables["ALPHACLOUDSYNC_RUNTIME_ROOT"] = runtimeRoot;
+                psi.EnvironmentVariables["ALPHACLOUDSYNC_VERSION"] = AppVersion;
                 if (!string.IsNullOrEmpty(splashStageFile))
                 {
                     psi.EnvironmentVariables["ALPHACLOUDSYNC_SPLASH_FILE"] = splashStageFile;

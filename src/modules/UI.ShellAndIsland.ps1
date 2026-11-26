@@ -1054,6 +1054,7 @@ function Show-TrayToast {
         [string]$Body,
         [ValidateSet("Manual", "AutoSync", "Error", "Drive", "System")]
         [string]$Category = "Manual",
+        [string]$Sound = "",
         [System.Windows.Forms.ToolTipIcon]$Icon = [System.Windows.Forms.ToolTipIcon]::Info
     )
     try {
@@ -1065,6 +1066,7 @@ function Show-TrayToast {
             "Error"    { if (-not [bool]$cfgN.NotifyErrors)      { return } }
             "Drive"    { if (-not [bool]$cfgN.NotifyDriveEvents) { return } }
         }
+        if (-not [string]::IsNullOrWhiteSpace($Sound)) { Play-AlphaSound -Cue $Sound }
         $script:TrayIcon.ShowBalloonTip(4000, $Title, $Body, $Icon)
     } catch {}
 }
@@ -1876,7 +1878,7 @@ function Start-BackgroundUpdateCheck {
                                     Update-AppVersionBannerUi
                                     if (-not $script:UpdateToastShown) {
                                         $script:UpdateToastShown = $true
-                                        Show-TrayToast -Title (L "toastUpdateAvailTitle" "AlphaCloudSync Update Available") -Body (LF "toastUpdateAvailBody" @("v$cleanV"))
+                                        Show-TrayToast -Title (L "toastUpdateAvailTitle" "AlphaCloudSync Update Available") -Body (LF "toastUpdateAvailBody" @("v$cleanV")) -Sound "Update"
                                     }
                                 }
                             }

@@ -342,7 +342,7 @@ $script:DarkControlStylesXaml = @"
 [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="AlphaCloudSync v1.2.8"
+        Title="AlphaCloudSync v$AppVersion"
         WindowStyle="SingleBorderWindow"
         ResizeMode="CanResize"
         WindowStartupLocation="Manual"
@@ -543,7 +543,7 @@ $script:DarkControlStylesXaml = @"
                         <Image x:Name="ImgTitleIcon" FlowDirection="LeftToRight" Width="20" Height="20" Margin="0,0,9,0" RenderOptions.BitmapScalingMode="HighQuality"/>
                         <TextBlock x:Name="TxtWindowTitle" FlowDirection="LeftToRight" Text="AlphaCloudSync" FontSize="13" FontWeight="Bold" Foreground="#F1F5F9" VerticalAlignment="Center"/>
                         <Border Background="#12243D" BorderBrush="#1F3B61" BorderThickness="1" CornerRadius="4" Padding="6,1" Margin="8,0,0,0" VerticalAlignment="Center">
-                            <TextBlock x:Name="TxtBrandBadge" Text="v1.2.8" FontSize="10" FontWeight="SemiBold" Foreground="#38BDF8"/>
+                            <TextBlock x:Name="TxtBrandBadge" Text="v$AppVersion" FontSize="10" FontWeight="SemiBold" Foreground="#5EEAD4"/>
                         </Border>
                         <TextBlock x:Name="TxtWindowSubtitle" Text="" FontSize="11.5" Foreground="#64748B" VerticalAlignment="Center" Margin="10,0,0,0"/>
                         <Button x:Name="BtnUpdateBanner" Visibility="Collapsed" Background="#064E3B" BorderBrush="#10B981" Foreground="#A7F3D0" FontSize="11" FontWeight="Bold" Padding="10,2" Height="24" Margin="12,0,0,0" VerticalAlignment="Center" Cursor="Hand">
@@ -672,10 +672,9 @@ $script:DarkControlStylesXaml = @"
                                                                         <ProgressBar FlowDirection="LeftToRight" Height="4" Minimum="0" Maximum="100" Value="{Binding SyncPct}" Background="#070C15" BorderBrush="#1E3454">
                                                                             <ProgressBar.Foreground>
                                                                                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                                                                    <GradientStop Color="#0B6E99" Offset="0.0"/>
-                                                                                    <GradientStop Color="#2196C9" Offset="0.45"/>
-                                                                                    <GradientStop Color="#38BDF8" Offset="0.8"/>
-                                                                                    <GradientStop Color="#8BE0FF" Offset="1.0"/>
+                                                                                    <GradientStop Color="#0F766E" Offset="0.0"/>
+                                                                                    <GradientStop Color="#14B8A6" Offset="0.55"/>
+                                                                                    <GradientStop Color="#5EEAD4" Offset="1.0"/>
                                                                                 </LinearGradientBrush>
                                                                             </ProgressBar.Foreground>
                                                                         </ProgressBar>
@@ -858,7 +857,7 @@ $script:DarkControlStylesXaml = @"
 
                             <!-- TOP FULL-WIDTH: LIVE FILE QUEUE (UPLOADING & COMPLETED) -->
                             <Border x:Name="CardFeed" Grid.Row="0" Background="#0C1424" BorderBrush="#1E2C42" BorderThickness="1" CornerRadius="10" Padding="1">
-                                <DataGrid x:Name="GridActivity" RowHeight="32" FontSize="11.5" IsReadOnly="True" BorderThickness="0" HorizontalScrollBarVisibility="Auto">
+                                <DataGrid x:Name="GridActivity" RowHeight="38" FontSize="11.5" IsReadOnly="True" BorderThickness="0" HorizontalScrollBarVisibility="Auto">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn Header="Status" Binding="{Binding State}" Width="122" MinWidth="104">
                                             <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="{Binding StateBrush}"/><Setter Property="TextTrimming" Value="CharacterEllipsis"/><Setter Property="ToolTip" Value="{Binding State}"/></Style></DataGridTextColumn.ElementStyle>
@@ -866,31 +865,37 @@ $script:DarkControlStylesXaml = @"
                                         <DataGridTextColumn Header="File Path" Binding="{Binding FileName}" Width="3*" MinWidth="240">
                                             <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="FlowDirection" Value="LeftToRight"/><Setter Property="TextTrimming" Value="CharacterEllipsis"/><Setter Property="ToolTip" Value="{Binding FileName}"/></Style></DataGridTextColumn.ElementStyle>
                                         </DataGridTextColumn>
-                                        <DataGridTemplateColumn Header="Progress" Width="158" MinWidth="140">
+                                        <DataGridTemplateColumn Header="Progress" Width="2*" MinWidth="190">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
-                                                    <Grid FlowDirection="LeftToRight" VerticalAlignment="Center" Margin="2,0,8,0" ToolTip="{Binding ProgressText}">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="42"/>
-                                                        </Grid.ColumnDefinitions>
-                                                        <ProgressBar Grid.Column="0" Height="6" Minimum="0" Maximum="100" Value="{Binding ProgressPct, Mode=OneWay}" Background="#0B1626" BorderBrush="#1B2C44" VerticalAlignment="Center" SnapsToDevicePixels="True">
+                                                    <StackPanel VerticalAlignment="Center" Margin="2,1,8,1" ToolTip="{Binding Details}">
+                                                        <Grid Height="12" FlowDirection="LeftToRight">
+                                                            <Grid.Style>
+                                                                <Style TargetType="Grid">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding ShowProgress}" Value="False">
+                                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Grid.Style>
+                                                            <ProgressBar Height="10" Minimum="0" Maximum="100" Value="{Binding ProgressPct, Mode=OneWay}" Background="#0B1626" BorderBrush="#1B2C44" VerticalAlignment="Center" SnapsToDevicePixels="True">
                                                             <ProgressBar.Foreground>
                                                                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                                                    <GradientStop Color="#0E7490" Offset="0.0"/>
-                                                                    <GradientStop Color="#22A7D8" Offset="0.55"/>
-                                                                    <GradientStop Color="#7DD3FC" Offset="1.0"/>
+                                                                    <GradientStop Color="#0F766E" Offset="0.0"/>
+                                                                    <GradientStop Color="#14B8A6" Offset="0.55"/>
+                                                                    <GradientStop Color="#5EEAD4" Offset="1.0"/>
                                                                 </LinearGradientBrush>
                                                             </ProgressBar.Foreground>
                                                         </ProgressBar>
-                                                        <TextBlock Grid.Column="1" Text="{Binding ProgressText}" FontSize="10.5" FontWeight="SemiBold" Foreground="{Binding ProgressBrush}" TextAlignment="Right" VerticalAlignment="Center"/>
-                                                    </Grid>
+                                                            <TextBlock Text="{Binding ProgressText}" FontSize="8.5" FontWeight="Bold" Foreground="#F8FAFC" TextAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Grid>
+                                                        <TextBlock Text="{Binding Details}" FontSize="9.2" Foreground="#94A3B8" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                    </StackPanel>
                                                 </DataTemplate>
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
-                                        <DataGridTextColumn Header="Progress / Action" Binding="{Binding Details}" Width="1.2*" MinWidth="120">
-                                            <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="TextTrimming" Value="CharacterEllipsis"/><Setter Property="ToolTip" Value="{Binding Details}"/></Style></DataGridTextColumn.ElementStyle>
-                                        </DataGridTextColumn>
                                         <DataGridTextColumn Header="Time" Binding="{Binding Time}" Width="106" MinWidth="95">
                                             <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="FlowDirection" Value="LeftToRight"/><Setter Property="TextAlignment" Value="Center"/></Style></DataGridTextColumn.ElementStyle>
                                         </DataGridTextColumn>
@@ -1368,10 +1373,9 @@ $script:DarkControlStylesXaml = @"
                             <ProgressBar x:Name="BarSyncProgress" Height="18" Minimum="0" Maximum="100" Value="0" Background="#080D17" BorderBrush="#23344F">
                                 <ProgressBar.Foreground>
                                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                        <GradientStop Color="#0B6E99" Offset="0.0"/>
-                                        <GradientStop Color="#2196C9" Offset="0.42"/>
-                                        <GradientStop Color="#38BDF8" Offset="0.78"/>
-                                        <GradientStop Color="#8BE0FF" Offset="1.0"/>
+                                        <GradientStop Color="#0F766E" Offset="0.0"/>
+                                        <GradientStop Color="#14B8A6" Offset="0.55"/>
+                                        <GradientStop Color="#5EEAD4" Offset="1.0"/>
                                     </LinearGradientBrush>
                                 </ProgressBar.Foreground>
                             </ProgressBar>

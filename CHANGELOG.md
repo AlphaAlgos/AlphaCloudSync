@@ -2,6 +2,16 @@
 
 All notable changes to **AlphaCloudSync** are documented in this file.
 
+## [1.2.9] - 2026-11-26
+### Added
+- **Sound cues for key events:** distinct, low-volume sounds now signal upload completion, preview completion, successful Google Drive connection, and an available update. They follow the existing notification preferences and are embedded in the portable app and installer.
+### Fixed
+- **Build-derived version everywhere:** the startup splash, runtime, executable metadata, and installer now use the same version from `VERSION` and the release build, preventing old hard-coded version labels.
+- **One active upload at a time:** rclone now runs a single file transfer per account queue, so the first active row is the file actually uploading and waiting files stay ordered beneath it. Turbo retains its large-file chunk settings while avoiding twelve simultaneous 128 MiB transfer buffers.
+- **Unified activity column:** file progress and speed/action now share one row cell. Queued items show their waiting action without an empty 0% bar or repeated zero-speed text; the active file shows one centered percentage and its live speed.
+### Changed
+- **Teal upload progress:** the queue and overall progress bars use a coordinated deep-teal-to-mint gradient with the percentage centered inside the bar.
+
 ## [1.2.8] - 2026-11-26
 ### Added
 - **Per-File Upload Progress Bar Inside Every Queue Row (`GridActivity` → `Progress` column):**

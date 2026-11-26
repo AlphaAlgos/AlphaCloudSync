@@ -5,10 +5,15 @@
 ; ==============================================================================
 
 #define MyAppName "AlphaCloudSync"
-#define MyAppVersion "1.2.7"
+#ifndef MyAppVersion
+  #define MyAppVersion "1.2.9"
+#endif
 #define MyAppPublisher "Alpha Algorithms Company"
 #define MyAppURL "https://github.com/AlphaAlgos/AlphaCloudSync"
 #define MyAppExeName "AlphaCloudSync.exe"
+#ifndef MyAppBuildDir
+  #define MyAppBuildDir "..\..\dist"
+#endif
 
 [Setup]
 AppId={{8F3D4E9C-6A21-4B8E-9C10-7A5B3E2F4C01}
@@ -27,7 +32,7 @@ PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
-OutputDir=..\..\dist
+OutputDir={#MyAppBuildDir}
 OutputBaseFilename=AlphaCloudSync-Setup-x64
 SetupIconFile=..\..\assets\AlphaCloudSync-icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
@@ -39,7 +44,7 @@ DisableProgramGroupPage=yes
 ChangesEnvironment=yes
 CloseApplications=yes
 RestartApplications=no
-VersionInfoVersion=1.2.4.0
+VersionInfoVersion={#MyAppVersion}.0
 VersionInfoCompany={#MyAppPublisher}
 VersionInfoProductName={#MyAppName}
 VersionInfoProductVersion={#MyAppVersion}
@@ -71,7 +76,7 @@ Name: "addtopath";   Description: "{cm:TaskAddPath}";       GroupDescription: "{
 Name: "autostart";   Description: "{cm:TaskAutoStart}";     GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "..\..\dist\AlphaCloudSync.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#MyAppBuildDir}\AlphaCloudSync.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\LICENSE";                 DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\README.md";               DestDir: "{app}"; Flags: ignoreversion
 

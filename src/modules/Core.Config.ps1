@@ -463,10 +463,10 @@ function Test-RelPathExcludedByRules {
 function Get-SpeedFlagsString {
     param([string]$Preset = "Turbo")
     switch ($Preset) {
-        "Turbo"    { return "--transfers 12 --checkers 24 --drive-chunk-size 128M --drive-upload-cutoff 64M --tpslimit 10 --tpslimit-burst 20 --fast-list" }
-        "Balanced" { return "--transfers 6 --checkers 12 --drive-chunk-size 64M --drive-upload-cutoff 32M --tpslimit 8 --fast-list" }
-        "Eco"      { return "--transfers 2 --checkers 4 --bwlimit 2M --drive-chunk-size 32M --fast-list" }
-        default    { return "--transfers 8 --checkers 16 --drive-chunk-size 64M --fast-list" }
+        "Turbo"    { return "--transfers 1 --checkers 24 --drive-chunk-size 128M --drive-upload-cutoff 64M --tpslimit 10 --tpslimit-burst 20 --fast-list" }
+        "Balanced" { return "--transfers 1 --checkers 12 --drive-chunk-size 64M --drive-upload-cutoff 32M --tpslimit 8 --fast-list" }
+        "Eco"      { return "--transfers 1 --checkers 4 --bwlimit 2M --drive-chunk-size 32M --fast-list" }
+        default    { return "--transfers 1 --checkers 16 --drive-chunk-size 64M --fast-list" }
     }
 }
 
