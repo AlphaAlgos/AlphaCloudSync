@@ -190,12 +190,11 @@ function Apply-UiLanguage {
         $GridFolders.Columns[5].Header = $loc.colDriveSize
         $GridFolders.Columns[6].Header = $loc.colStatus
     }
-    if ($GridActivity.Columns.Count -ge 5) {
+    if ($GridActivity.Columns.Count -ge 4) {
         $GridActivity.Columns[0].Header = $loc.colState
         $GridActivity.Columns[1].Header = $loc.colFile
         $GridActivity.Columns[2].Header = $(if ($loc.PSObject.Properties["colProgress"]) { $loc.colProgress } else { "Progress" })
-        $GridActivity.Columns[3].Header = $loc.colDetails
-        $GridActivity.Columns[4].Header = $loc.colTime
+        $GridActivity.Columns[3].Header = $loc.colTime
     }
 
     $TxtSyncToggle.Text = if ($script:IsSyncRunning) { $loc.stopSync } else { $loc.syncAll }
@@ -480,6 +479,16 @@ function Restore-ActivityScrollAnchor {
     } catch {}
 }
 
+function Get-ActivityDisplayRank {
+    param([int]$Priority)
+    switch ($Priority) {
+        0 { return 0 } # The one active transfer stays first.
+        2 { return 1 } # Waiting files retain FIFO order after the active file.
+        1 { return 2 } # Completed activity follows the live queue.
+        default { return 3 }
+    }
+}
+
 function Add-FileActivityRow {
     param(
         [string]$State,
@@ -537,7 +546,7 @@ function Add-FileActivityRow {
         if ($pctVal -gt 100.0) { $pctVal = 100.0 }
         $pctTxt = "{0:0.#}%" -f $pctVal
     }
-    $pctBrush = if ($pctVal -ge 100.0) { "#34D399" } elseif ($Priority -eq 0) { "#7DD3FC" } else { "#64748B" }
+    $pctBrush = if ($pctVal -ge 100.0) { "#34D399" } elseif ($Priority -eq 0) { "#5EEAD4" } else { "#64748B" }
 
     $newItem = [PSCustomObject]@{
         State        = $State
@@ -550,6 +559,7 @@ function Add-FileActivityRow {
         ProgressPct  = $pctVal
         ProgressText = $pctTxt
         ProgressBrush = $pctBrush
+        ShowProgress = ($ProgressPct -ge 0)
     }
 
     # Capture the viewport anchor BEFORE mutating the queue so nothing ever jumps
@@ -571,22 +581,28 @@ function Add-FileActivityRow {
         }
     }
 
+    $shouldReorder = $true
     if ($existingIdx -ge 0) {
-        # ZERO-JUMP: update the row exactly where the user already sees it.
-        # The percentage climbs in place instead of the row being re-inserted at
-        # the top every second (which used to shove the whole queue downward).
-        $rt.ActivityItems[$existingIdx] = $newItem
-    } else {
-        # Keep Activity Queue strictly organized:
-        # Priority 0 = Active Uploading (ALWAYS TOP) -> Priority 1 = Completed / Archived (right below, auto-dismisses after 3.5s) -> Priority 2 = Queued / Preview (appended at BOTTOM, FIFO!)
+        $oldPriority = if ($rt.ActivityItems[$existingIdx].PSObject.Properties["Priority"]) { [int]$rt.ActivityItems[$existingIdx].Priority } else { 1 }
+        if ($oldPriority -eq $Priority) {
+            # Keep the row in place while its progress changes to avoid scroll jumps.
+            $rt.ActivityItems[$existingIdx] = $newItem
+            $shouldReorder = $false
+        } else {
+            # A file changes position only when its queue state changes (queued -> active -> completed).
+            $rt.ActivityItems.RemoveAt($existingIdx)
+        }
+    }
+
+    if ($shouldReorder) {
+        # One active transfer at the top, queued files next in FIFO order, then completed history.
+        $newRank = Get-ActivityDisplayRank -Priority $Priority
         $insertIdx = $rt.ActivityItems.Count
-        if ($Priority -lt 2) {
-            for ($i = 0; $i -lt $rt.ActivityItems.Count; $i++) {
-                $itemPri = if ($rt.ActivityItems[$i].PSObject.Properties["Priority"]) { [int]$rt.ActivityItems[$i].Priority } else { 1 }
-                if ($itemPri -ge $Priority) {
-                    $insertIdx = $i
-                    break
-                }
+        for ($i = 0; $i -lt $rt.ActivityItems.Count; $i++) {
+            $itemPri = if ($rt.ActivityItems[$i].PSObject.Properties["Priority"]) { [int]$rt.ActivityItems[$i].Priority } else { 1 }
+            if ((Get-ActivityDisplayRank -Priority $itemPri) -gt $newRank) {
+                $insertIdx = $i
+                break
             }
         }
         $rt.ActivityItems.Insert($insertIdx, $newItem)

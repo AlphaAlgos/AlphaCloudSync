@@ -402,6 +402,8 @@ function Invoke-GDriveAuth {
     if ($ok -and $Action -eq "GUI") {
         try {
             if (Get-Command Restore-MainWindowFromTray -ErrorAction SilentlyContinue) { Restore-MainWindowFromTray }
+            $notifPrefs = Get-Settings
+            if ([bool]$notifPrefs.NotificationsEnabled -and [bool]$notifPrefs.NotifyManualSync) { Play-AlphaSound -Cue "Activation" }
             $ident = Get-ConnectedGoogleIdentity -TargetRemote $TargetRemote
             $accLbl = Get-AccountDisplayLabel -TargetRemote $TargetRemote
             $accSub = if ($ident -and -not [string]::IsNullOrWhiteSpace($ident.Email)) { $ident.Email } else { $TargetRemote }

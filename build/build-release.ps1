@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$Version = "1.2.8",
+    [string]$Version = "",
     [string]$OutputPath = "",
     [string]$MirrorOutputDir = "",
     [string]$SignCertThumbprint = ""
@@ -8,6 +8,13 @@ param(
 
 $ErrorActionPreference = "Stop"
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
+$VersionFile = Join-Path $ProjectRoot "VERSION"
+if ([string]::IsNullOrWhiteSpace($Version)) {
+    if (-not (Test-Path -LiteralPath $VersionFile)) { throw "Version source not found: $VersionFile" }
+    $Version = (Get-Content -LiteralPath $VersionFile -Raw).Trim()
+}
+if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw "Version must use MAJOR.MINOR.PATCH format; got '$Version'." }
+$AssemblyVersion = "$Version.0"
 $DistDir     = Join-Path $ProjectRoot "dist"
 $IsDefaultOut = [string]::IsNullOrWhiteSpace($OutputPath)
 $OutExe      = if ($IsDefaultOut) { Join-Path $DistDir "AlphaCloudSync.exe" } else { $OutputPath }
@@ -51,6 +58,11 @@ $resources = @(
     @{ File = "assets\AlphaCloudSync-icon.ico";  ResName = "assets__AlphaCloudSync-icon.ico" },
     @{ File = "assets\AlphaCloudSync-folder.ico"; ResName = "assets__AlphaCloudSync-folder.ico" },
     @{ File = "assets\AlphaCloudSync-icon.png";  ResName = "assets__AlphaCloudSync-icon.png" },
+    @{ File = "assets\sounds\chime.mp3";         ResName = "assets__sounds__chime.mp3" },
+    @{ File = "assets\sounds\ping.mp3";          ResName = "assets__sounds__ping.mp3" },
+    @{ File = "assets\sounds\sparkle.mp3";       ResName = "assets__sounds__sparkle.mp3" },
+    @{ File = "assets\sounds\notification.mp3";  ResName = "assets__sounds__notification.mp3" },
+    @{ File = "assets\sounds\CREDITS.md";        ResName = "assets__sounds__CREDITS.md" },
     @{ File = "presets\developer-default.json";  ResName = "presets__developer-default.json" },
     @{ File = "presets\creative-media.json";     ResName = "presets__creative-media.json" },
     @{ File = "presets\general-backup.json";     ResName = "presets__general-backup.json" },
@@ -93,12 +105,25 @@ foreach ($r in $resources) {
 }
 
 $cscArgs += "`"$ProjectRoot\src\AlphaCloudSyncLauncher.cs`""
+$AssemblyInfoPath = Join-Path ([System.IO.Path]::GetTempPath()) ("AlphaCloudSync.AssemblyInfo.{0}.cs" -f [guid]::NewGuid().ToString("N"))
+$AssemblyInfoSource = @"
+using System.Reflection;
+[assembly: AssemblyVersion("$AssemblyVersion")]
+[assembly: AssemblyFileVersion("$AssemblyVersion")]
+[assembly: AssemblyInformationalVersion("$Version")]
+"@
 
 Write-Host "Building standalone native Windows executable: $OutExe ..." -ForegroundColor Cyan
-$argLine = $cscArgs -join " "
-$p = Start-Process -FilePath $CscExe -ArgumentList $argLine -NoNewWindow -Wait -PassThru
-if ($p.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $OutExe)) {
-    throw "csc.exe build failed with ExitCode=$($p.ExitCode)"
+try {
+    [System.IO.File]::WriteAllText($AssemblyInfoPath, $AssemblyInfoSource, (New-Object System.Text.UTF8Encoding($false)))
+    $cscArgs += "`"$AssemblyInfoPath`""
+    $argLine = $cscArgs -join " "
+    $p = Start-Process -FilePath $CscExe -ArgumentList $argLine -NoNewWindow -Wait -PassThru
+    if ($p.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $OutExe)) {
+        throw "csc.exe build failed with ExitCode=$($p.ExitCode)"
+    }
+} finally {
+    Remove-Item -LiteralPath $AssemblyInfoPath -Force -ErrorAction SilentlyContinue
 }
 
 # Optional Authenticode Code Signing (when certificate thumbprint is provided via parameter or env var)
@@ -131,6 +156,8 @@ if ($IsDefaultOut) {
     $wingetPath = Join-Path $ProjectRoot "winget\AlphaAlgorithms.AlphaCloudSync.yaml"
     if (Test-Path -LiteralPath $wingetPath) {
         $wgRaw = [System.IO.File]::ReadAllText($wingetPath, [System.Text.Encoding]::UTF8)
+        $wgRaw = $wgRaw -replace '(?m)^PackageVersion:\s*.*$', "PackageVersion: $Version"
+        $wgRaw = $wgRaw -replace '(?m)^(\s*InstallerUrl:\s*https://github\.com/AlphaAlgos/AlphaCloudSync/releases/download/)[^/]+(/AlphaCloudSync\.exe\s*)$', "`${1}v$Version`${2}"
         $wgNew = $wgRaw -replace '(?m)^(\s*InstallerSha256:\s*)[A-Fa-f0-9]{64}(\r?)$', "`${1}$($hash.ToUpperInvariant())`$2"
         [System.IO.File]::WriteAllText($wingetPath, $wgNew, (New-Object System.Text.UTF8Encoding($false)))
     }

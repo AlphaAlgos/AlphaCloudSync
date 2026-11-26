@@ -28,13 +28,22 @@ if (-not [string]::IsNullOrWhiteSpace($DriveLetter)) {
 $script:LastAboutCache = @{}
 $script:IdentityCache  = @{}
 $AppName      = "AlphaCloudSync"
-$AppVersion   = "1.2.8"
 $ScriptSelf   = $MyInvocation.MyCommand.Path
 $ScriptDir    = Split-Path -Parent $ScriptSelf
 $ProjectRoot  = if (-not [string]::IsNullOrWhiteSpace($env:ALPHACLOUDSYNC_RUNTIME_ROOT) -and (Test-Path -LiteralPath $env:ALPHACLOUDSYNC_RUNTIME_ROOT)) {
     $env:ALPHACLOUDSYNC_RUNTIME_ROOT
 } else {
     Split-Path -Parent $ScriptDir
+}
+$AppVersion = if ($env:ALPHACLOUDSYNC_VERSION -match '^\d+\.\d+\.\d+$') {
+    $env:ALPHACLOUDSYNC_VERSION
+} else {
+    $versionFile = Join-Path $ProjectRoot "VERSION"
+    if (Test-Path -LiteralPath $versionFile) {
+        (Get-Content -LiteralPath $versionFile -Raw).Trim()
+    } else {
+        "0.0.0"
+    }
 }
 $PresetsDir     = Join-Path $ProjectRoot "presets"
 $LocalesDir     = Join-Path $ProjectRoot "locales"

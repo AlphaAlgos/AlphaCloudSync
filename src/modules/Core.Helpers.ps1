@@ -11,6 +11,36 @@ $script:RLM = [char]0x200F
 $script:LRE = [char]0x202A
 $script:PDF = [char]0x202C
 $script:CurrentLocale = $null
+$script:AlphaSoundPlayer = $null
+
+function Play-AlphaSound {
+    param(
+        [ValidateSet("UploadComplete", "PreviewComplete", "Activation", "Update")]
+        [string]$Cue
+    )
+    $soundFile = switch ($Cue) {
+        "UploadComplete"  { "chime.mp3" }
+        "PreviewComplete" { "ping.mp3" }
+        "Activation"      { "sparkle.mp3" }
+        "Update"          { "notification.mp3" }
+    }
+    $soundPath = Join-Path $AssetsDir (Join-Path "sounds" $soundFile)
+    if (-not (Test-Path -LiteralPath $soundPath -PathType Leaf)) { return }
+    try {
+        Add-Type -AssemblyName PresentationCore -ErrorAction Stop
+        if ($null -ne $script:AlphaSoundPlayer) {
+            try { $script:AlphaSoundPlayer.Stop(); $script:AlphaSoundPlayer.Close() } catch {}
+        }
+        $player = New-Object System.Windows.Media.MediaPlayer
+        $player.Volume = 0.42
+        $player.Add_MediaOpened({
+            param($sender, $eventArgs)
+            try { $sender.Play() } catch {}
+        })
+        $player.Open([System.Uri]::new($soundPath))
+        $script:AlphaSoundPlayer = $player
+    } catch {}
+}
 
 function Wrap-Ltr {
     param([string]$Text)
