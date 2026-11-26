@@ -1055,6 +1055,7 @@ function Show-TrayToast {
         [ValidateSet("Manual", "AutoSync", "Error", "Drive", "System")]
         [string]$Category = "Manual",
         [string]$Sound = "",
+        [string]$ClickAction = "",
         [System.Windows.Forms.ToolTipIcon]$Icon = [System.Windows.Forms.ToolTipIcon]::Info
     )
     try {
@@ -1067,6 +1068,7 @@ function Show-TrayToast {
             "Drive"    { if (-not [bool]$cfgN.NotifyDriveEvents) { return } }
         }
         if (-not [string]::IsNullOrWhiteSpace($Sound)) { Play-AlphaSound -Cue $Sound }
+        $script:PendingToastAction = $ClickAction
         $script:TrayIcon.ShowBalloonTip(4000, $Title, $Body, $Icon)
     } catch {}
 }
@@ -1104,6 +1106,14 @@ $script:TrayIcon.Add_MouseClick({
     if ($e.Button -eq [System.Windows.Forms.MouseButtons]::Left) { Restore-MainWindowFromTray }
 })
 $script:TrayIcon.Add_DoubleClick({ Restore-MainWindowFromTray })
+$script:TrayIcon.Add_BalloonTipClicked({
+    $clickedAction = $script:PendingToastAction
+    $script:PendingToastAction = ""
+    Restore-MainWindowFromTray
+    if ($clickedAction -eq "Update") {
+        $window.Dispatcher.BeginInvoke([Action]{ Invoke-AppSelfUpdate }, [System.Windows.Threading.DispatcherPriority]::Normal) | Out-Null
+    }
+})
 $miSync.Add_Click({ Restore-MainWindowFromTray; if ($script:IsGloballyPaused) { Set-GlobalSyncPaused -Paused $false -Silent }; if (-not $script:IsSyncRunning) { Start-StudioBatch -Mode "Sync" } })
 $miPauseAll.Add_Click({ Set-GlobalSyncPaused -Paused (-not $script:IsGloballyPaused) })
 $miIsland.Add_Click({ Set-CloudIslandEnabled -Enable (-not $script:IslandEnabled) })
@@ -1113,6 +1123,8 @@ function Stop-AlphaCloudSyncApp {
     $script:AppShuttingDown = $true
     try { if (Get-Command Stop-SequentialAccountHydration -ErrorAction SilentlyContinue) { Stop-SequentialAccountHydration } } catch {}
     try { if ($null -ne $timer) { $timer.Stop() } } catch {}
+    try { if ($null -ne $script:UpdateCheckTimer) { $script:UpdateCheckTimer.Stop() } } catch {}
+    try { if ($null -ne $script:UpdateRefreshTimer) { $script:UpdateRefreshTimer.Stop() } } catch {}
     try { if ($null -ne $script:RestoreSignalTimer) { $script:RestoreSignalTimer.Stop() } } catch {}
     try { Persist-GridCheckboxChanges } catch {}
     try { if ($window.IsLoaded) { Save-CurrentWindowBounds } } catch {}
@@ -1208,15 +1220,16 @@ function Write-StudioLog {
         if ([string]::IsNullOrWhiteSpace($TargetRemote)) { $TargetRemote = $script:ActiveRemote }
         $ts = Format-Time12h -DateTime (Get-Date) -WithSeconds
         $line = "[$ts] $Msg`r`n"
+        try {
+            $logDirectory = Split-Path -Parent $AppLogFile
+            if (-not (Test-Path -LiteralPath $logDirectory)) { New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null }
+            $persistentLine = "[$((Get-Date).ToString('yyyy-MM-dd HH:mm:ss'))] $Msg`r`n"
+            [System.IO.File]::AppendAllText($AppLogFile, $persistentLine, (New-Object System.Text.UTF8Encoding($false)))
+        } catch {}
         $rt = Get-AccountRuntime -TargetRemote $TargetRemote
         [void]$rt.LogBuilder.Append($line)
         if ($rt.LogBuilder.Length -gt 240000) {
             $null = $rt.LogBuilder.Remove(0, $rt.LogBuilder.Length - 180000)
-        }
-        if ($TargetRemote -eq $script:ActiveRemote) {
-            $TxtLog.AppendText($line)
-            if ($TxtLog.Text.Length -gt 240000) { $TxtLog.Text = $rt.LogBuilder.ToString() }
-            $TxtLog.ScrollToEnd()
         }
     } catch {}
 }
@@ -1226,8 +1239,6 @@ function Switch-AccountActivityView {
         $bc = New-Object System.Windows.Media.BrushConverter
         $rt = Get-AccountRuntime -TargetRemote $script:ActiveRemote
         $GridActivity.ItemsSource = $rt.ActivityItems
-        $TxtLog.Text = $rt.LogBuilder.ToString()
-        $TxtLog.ScrollToEnd()
 
         $isThisSyncing = ($script:IsSyncRunning -and $script:SyncingRemote -eq $script:ActiveRemote)
         $BarSyncProgress.Value = if ($isThisSyncing) { [math]::Max(1.0, [double]$rt.LastOverallPct) } else { [double]$rt.LastOverallPct }
@@ -1813,7 +1824,17 @@ $script:LatestAvailableVersion = ""
 $script:UpdateCheckWebClient   = $null
 $script:UpdateCheckTask        = $null
 $script:UpdateCheckTimer       = $null
+$script:UpdateRefreshTimer     = $null
 $script:UpdateToastShown       = $false
+$script:PendingToastAction     = ""
+if ($null -ne $script:StartupUpdateTask) {
+    $script:UpdateCheckWebClient = $script:StartupUpdateWebClient
+    $script:UpdateCheckTask = $script:StartupUpdateTask
+    $script:UpdateCheckStartUtc = $script:StartupUpdateStartUtc
+}
+if (-not [string]::IsNullOrWhiteSpace($script:StartupLatestReleaseVersion)) {
+    $script:LatestAvailableVersion = $script:StartupLatestReleaseVersion
+}
 
 function Test-IsNewerReleaseVersion {
     param([string]$CurrentVer = $AppVersion, [string]$RemoteTag = "")
@@ -1830,34 +1851,49 @@ function Test-IsNewerReleaseVersion {
 function Update-AppVersionBannerUi {
     try {
         if (-not [string]::IsNullOrWhiteSpace($script:LatestAvailableVersion)) {
-            $verDisp = Wrap-Ltr "v$($script:LatestAvailableVersion)"
-            if ($null -ne $TxtUpdateBanner) { $TxtUpdateBanner.Text = (LF "updateBannerBtn" @($verDisp)) }
-            if ($null -ne $BtnUpdateBanner) { $BtnUpdateBanner.Visibility = "Visible" }
-            if ($null -ne $TxtUpdateStatus) {
-                $TxtUpdateStatus.Text = (LF "updateStatusAvail" @($verDisp))
-                $TxtUpdateStatus.Foreground = (New-Object System.Windows.Media.BrushConverter).ConvertFromString("#4ADE80")
-            }
+            $BtnCheckUpdates.Content = (LF "updateButtonAvailable" @("v$($script:LatestAvailableVersion)"))
+            $BtnCheckUpdates.Background = (New-Object System.Windows.Media.BrushConverter).ConvertFromString("#15803D")
+            $BtnCheckUpdates.BorderBrush = (New-Object System.Windows.Media.BrushConverter).ConvertFromString("#34D399")
+            $BtnCheckUpdates.Foreground = [System.Windows.Media.Brushes]::White
+            $BtnCheckUpdates.FontWeight = [System.Windows.FontWeights]::Bold
         } else {
-            if ($null -ne $BtnUpdateBanner) { $BtnUpdateBanner.Visibility = "Collapsed" }
-            if ($null -ne $TxtUpdateStatus) {
-                $curDisp = Wrap-Ltr "v$AppVersion"
-                $TxtUpdateStatus.Text = (LF "updateStatusCurrent" @($curDisp))
-                $TxtUpdateStatus.Foreground = (New-Object System.Windows.Media.BrushConverter).ConvertFromString("#94A3B8")
-            }
+            $BtnCheckUpdates.Content = (L "btnCheckUpdates")
+            $BtnCheckUpdates.Background = (New-Object System.Windows.Media.BrushConverter).ConvertFromString("#122138")
+            $BtnCheckUpdates.BorderBrush = (New-Object System.Windows.Media.BrushConverter).ConvertFromString("#284268")
+            $BtnCheckUpdates.Foreground = (New-Object System.Windows.Media.BrushConverter).ConvertFromString("#38BDF8")
+            $BtnCheckUpdates.FontWeight = [System.Windows.FontWeights]::Normal
         }
+    } catch {}
+}
+
+function Schedule-NextBackgroundUpdateCheck {
+    try {
+        if ($null -eq $script:UpdateRefreshTimer) {
+            $script:UpdateRefreshTimer = New-Object System.Windows.Threading.DispatcherTimer
+            $script:UpdateRefreshTimer.Interval = [TimeSpan]::FromHours(6)
+            $script:UpdateRefreshTimer.Add_Tick({
+                $script:UpdateRefreshTimer.Stop()
+                Start-BackgroundUpdateCheck
+            })
+        }
+        $script:UpdateRefreshTimer.Stop()
+        $script:UpdateRefreshTimer.Start()
     } catch {}
 }
 
 function Start-BackgroundUpdateCheck {
     try {
-        if ($null -ne $script:UpdateCheckTask -and -not $script:UpdateCheckTask.IsCompleted) { return }
-        $wc = New-Object System.Net.WebClient
-        $wc.Encoding = [System.Text.Encoding]::UTF8
-        $wc.Headers.Add("User-Agent", "AlphaCloudSync/$AppVersion")
-        $wc.Headers.Add("Accept", "application/vnd.github.v3+json")
-        $script:UpdateCheckWebClient = $wc
-        $script:UpdateCheckTask = $wc.DownloadStringTaskAsync("https://api.github.com/repos/AlphaAlgos/AlphaCloudSync/releases/latest")
-        $script:UpdateCheckStartUtc = [datetime]::UtcNow
+        if ($null -ne $script:UpdateCheckTask) {
+            if (-not $script:UpdateCheckTask.IsCompleted) { return }
+        } else {
+            $wc = New-Object System.Net.WebClient
+            $wc.Encoding = [System.Text.Encoding]::UTF8
+            $wc.Headers.Add("User-Agent", "AlphaCloudSync/$AppVersion")
+            $wc.Headers.Add("Accept", "application/vnd.github.v3+json")
+            $script:UpdateCheckWebClient = $wc
+            $script:UpdateCheckTask = $wc.DownloadStringTaskAsync("https://api.github.com/repos/AlphaAlgos/AlphaCloudSync/releases/latest")
+            $script:UpdateCheckStartUtc = [datetime]::UtcNow
+        }
         if ($null -eq $script:UpdateCheckTimer) {
             $script:UpdateCheckTimer = New-Object System.Windows.Threading.DispatcherTimer
             $script:UpdateCheckTimer.Interval = [TimeSpan]::FromMilliseconds(400)
@@ -1878,7 +1914,7 @@ function Start-BackgroundUpdateCheck {
                                     Update-AppVersionBannerUi
                                     if (-not $script:UpdateToastShown) {
                                         $script:UpdateToastShown = $true
-                                        Show-TrayToast -Title (L "toastUpdateAvailTitle" "AlphaCloudSync Update Available") -Body (LF "toastUpdateAvailBody" @("v$cleanV")) -Sound "Update"
+                                        Show-TrayToast -Title (L "toastUpdateAvailTitle" "AlphaCloudSync Update Available") -Body (LF "toastUpdateAvailBody" @("v$cleanV")) -Sound "Update" -ClickAction "Update"
                                     }
                                 }
                             }
@@ -1886,11 +1922,13 @@ function Start-BackgroundUpdateCheck {
                         try { if ($null -ne $script:UpdateCheckWebClient) { $script:UpdateCheckWebClient.Dispose() } } catch {}
                         $script:UpdateCheckWebClient = $null
                         $script:UpdateCheckTask = $null
+                        Schedule-NextBackgroundUpdateCheck
                     }
                 } catch {
                     $script:UpdateCheckTimer.Stop()
                     $script:UpdateCheckWebClient = $null
                     $script:UpdateCheckTask = $null
+                    Schedule-NextBackgroundUpdateCheck
                 }
             })
         }
@@ -2172,8 +2210,7 @@ function Invoke-AppSelfUpdate {
     }
 }
 
-$BtnUpdateBanner.Add_Click({ Invoke-AppSelfUpdate })
-$BtnCheckUpdates.Add_Click({ Invoke-AppSelfUpdate -ManualCheck })
+$BtnCheckUpdates.Add_Click({ if (-not [string]::IsNullOrWhiteSpace($script:LatestAvailableVersion)) { Invoke-AppSelfUpdate } else { Invoke-AppSelfUpdate -ManualCheck } })
 
 function Invoke-PostStartupHousekeep {
     try {

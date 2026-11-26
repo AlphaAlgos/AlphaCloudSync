@@ -2,6 +2,15 @@
 
 All notable changes to **AlphaCloudSync** are documented in this file.
 
+## [1.2.10] - 2026-11-26
+### Added
+- **Startup update awareness:** the splash now checks the latest release as its first preparation stage and displays the installed and available versions together when an update is found.
+- **Update notification actions:** clicking an update notification opens AlphaCloudSync directly to the update dialog; future releases are checked periodically while the app remains open.
+- **Persistent application log:** activity details are written to `%LOCALAPPDATA%\\AlphaCloudSync\\logs\\AlphaCloudSync.log`, with a button to open the file.
+### Changed
+- **Full-height activity queue:** removed the live console panel so the file queue uses the whole activity view.
+- **Single update control:** the update check button turns green and shows “Update now · vX” when a new version is available.
+
 ## [1.2.9] - 2026-11-26
 ### Added
 - **Sound cues for key events:** distinct, low-volume sounds now signal upload completion, preview completion, successful Google Drive connection, and an available update. They follow the existing notification preferences and are embedded in the portable app and installer.

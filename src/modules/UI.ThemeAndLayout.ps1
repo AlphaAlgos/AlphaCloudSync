@@ -546,9 +546,6 @@ $script:DarkControlStylesXaml = @"
                             <TextBlock x:Name="TxtBrandBadge" Text="v$AppVersion" FontSize="10" FontWeight="SemiBold" Foreground="#5EEAD4"/>
                         </Border>
                         <TextBlock x:Name="TxtWindowSubtitle" Text="" FontSize="11.5" Foreground="#64748B" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                        <Button x:Name="BtnUpdateBanner" Visibility="Collapsed" Background="#064E3B" BorderBrush="#10B981" Foreground="#A7F3D0" FontSize="11" FontWeight="Bold" Padding="10,2" Height="24" Margin="12,0,0,0" VerticalAlignment="Center" Cursor="Hand">
-                            <TextBlock x:Name="TxtUpdateBanner" Text="Update Available" VerticalAlignment="Center"/>
-                        </Button>
                     </StackPanel>
 
                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
@@ -845,18 +842,10 @@ $script:DarkControlStylesXaml = @"
 
                         <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,12">
                             <TextBlock x:Name="LblFeedHeader" DockPanel.Dock="Left" Text="Live File Activity" FontSize="18" FontWeight="Bold" Foreground="#F8FAFC" VerticalAlignment="Center"/>
-                            <Button x:Name="BtnClearLog" DockPanel.Dock="Right" Content="Clear Log" Padding="12,5"/>
+                            <Button x:Name="BtnOpenLog" DockPanel.Dock="Right" Content="Open Log File" Padding="12,5"/>
                         </DockPanel>
 
-                        <Grid x:Name="GridBottomSplit" Grid.Row="1">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="1.45*" MinHeight="130"/>
-                                <RowDefinition Height="10"/>
-                                <RowDefinition Height="1*" MinHeight="110"/>
-                            </Grid.RowDefinitions>
-
-                            <!-- TOP FULL-WIDTH: LIVE FILE QUEUE (UPLOADING & COMPLETED) -->
-                            <Border x:Name="CardFeed" Grid.Row="0" Background="#0C1424" BorderBrush="#1E2C42" BorderThickness="1" CornerRadius="10" Padding="1">
+                        <Border x:Name="CardFeed" Grid.Row="1" Background="#0C1424" BorderBrush="#1E2C42" BorderThickness="1" CornerRadius="10" Padding="1">
                                 <DataGrid x:Name="GridActivity" RowHeight="38" FontSize="11.5" IsReadOnly="True" BorderThickness="0" HorizontalScrollBarVisibility="Auto">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn Header="Status" Binding="{Binding State}" Width="122" MinWidth="104">
@@ -902,39 +891,6 @@ $script:DarkControlStylesXaml = @"
                                     </DataGrid.Columns>
                                 </DataGrid>
                             </Border>
-
-                            <!-- DRAGGABLE HORIZONTAL SPLITTER HANDLE -->
-                            <GridSplitter Grid.Row="1" Height="10" HorizontalAlignment="Stretch" VerticalAlignment="Center"
-                                          ResizeDirection="Rows" ResizeBehavior="PreviousAndNext" Background="Transparent" Cursor="SizeNS">
-                                <GridSplitter.Template>
-                                    <ControlTemplate TargetType="GridSplitter">
-                                        <Grid Background="Transparent">
-                                            <Border x:Name="SplitGrip" Width="44" Height="3" CornerRadius="2" Background="#243550" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                        </Grid>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="SplitGrip" Property="Background" Value="#38BDF8"/>
-                                                <Setter TargetName="SplitGrip" Property="Width" Value="64"/>
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </GridSplitter.Template>
-                            </GridSplitter>
-
-                            <!-- BOTTOM FULL-WIDTH: LIVE ACTIVITY CONSOLE LOG -->
-                            <Border x:Name="CardLog" Grid.Row="2" Background="#070C15" BorderBrush="#1E2C42" BorderThickness="1" CornerRadius="10" Padding="12,10">
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="*"/>
-                                    </Grid.RowDefinitions>
-                                    <TextBlock x:Name="LblLogHeader" Grid.Row="0" Text="Activity Log" FontSize="12" FontWeight="SemiBold" Foreground="#94A3B8" Margin="0,0,0,7"/>
-                                    <TextBox x:Name="TxtLog" Grid.Row="1" FlowDirection="LeftToRight" TextAlignment="Left" Background="Transparent" Foreground="#38BDF8" BorderThickness="0"
-                                             FontFamily="Consolas" FontSize="11.5" IsReadOnly="True" TextWrapping="Wrap" VerticalContentAlignment="Top"
-                                             VerticalScrollBarVisibility="Auto" AcceptsReturn="True"/>
-                                </Grid>
-                            </Border>
-                        </Grid>
                     </Grid>
 
                     <!-- VIEW 3: DRIVE STORAGE, TRASH MANAGER & MULTI-ACCOUNT WINDOWS DRIVES HUB -->
@@ -1098,7 +1054,6 @@ $script:DarkControlStylesXaml = @"
                             <DockPanel LastChildFill="False" Margin="0,0,0,12">
                                 <TextBlock x:Name="TxtSettingsPageTitle" DockPanel.Dock="Left" Text="Settings" FontSize="18" FontWeight="Bold" Foreground="#F8FAFC" VerticalAlignment="Center"/>
                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock x:Name="TxtUpdateStatus" Text="" FontSize="11.5" Foreground="#34D399" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0"/>
                                     <Button x:Name="BtnCheckUpdates" Content="Check for Updates" Background="#122138" BorderBrush="#284268" Foreground="#38BDF8" FontSize="11.5" Padding="11,5"/>
                                 </StackPanel>
                             </DockPanel>
@@ -1482,13 +1437,9 @@ $BtnToggleTarget    = $window.FindName("BtnToggleTarget")
 $BtnRemoveFolder    = $window.FindName("BtnRemoveFolder")
 $TxtQuickPolicyChip = $window.FindName("TxtQuickPolicyChip")
 $LblFeedHeader      = $window.FindName("LblFeedHeader")
-$BtnClearLog        = $window.FindName("BtnClearLog")
-$GridBottomSplit    = $window.FindName("GridBottomSplit")
+$BtnOpenLog         = $window.FindName("BtnOpenLog")
 $CardFeed           = $window.FindName("CardFeed")
-$CardLog            = $window.FindName("CardLog")
 $GridActivity       = $window.FindName("GridActivity")
-$LblLogHeader       = $window.FindName("LblLogHeader")
-$TxtLog             = $window.FindName("TxtLog")
 $TxtQuotaHeader     = $window.FindName("TxtQuotaHeader")
 $BarDriveQuota      = $window.FindName("BarDriveQuota")
 $GridQuotaMetrics   = $window.FindName("GridQuotaMetrics")
@@ -1523,9 +1474,6 @@ $BtnToggleDriveRow  = $window.FindName("BtnToggleDriveRow")
 $BtnRenameAccount   = $window.FindName("BtnRenameAccount")
 $BtnCloudTransfer   = $window.FindName("BtnCloudTransfer")
 $BtnCloudTransferSet= $window.FindName("BtnCloudTransferSet")
-$BtnUpdateBanner    = $window.FindName("BtnUpdateBanner")
-$TxtUpdateBanner    = $window.FindName("TxtUpdateBanner")
-$TxtUpdateStatus    = $window.FindName("TxtUpdateStatus")
 $BtnCheckUpdates    = $window.FindName("BtnCheckUpdates")
 $BtnSetTabAccounts  = $window.FindName("BtnSetTabAccounts")
 $BtnSetTabSync      = $window.FindName("BtnSetTabSync")

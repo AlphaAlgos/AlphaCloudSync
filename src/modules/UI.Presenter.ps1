@@ -158,8 +158,7 @@ function Apply-UiLanguage {
     $CbiMaxDel1000.Content     = (LF "maxDelFilesFmt" @(1000))
     $CbiMaxDel5000.Content     = (LF "maxDelFilesFmt" @(5000))
     $LblFeedHeader.Text        = $loc.feedHeader
-    $LblLogHeader.Text         = $loc.logHeader
-    $BtnClearLog.Content       = $loc.clearLog
+    $BtnOpenLog.Content        = $loc.openLogFile
 
     $CtxSyncFolder.Header      = $loc.ctxSyncFolder
     $CtxDryRunFolder.Header    = $loc.ctxDryRunFolder

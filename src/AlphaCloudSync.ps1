@@ -58,6 +58,7 @@ $IconsStoreDir = Join-Path $AppDataDir "icons"
 $LocalDataDir = Join-Path $env:LOCALAPPDATA "AlphaCloudSync"
 $LocalBinDir  = Join-Path $LocalDataDir "bin"
 $LocalLogsDir = Join-Path $LocalDataDir "logs"
+$AppLogFile   = Join-Path $LocalLogsDir "AlphaCloudSync.log"
 $RestoreBkDir = Join-Path $LocalDataDir "restore-backups"
 $ProfilesDir  = Join-Path $AppDataDir "profiles"
 $MountsFile   = Join-Path $AppDataDir "mounts-state.json"
@@ -101,6 +102,20 @@ $AppLaunchExe = if (-not [string]::IsNullOrWhiteSpace($env:ALPHACLOUDSYNC_EXE_PA
 $ModulesDir = Join-Path $ScriptDir "modules"
 foreach ($coreMod in @("Core.Helpers.ps1", "Core.Config.ps1", "Core.Rclone.ps1", "Core.Shell.ps1")) {
     . (Join-Path $ModulesDir $coreMod)
+}
+# Start the release lookup early; it runs asynchronously while the UI is initialized.
+$script:StartupLatestReleaseVersion = ""
+$script:StartupUpdateWebClient = $null
+$script:StartupUpdateTask = $null
+$script:StartupUpdateStartUtc = [datetime]::UtcNow
+if ($Action -eq "GUI") {
+    try {
+        $script:StartupUpdateWebClient = New-Object System.Net.WebClient
+        $script:StartupUpdateWebClient.Encoding = [System.Text.Encoding]::UTF8
+        $script:StartupUpdateWebClient.Headers.Add("User-Agent", "AlphaCloudSync/$AppVersion")
+        $script:StartupUpdateWebClient.Headers.Add("Accept", "application/vnd.github.v3+json")
+        $script:StartupUpdateTask = $script:StartupUpdateWebClient.DownloadStringTaskAsync("https://api.github.com/repos/AlphaAlgos/AlphaCloudSync/releases/latest")
+    } catch {}
 }
 Set-SplashStage "2"
 
@@ -196,14 +211,33 @@ $script:IsRefreshing = $false
 
 Apply-UiLanguage -Lang $langCodeInit -SkipShellSync
 Select-StudioTab "Folders"
+# Give a fast network response a short chance to populate the splash version pair.
+if ($null -ne $script:StartupUpdateTask) {
+    try {
+        $null = $script:StartupUpdateTask.Wait(650)
+        if ($script:StartupUpdateTask.IsCompleted -and -not $script:StartupUpdateTask.IsFaulted) {
+            $startupRelease = $script:StartupUpdateTask.Result | ConvertFrom-Json
+            $startupTag = [string]$startupRelease.tag_name
+            $currentClean = ($AppVersion -replace '^[vV]', '' -replace '-.*$', '')
+            $remoteClean = ($startupTag -replace '^[vV]', '' -replace '-.*$', '')
+            if ($remoteClean -match '^\d+\.\d+\.\d+$' -and ([version]$remoteClean -gt [version]$currentClean)) {
+                $script:StartupLatestReleaseVersion = $remoteClean
+                if (-not [string]::IsNullOrWhiteSpace($env:ALPHACLOUDSYNC_SPLASH_UPDATE_FILE)) {
+                    [System.IO.File]::WriteAllText($env:ALPHACLOUDSYNC_SPLASH_UPDATE_FILE, "$AppVersion|$remoteClean", (New-Object System.Text.UTF8Encoding($false)))
+                }
+            }
+        }
+    } catch {}
+}
 Set-SplashStage "3"
 Load-UiAccountCache
+Set-SplashStage "4"
 $script:SkipWmiMountProbe = $true
 Refresh-StudioHeader -FastLocalOnly
-Set-SplashStage "4"
+Set-SplashStage "5"
 $script:SkipWmiMountProbe = $false
 $null = Get-MountsState
-Set-SplashStage "5"
+Set-SplashStage "6"
 Write-StudioLog -Msg "AlphaCloudSync v$AppVersion Studio ready (Instant Launch, Sequential Account Hydration, Modular Core, 7 Languages)." -TargetRemote $script:ActiveRemote
 
 if ($null -eq $window) {

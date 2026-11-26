@@ -150,7 +150,7 @@ $timer = New-Object System.Windows.Threading.DispatcherTimer
 $timer.Interval = [TimeSpan]::FromMilliseconds(850)
 $timer.Add_Tick({
     try {
-        # Auto-dismiss completed/archived rows from the live queue after 3.5s (like Google Drive; full history remains in the log below!)
+        # Auto-dismiss completed/archived rows from the live queue after 3.5s; full history remains in the application log file.
         $nowTick = [datetime]::UtcNow
         $activeRtAcc = Get-AccountRuntime -TargetRemote $script:ActiveRemote
         $dismissAnchor = $null
@@ -2760,11 +2760,9 @@ function Invoke-CloudToCloudTransferDialog {
 
 $BtnCloudTransfer.Add_Click({ Invoke-CloudToCloudTransferDialog })
 $BtnCloudTransferSet.Add_Click({ Invoke-CloudToCloudTransferDialog })
-$BtnClearLog.Add_Click({
-    $rt = Get-AccountRuntime -TargetRemote $script:ActiveRemote
-    $null = $rt.LogBuilder.Clear()
-    $rt.ActivityItems.Clear()
-    $TxtLog.Clear()
-    $disp = Get-AccountDisplayLabel -TargetRemote $script:ActiveRemote
-    Write-StudioLog -Msg "Activity feed and console cleared for '$disp'." -TargetRemote $script:ActiveRemote
+$BtnOpenLog.Add_Click({
+    try {
+        if (-not (Test-Path -LiteralPath $AppLogFile)) { [System.IO.File]::WriteAllText($AppLogFile, "", (New-Object System.Text.UTF8Encoding($false))) }
+        Start-Process -FilePath "notepad.exe" -ArgumentList @('"' + $AppLogFile + '"')
+    } catch { Write-StudioLog -Msg "[ERR] Could not open application log: $($_.Exception.Message)" }
 })

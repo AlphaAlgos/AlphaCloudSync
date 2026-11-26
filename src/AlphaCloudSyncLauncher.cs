@@ -30,6 +30,7 @@ namespace AlphaCloudSync
         private readonly string[] _stages;
         private readonly bool _isRtl;
         private readonly string _stageFile;
+        private readonly string _updateFile;
         private readonly Image _logoImg;
         private readonly System.Windows.Forms.Timer _tickTimer;
 
@@ -41,11 +42,12 @@ namespace AlphaCloudSync
         private int _doneHoldTicks = 0;
         private volatile bool _forceClose = false;
 
-        public AlphaSplashForm(string[] stages, bool isRtl, string stageFile, Image logoImg)
+        public AlphaSplashForm(string[] stages, bool isRtl, string stageFile, string updateFile, Image logoImg)
         {
             _stages = stages;
             _isRtl = isRtl;
             _stageFile = stageFile;
+            _updateFile = updateFile;
             _logoImg = logoImg;
 
             this.FormBorderStyle = FormBorderStyle.None;
@@ -211,7 +213,19 @@ namespace AlphaCloudSync
                 g.DrawString("Backup. Sync. Restore.", subFont, subBrush, leftPad + logoSize + 14, headerY + 26);
             }
 
-            Rectangle pillRect = new Rectangle(this.Width - 88, headerY + 8, 62, 22);
+            string versionLabel = "v" + Program.AppVersion;
+            try
+            {
+                if (!string.IsNullOrEmpty(_updateFile) && File.Exists(_updateFile))
+                {
+                    string[] versions = File.ReadAllText(_updateFile, Encoding.UTF8).Trim().Split('|');
+                    if (versions.Length == 2 && Regex.IsMatch(versions[1], @"^\d+\.\d+\.\d+$"))
+                        versionLabel = "v" + versions[0] + "  →  v" + versions[1];
+                }
+            }
+            catch { }
+            int pillWidth = Math.Max(62, versionLabel.Length * 6 + 18);
+            Rectangle pillRect = new Rectangle(this.Width - pillWidth - 26, headerY + 8, pillWidth, 22);
             using (GraphicsPath pillPath = CreateRoundedPath(pillRect, 10))
             using (SolidBrush pillBg = new SolidBrush(Color.FromArgb(16, 36, 62)))
             using (Pen pillBorder = new Pen(Color.FromArgb(30, 64, 108), 1f))
@@ -221,7 +235,7 @@ namespace AlphaCloudSync
                 g.FillPath(pillBg, pillPath);
                 g.DrawPath(pillBorder, pillPath);
                 StringFormat sfC = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
-                g.DrawString("v" + Program.AppVersion, pillFont, pillText, pillRect, sfC);
+                g.DrawString(versionLabel, pillFont, pillText, pillRect, sfC);
             }
 
             // Divider line
@@ -230,7 +244,7 @@ namespace AlphaCloudSync
                 g.DrawLine(divPen, leftPad, 80, this.Width - leftPad, 80);
             }
 
-            // Stacked live startup stages (all 5 stages visible immediately with 3 distinct visual states)
+            // Stacked live startup stages (all stages visible immediately with 3 distinct visual states)
             int startY = 96;
             int rowH = 31;
             StringFormat textFmt = new StringFormat { LineAlignment = StringAlignment.Center };
@@ -433,6 +447,7 @@ namespace AlphaCloudSync
             stages = new string[]
             {
                 "Launching AlphaCloudSync...",
+                "Checking for updates...",
                 "Preparing startup & interface...",
                 "Loading accounts & folders...",
                 "Preparing virtual drives...",
@@ -454,7 +469,7 @@ namespace AlphaCloudSync
                         string json = sr.ReadToEnd();
                         Match mRtl = Regex.Match(json, "\"rtl\"\\s*:\\s*(true|false)", RegexOptions.IgnoreCase);
                         if (mRtl.Success) isRtl = string.Equals(mRtl.Groups[1].Value, "true", StringComparison.OrdinalIgnoreCase);
-                        for (int i = 0; i < 5; i++)
+                        for (int i = 0; i < stages.Length; i++)
                         {
                             string key = "splashStage" + (i + 1).ToString();
                             Match mVal = Regex.Match(json, "\"" + key + "\"\\s*:\\s*\"((?:\\\\.|[^\"\\\\])*)\"");
@@ -630,6 +645,7 @@ namespace AlphaCloudSync
             bool attachedConsole = false;
             AlphaSplashForm splashForm = null;
             string splashStageFile = "";
+            string splashUpdateFile = "";
             try
             {
                 string localAppBase = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AlphaCloudSync");
@@ -650,6 +666,7 @@ namespace AlphaCloudSync
                     try
                     {
                         splashStageFile = Path.Combine(localAppBase, "splash-stage-" + Process.GetCurrentProcess().Id.ToString() + ".txt");
+                        splashUpdateFile = splashStageFile + ".update";
                         File.WriteAllText(splashStageFile, "1", new UTF8Encoding(false));
                         string[] splashStages;
                         bool splashRtl;
@@ -661,7 +678,7 @@ namespace AlphaCloudSync
                             try
                             {
                                 Application.EnableVisualStyles();
-                                splashForm = new AlphaSplashForm(splashStages, splashRtl, splashStageFile, splashLogo);
+                                splashForm = new AlphaSplashForm(splashStages, splashRtl, splashStageFile, splashUpdateFile, splashLogo);
                                 splashReady.Set();
                                 Application.Run(splashForm);
                             }
@@ -712,6 +729,7 @@ namespace AlphaCloudSync
                 if (!string.IsNullOrEmpty(splashStageFile))
                 {
                     psi.EnvironmentVariables["ALPHACLOUDSYNC_SPLASH_FILE"] = splashStageFile;
+                    psi.EnvironmentVariables["ALPHACLOUDSYNC_SPLASH_UPDATE_FILE"] = splashUpdateFile;
                 }
 
                 if (isHeadlessCli)
@@ -748,8 +766,10 @@ namespace AlphaCloudSync
             {
                 try
                 {
-                    string logPath = Path.Combine(Path.GetTempPath(), "alphacloudsync_launcher_error.log");
-                    File.WriteAllText(logPath, DateTime.Now.ToString("o") + Environment.NewLine + ex.ToString(), Encoding.UTF8);
+                    string logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AlphaCloudSync", "logs");
+                    Directory.CreateDirectory(logDir);
+                    string logPath = Path.Combine(logDir, "AlphaCloudSync.log");
+                    File.AppendAllText(logPath, DateTime.Now.ToString("o") + Environment.NewLine + "[ERR] Launcher: " + ex + Environment.NewLine, new UTF8Encoding(false));
                 }
                 catch { }
                 return 1;
@@ -763,6 +783,7 @@ namespace AlphaCloudSync
                 if (!string.IsNullOrEmpty(splashStageFile))
                 {
                     try { if (File.Exists(splashStageFile)) File.Delete(splashStageFile); } catch { }
+                    try { if (File.Exists(splashUpdateFile)) File.Delete(splashUpdateFile); } catch { }
                 }
                 if (attachedConsole)
                 {
