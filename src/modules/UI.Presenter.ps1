@@ -479,7 +479,8 @@ function Restore-ActivityScrollAnchor {
 }
 
 function Get-ActivityDisplayRank {
-    param([int]$Priority)
+    param([int]$Priority, [switch]$IsPreview)
+    if ($IsPreview) { return 3 } # Saved preview rows are history, never part of the live queue.
     switch ($Priority) {
         0 { return 0 } # The one active transfer stays first.
         2 { return 1 } # Waiting files retain FIFO order after the active file.
@@ -554,6 +555,7 @@ function Add-FileActivityRow {
         Details      = $Details
         Time         = $ts
         Priority     = $Priority
+        IsPreview    = [bool]$IsPreview
         CompletedUtc = $doneAt
         ProgressPct  = $pctVal
         ProgressText = $pctTxt
@@ -566,12 +568,14 @@ function Add-FileActivityRow {
 
     # Locate any matching existing row (including middle-ellipsis truncated rows from rclone stats!)
     $existingIdx = -1
+    $existingIsPreview = $false
     for ($i = $rt.ActivityItems.Count - 1; $i -ge 0; $i--) {
         if (Test-ActivityRowPathMatch -ExistingPath $rt.ActivityItems[$i].FileName -IncomingPath $FileName) {
             # Never downgrade or truncate an already-completed full-path row back to an ellipsis stat line
             if ($rt.ActivityItems[$i].Priority -eq 1 -and ($Priority -eq 0 -or $Priority -eq 1) -and $FileName.Contains("...") -and -not $rt.ActivityItems[$i].FileName.Contains("...")) { return }
             if ($existingIdx -lt 0) {
                 $existingIdx = $i
+                $existingIsPreview = $rt.ActivityItems[$i].PSObject.Properties["IsPreview"] -and [bool]$rt.ActivityItems[$i].IsPreview
             } else {
                 $rt.ActivityItems.RemoveAt($i)
                 # Removing a row below the kept one shifts its index down by exactly one
@@ -583,7 +587,7 @@ function Add-FileActivityRow {
     $shouldReorder = $true
     if ($existingIdx -ge 0) {
         $oldPriority = if ($rt.ActivityItems[$existingIdx].PSObject.Properties["Priority"]) { [int]$rt.ActivityItems[$existingIdx].Priority } else { 1 }
-        if ($oldPriority -eq $Priority) {
+        if ($oldPriority -eq $Priority -and $existingIsPreview -eq [bool]$IsPreview) {
             # Keep the row in place while its progress changes to avoid scroll jumps.
             $rt.ActivityItems[$existingIdx] = $newItem
             $shouldReorder = $false
@@ -595,11 +599,12 @@ function Add-FileActivityRow {
 
     if ($shouldReorder) {
         # One active transfer at the top, queued files next in FIFO order, then completed history.
-        $newRank = Get-ActivityDisplayRank -Priority $Priority
+        $newRank = Get-ActivityDisplayRank -Priority $Priority -IsPreview:$IsPreview
         $insertIdx = $rt.ActivityItems.Count
         for ($i = 0; $i -lt $rt.ActivityItems.Count; $i++) {
             $itemPri = if ($rt.ActivityItems[$i].PSObject.Properties["Priority"]) { [int]$rt.ActivityItems[$i].Priority } else { 1 }
-            if ((Get-ActivityDisplayRank -Priority $itemPri) -gt $newRank) {
+            $itemIsPreview = $rt.ActivityItems[$i].PSObject.Properties["IsPreview"] -and [bool]$rt.ActivityItems[$i].IsPreview
+            if ((Get-ActivityDisplayRank -Priority $itemPri -IsPreview:$itemIsPreview) -gt $newRank) {
                 $insertIdx = $i
                 break
             }

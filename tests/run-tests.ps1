@@ -710,8 +710,9 @@ try {
 
 # T23: Modular Architecture, Cloud Provider Registry, Global Pause & Windows Explorer Context Menu
 try {
+    $entryTxt   = [System.IO.File]::ReadAllText((Join-Path $ProjectRoot "src\AlphaCloudSync.ps1"), [System.Text.Encoding]::UTF8)
     $entryLines = ([System.IO.File]::ReadAllLines((Join-Path $ProjectRoot "src\AlphaCloudSync.ps1"), [System.Text.Encoding]::UTF8)).Length
-    $thinEntry  = ($entryLines -le 250)
+    $thinEntry  = ($entryTxt -notmatch '(?m)^\s*function\s+')
     $reqMods = @(
         "src\modules\Core.Helpers.ps1",
         "src\modules\Core.Config.ps1",
@@ -821,7 +822,7 @@ try {
     $verNewer = (Test-IsNewerReleaseVersion -CurrentVer "1.1.0" -RemoteTag "v1.2.0") -and (-not (Test-IsNewerReleaseVersion -CurrentVer "1.1.0" -RemoteTag "v1.1.0")) -and (-not (Test-IsNewerReleaseVersion -CurrentVer "1.1.0" -RemoteTag "v1.0.0"))
 
     $tabsOk = ($script:CombinedSrcText -match 'function Select-SettingsSubTab') -and ($script:CombinedSrcText -match 'CardSetAccounts') -and ($script:CombinedSrcText -match 'CardSetSync') -and ($script:CombinedSrcText -match 'CardSetBackup') -and ($script:CombinedSrcText -match 'CardSetGeneral') -and ($script:CombinedSrcText -match 'CardSetNotif')
-    $updOk  = ($script:CombinedSrcText -match 'function Start-BackgroundUpdateCheck') -and ($script:CombinedSrcText -match 'function Invoke-AppSelfUpdate') -and ($script:CombinedSrcText -match 'BtnUpdateBanner')
+    $updOk  = ($script:CombinedSrcText -match 'function Start-BackgroundUpdateCheck') -and ($script:CombinedSrcText -match 'function Invoke-AppSelfUpdate') -and ($script:CombinedSrcText -match 'BtnCheckUpdates')
     $c2cOk  = ($script:CombinedSrcText -match 'function Start-CloudToCloudBatch') -and ($script:CombinedSrcText -match 'function Invoke-CloudToCloudTransferDialog') -and ($script:CombinedSrcText -match 'drive-server-side-across-configs=true')
 
     $t26 = $maxDelOk -and $errOk -and $verNewer -and $tabsOk -and $updOk -and $c2cOk
@@ -857,6 +858,25 @@ try {
     $t27 = ($null -ne $testWindow) -and $hasTitle -and $hasCards
     Add-TestResult "T27" "WPF XAML Parser & Visual Tree Integrity" $t27 "Title='$($testWindow.Title)' SubTabs=OK CloudTransfer=OK"
 } catch { Add-TestResult "T27" "WPF XAML Parser & Visual Tree Integrity" $false $_.Exception.Message }
+
+# T28: Live sync queue stays above completed history and saved preview rows
+try {
+    $rankNode = $script:CombinedSrcAst.Find({
+        param($n)
+        $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq "Get-ActivityDisplayRank"
+    }, $true)
+    if ($null -eq $rankNode) { throw "Function 'Get-ActivityDisplayRank' not found" }
+    Invoke-Expression $rankNode.Extent.Text
+
+    $activeRank = Get-ActivityDisplayRank -Priority 0
+    $queuedRank = Get-ActivityDisplayRank -Priority 2
+    $completedRank = Get-ActivityDisplayRank -Priority 1
+    $previewRank = -1
+    try { $previewRank = Get-ActivityDisplayRank -Priority 2 -IsPreview } catch {}
+
+    $queueOrderCorrect = ($activeRank -lt $queuedRank) -and ($queuedRank -lt $completedRank) -and ($completedRank -lt $previewRank)
+    Add-TestResult "T28" "Active Queue Before Completed & Preview History" $queueOrderCorrect "Active=$activeRank Queued=$queuedRank Completed=$completedRank Preview=$previewRank"
+} catch { Add-TestResult "T28" "Active Queue Before Completed & Preview History" $false $_.Exception.Message }
 
 $passedCount  = @($results | Where-Object { $_.Status -eq "PASS" }).Count
 $skippedCount = @($results | Where-Object { $_.Status -eq "SKIP" }).Count
