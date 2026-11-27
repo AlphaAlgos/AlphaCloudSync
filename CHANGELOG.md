@@ -2,6 +2,9 @@
 
 All notable changes to **AlphaCloudSync** are documented in this file.
 
+## [1.2.11] - 2026-11-27
+### Fixed
+- **Live activity queue order:** the active transfer stays at the top, queued files follow it, completed uploads remain below the queue, and saved preview rows are kept after live activity. A preview row is moved into the live queue when a real transfer for that file begins.
 ## [1.2.10] - 2026-11-26
 ### Added
 - **Startup update awareness:** the splash now checks the latest release as its first preparation stage and displays the installed and available versions together when an update is found.

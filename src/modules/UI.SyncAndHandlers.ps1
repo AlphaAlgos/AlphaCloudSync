@@ -59,7 +59,7 @@ function Start-NextStudioJob {
         $doneStamp     = "$((Get-Date).ToString('dd/MM')) $(Format-Time12h -DateTime (Get-Date))"
 
         if ($isPreviewMode) {
-            $previewRowsSnap = @($rt.ActivityItems | Where-Object { $null -ne $_ -and $_.PSObject.Properties["Priority"] -and [int]$_.Priority -eq 2 })
+            $previewRowsSnap = @($rt.ActivityItems | Where-Object { $null -ne $_ -and $_.PSObject.Properties["Priority"] -and [int]$_.Priority -eq 2 -and $_.PSObject.Properties["IsPreview"] -and [bool]$_.IsPreview })
             $savedSum = Save-AccountLastSummary -TargetRemote $syncRem -Mode $script:LastBatchMode -PendingCount $rt.PreviewCount -UploadedCount 0 -ArchivedCount 0 -ProgressPct 100.0 -CompletedAt $doneStamp -PreviewItems $previewRowsSnap -RecentLogText ($rt.LogBuilder.ToString())
             if ($null -ne $savedSum) {
                 $rt.LastSummary = $savedSum
@@ -248,7 +248,7 @@ $timer.Add_Tick({
                         $script:SeenLogLines[$key] = $true
                         $rt.PreviewCount++
                         $det = switch ($op) { "update" { L "feedActWillUpdate" } "delete" { L "feedActWillDelete" } "move" { L "feedActMoved" } default { L "feedActWillCopy" } }
-                        Add-FileActivityRow -State (L "feedStatePreview") -FileName "$($script:CurrentFolder)/$fName" -Details $det -TargetRemote $syncRem -Priority 2
+                        Add-FileActivityRow -State (L "feedStatePreview") -FileName "$($script:CurrentFolder)/$fName" -Details $det -TargetRemote $syncRem -Priority 2 -IsPreview
                     }
                 } elseif ($clean -match '^\*\s+(.+?):\s*(\d+)%\s*/([^,]+),\s*([^,]+)') {
                     $fName = ($Matches[1].Trim() -replace ([char]0x2026), '...'); $fPct = $Matches[2]; $fSpd = $Matches[4].Trim()
@@ -340,7 +340,7 @@ $timer.Add_Tick({
                                     if ($addedFinalPreviewUi -lt 200) {
                                         $addedFinalPreviewUi++
                                         $detN = switch ($opN) { "update" { L "feedActWillUpdate" } "delete" { L "feedActWillDelete" } "move" { L "feedActMoved" } default { L "feedActWillCopy" } }
-                                        Add-FileActivityRow -State (L "feedStatePreview") -FileName "$($script:CurrentFolder)/$fN" -Details $detN -TargetRemote $syncRem -Priority 2
+                                        Add-FileActivityRow -State (L "feedStatePreview") -FileName "$($script:CurrentFolder)/$fN" -Details $detN -TargetRemote $syncRem -Priority 2 -IsPreview
                                     }
                                 }
                             } elseif ($code -ne 0 -and $cl -match 'ERROR|CRITICAL|Fatal|Failed') {

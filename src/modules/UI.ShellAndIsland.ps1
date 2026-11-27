@@ -162,6 +162,7 @@ function Format-AccountLastSummaryIntoRuntime {
                         Time         = [string]$pi.Time
                         StateBrush   = if ($pi.PSObject.Properties["StateBrush"] -and -not [string]::IsNullOrWhiteSpace([string]$pi.StateBrush)) { [string]$pi.StateBrush } else { "#38BDF8" }
                         Priority     = 2
+                        IsPreview    = $true
                         CompletedUtc = $null
                     })
                 }

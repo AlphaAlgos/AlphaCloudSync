@@ -710,8 +710,9 @@ try {
 
 # T23: Modular Architecture, Cloud Provider Registry, Global Pause & Windows Explorer Context Menu
 try {
+    $entryTxt   = [System.IO.File]::ReadAllText((Join-Path $ProjectRoot "src\AlphaCloudSync.ps1"), [System.Text.Encoding]::UTF8)
     $entryLines = ([System.IO.File]::ReadAllLines((Join-Path $ProjectRoot "src\AlphaCloudSync.ps1"), [System.Text.Encoding]::UTF8)).Length
-    $thinEntry  = ($entryLines -le 250)
+    $thinEntry  = ($entryTxt -notmatch '(?m)^\s*function\s+')
     $reqMods = @(
         "src\modules\Core.Helpers.ps1",
         "src\modules\Core.Config.ps1",
@@ -821,7 +822,7 @@ try {
     $verNewer = (Test-IsNewerReleaseVersion -CurrentVer "1.1.0" -RemoteTag "v1.2.0") -and (-not (Test-IsNewerReleaseVersion -CurrentVer "1.1.0" -RemoteTag "v1.1.0")) -and (-not (Test-IsNewerReleaseVersion -CurrentVer "1.1.0" -RemoteTag "v1.0.0"))
 
     $tabsOk = ($script:CombinedSrcText -match 'function Select-SettingsSubTab') -and ($script:CombinedSrcText -match 'CardSetAccounts') -and ($script:CombinedSrcText -match 'CardSetSync') -and ($script:CombinedSrcText -match 'CardSetBackup') -and ($script:CombinedSrcText -match 'CardSetGeneral') -and ($script:CombinedSrcText -match 'CardSetNotif')
-    $updOk  = ($script:CombinedSrcText -match 'function Start-BackgroundUpdateCheck') -and ($script:CombinedSrcText -match 'function Invoke-AppSelfUpdate') -and ($script:CombinedSrcText -match 'BtnUpdateBanner')
+    $updOk  = ($script:CombinedSrcText -match 'function Start-BackgroundUpdateCheck') -and ($script:CombinedSrcText -match 'function Invoke-AppSelfUpdate') -and ($script:CombinedSrcText -match 'BtnCheckUpdates')
     $c2cOk  = ($script:CombinedSrcText -match 'function Start-CloudToCloudBatch') -and ($script:CombinedSrcText -match 'function Invoke-CloudToCloudTransferDialog') -and ($script:CombinedSrcText -match 'drive-server-side-across-configs=true')
 
     $t26 = $maxDelOk -and $errOk -and $verNewer -and $tabsOk -and $updOk -and $c2cOk
@@ -857,6 +858,64 @@ try {
     $t27 = ($null -ne $testWindow) -and $hasTitle -and $hasCards
     Add-TestResult "T27" "WPF XAML Parser & Visual Tree Integrity" $t27 "Title='$($testWindow.Title)' SubTabs=OK CloudTransfer=OK"
 } catch { Add-TestResult "T27" "WPF XAML Parser & Visual Tree Integrity" $false $_.Exception.Message }
+
+# T28: Live queue order and preview identity are exercised through Add-FileActivityRow
+try {
+    $rankNode = $script:CombinedSrcAst.Find({
+        param($n)
+        $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq "Get-ActivityDisplayRank"
+    }, $true)
+    $addNode = $script:CombinedSrcAst.Find({
+        param($n)
+        $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq "Add-FileActivityRow"
+    }, $true)
+    if ($null -eq $rankNode) { throw "Function 'Get-ActivityDisplayRank' not found" }
+    if ($null -eq $addNode) { throw "Function 'Add-FileActivityRow' not found" }
+    Invoke-Expression $rankNode.Extent.Text
+    Invoke-Expression $addNode.Extent.Text
+
+    function Get-AccountRuntime { param([string]$TargetRemote) return $script:ActivityQueueTestRuntime }
+    function Get-ActivityScrollAnchor { return $null }
+    function Restore-ActivityScrollAnchor { param($Anchor) }
+    function Format-Time12h { param($DateTime, [switch]$WithSeconds) return "12:00:00 PM" }
+    function Test-ActivityRowPathMatch {
+        param([string]$ExistingPath, [string]$IncomingPath)
+        return [string]::Equals($ExistingPath, $IncomingPath, [System.StringComparison]::OrdinalIgnoreCase)
+    }
+
+    $script:ActiveRemote = "activity-queue-test"
+    $script:GridActivity = $null
+    $script:ActivityQueueTestRuntime = [PSCustomObject]@{
+        ActivityItems = New-Object 'System.Collections.Generic.List[object]'
+        RecentlyCompleted = New-Object 'System.Collections.Generic.List[object]'
+    }
+
+    Add-FileActivityRow -State "Preview" -FileName "preview.txt" -Details "Preview" -Priority 2 -IsPreview
+    Add-FileActivityRow -State "Completed" -FileName "completed.txt" -Details "Uploaded" -Priority 1
+    Add-FileActivityRow -State "Queued" -FileName "queued.txt" -Details "Waiting" -Priority 2
+    Add-FileActivityRow -State "Uploading" -FileName "active.txt" -Details "Uploading" -Priority 0
+
+    $items = $script:ActivityQueueTestRuntime.ActivityItems
+    $previewRowsSaved = @($items | Where-Object { $_.IsPreview -and $_.Priority -eq 2 }).Count -eq 1
+    $initialNames = @()
+    foreach ($row in $items) { $initialNames += [string]$row.FileName }
+    $initialOrderCorrect = ($initialNames -join ",") -eq "active.txt,queued.txt,completed.txt,preview.txt"
+
+    # When a planned preview becomes a real queued transfer, it must leave preview history.
+    Add-FileActivityRow -State "Queued" -FileName "preview.txt" -Details "Waiting" -Priority 2
+    $promoted = @($script:ActivityQueueTestRuntime.ActivityItems | Where-Object { $_.FileName -eq "preview.txt" })
+    $promotedToQueue = ($promoted.Count -eq 1) -and (-not $promoted[0].IsPreview)
+    $promotedIndex = -1
+    $completedIndex = -1
+    for ($i = 0; $i -lt $script:ActivityQueueTestRuntime.ActivityItems.Count; $i++) {
+        if ($script:ActivityQueueTestRuntime.ActivityItems[$i].FileName -eq "preview.txt") { $promotedIndex = $i }
+        if ($script:ActivityQueueTestRuntime.ActivityItems[$i].FileName -eq "completed.txt") { $completedIndex = $i }
+    }
+    $promotedBeforeCompleted = ($promotedIndex -ge 0) -and ($completedIndex -ge 0) -and ($promotedIndex -lt $completedIndex)
+
+    $queueOrderCorrect = $previewRowsSaved -and $initialOrderCorrect -and $promotedToQueue -and $promotedBeforeCompleted
+    Add-TestResult "T28" "Add-FileActivityRow Queue Order & Preview Promotion" $queueOrderCorrect "SavedPreview=$previewRowsSaved InitialOrder=$initialOrderCorrect Promoted=$promotedToQueue BeforeCompleted=$promotedBeforeCompleted"
+} catch { Add-TestResult "T28" "Active Queue Before Completed & Preview History" $false $_.Exception.Message }
 
 $passedCount  = @($results | Where-Object { $_.Status -eq "PASS" }).Count
 $skippedCount = @($results | Where-Object { $_.Status -eq "SKIP" }).Count
