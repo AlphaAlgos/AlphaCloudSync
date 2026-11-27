@@ -497,6 +497,7 @@ function Add-FileActivityRow {
         [string]$TargetRemote = $script:ActiveRemote,
         [int]$Priority = 1,
         [switch]$FromStats,
+        [switch]$IsPreview,
         [string]$BrushHex = "",
         [double]$ProgressPct = -1
     )
